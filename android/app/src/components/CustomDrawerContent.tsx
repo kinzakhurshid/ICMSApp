@@ -5,51 +5,107 @@ import {
   StyleSheet, 
   TouchableOpacity, 
   Image,
-  StatusBar 
+  StatusBar,
+  Alert 
 } from 'react-native';
-import { DrawerContentScrollView, DrawerItemList, DrawerContentComponentProps } from '@react-navigation/drawer';
-import { useSelector } from 'react-redux';
+import { DrawerContentScrollView, DrawerContentComponentProps } from '@react-navigation/drawer';
+import { useSelector, useDispatch } from 'react-redux';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import { RootState } from '../states/store';
+import { logout } from '../states/userSlice';
 
 const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
-  const user = useSelector((state: any) => state.user.user);
+  const dispatch = useDispatch();
+  const user = useSelector((state: RootState) => state.user);
+  const currentUser = useSelector((state: RootState) => state.user.currentUser);
   
-  // Custom drawer items that match the screenshot
+  // Use currentUser if available, otherwise fall back to user
+  const displayUser = currentUser || user;
+
+  // Updated drawer items to match the new navigation structure
   const drawerItems = [
     { 
       label: 'Dashboard', 
       icon: <MaterialIcons name="dashboard" size={22} color="#FF5722" />,
-      route: 'Dashboard'
-    },
-    { 
-      label: 'Tasks', 
-      icon: <MaterialIcons name="task" size={22} color="#FF5722" />,
-      route: 'Tasks'
-    },
-    { 
-      label: 'Inbox', 
-      icon: <MaterialIcons name="inbox" size={22} color="#FF5722" />,
-      route: 'Inbox'
+      route: 'MainTabs',
+      screen: 'HomeTab'
     },
     { 
       label: 'Projects', 
       icon: <MaterialIcons name="folder" size={22} color="#FF5722" />,
-      route: 'Projects'
+      route: 'MainTabs',
+      screen: 'ProjectsTab'
     },
     { 
-      label: 'Standsup', 
+      label: 'Tasks', 
+      icon: <MaterialIcons name="task" size={22} color="#FF5722" />,
+      route: 'MainTabs',
+      screen: 'TasksTab'
+    },
+    { 
+      label: 'Inbox', 
+      icon: <MaterialIcons name="inbox" size={22} color="#FF5722" />,
+      route: 'MainTabs',
+      screen: 'InboxTab'
+    },
+    { 
+      label: 'Sprint Board', 
       icon: <MaterialCommunityIcons name="presentation" size={22} color="#FF5722" />,
-      route: 'Standsup'
+      route: 'SprintBoard',
     },
     { 
       label: 'Meeting', 
       icon: <MaterialIcons name="video-call" size={22} color="#FF5722" />,
-      route: 'Meeting'
+      route: 'Meeting',
+    },
+    { 
+      label: 'Settings', 
+      icon: <Ionicons name="settings-outline" size={22} color="#FF5722" />,
+      route: 'AppSettings',
     },
   ];
+
+  const handleNavigation = (item: any) => {
+    try {
+      if (item.screen) {
+        // Navigate to a specific tab within MainTabs
+        props.navigation.navigate(item.route as any, { screen: item.screen });
+      } else {
+        // Navigate to a regular screen
+        props.navigation.navigate(item.route as any);
+      }
+    } catch (error) {
+      Alert.alert('Navigation Error', `Could not navigate to ${item.route}`);
+    }
+  };
+
+  const handleLogout = () => {
+    dispatch(logout());
+    props.navigation.reset({
+      index: 0,
+      routes: [{ name: 'Login' as never }],
+    });
+  };
+
+  // Helper function to check if a drawer item is active
+  const isItemActive = (item: any): boolean => {
+    const state = props.state;
+    
+    if (item.screen) {
+      // For tab navigation items
+      return state.routes.some(route => 
+        route.name === 'MainTabs' && 
+        route.state && 
+        route.state.routes[route.state.index || 0].name === item.screen
+      );
+    } else {
+      // For regular drawer items
+      return state.routes[state.index].name === item.route;
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -71,41 +127,45 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
         {/* User Profile Section */}
         {/* <View style={styles.userSection}>
           <Image
-            source={{ uri: user?.avatar || 'https://randomuser.me/api/portraits/men/1.jpg' }}
+            source={{ uri: displayUser?.avatar || 'https://randomuser.me/api/portraits/men/1.jpg' }}
             style={styles.userAvatar}
           />
           <View style={styles.userInfo}>
-            <Text style={styles.userName}>{user?.name || 'User'}</Text>
-            <Text style={styles.userRole}>{user?.role || 'Guest'}</Text>
+            <Text style={styles.userName}>{displayUser?.name || 'User'}</Text>
+            <Text style={styles.userRole}>{displayUser?.role || 'Guest'}</Text>
           </View>
-        </View> */}
-        
+        </View>
+         */}
         {/* Custom Drawer Items */}
         <View style={styles.menuSection}>
-          {drawerItems.map((item, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.menuItem,
-                props.state.index === index && styles.activeMenuItem
-              ]}
-              onPress={() => props.navigation.navigate(item.route)}
-            >
-              <View style={styles.menuIcon}>
-                {item.icon}
-              </View>
-              <Text style={[
-                styles.menuText,
-                props.state.index === index && styles.activeMenuText
-              ]}>
-                {item.label}
-              </Text>
-              
-              {props.state.index === index && (
-                <View style={styles.activeIndicator} />
-              )}
-            </TouchableOpacity>
-          ))}
+          {drawerItems.map((item, index) => {
+            const isActive = isItemActive(item);
+            
+            return (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.menuItem,
+                  isActive && styles.activeMenuItem
+                ]}
+                onPress={() => handleNavigation(item)}
+              >
+                <View style={styles.menuIcon}>
+                  {item.icon}
+                </View>
+                <Text style={[
+                  styles.menuText,
+                  isActive && styles.activeMenuText
+                ]}>
+                  {item.label}
+                </Text>
+                
+                {isActive && (
+                  <View style={styles.activeIndicator} />
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </DrawerContentScrollView>
       
@@ -113,12 +173,7 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
       <View style={styles.footer}>
         <TouchableOpacity 
           style={styles.logoutButton}
-          onPress={() => {
-            props.navigation.reset({
-              index: 0,
-              routes: [{ name: 'Login' as never }],
-            });
-          }}
+          onPress={handleLogout}
         >
           <Ionicons name="log-out-outline" size={20} color="#FF5722" />
           <Text style={styles.logoutText}>Logout</Text>

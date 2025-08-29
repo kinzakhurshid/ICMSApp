@@ -246,7 +246,7 @@ const ProjectOverview = ({ route }) => {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
-       <AppHeader navigation={navigation} />
+       {/* <AppHeader navigation={navigation} /> */}
       <View style={styles.header}>
         <Text style={styles.title}>Project Overview</Text>
         <Text style={styles.subText}>{project.name}</Text>

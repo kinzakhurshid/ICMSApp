@@ -16,12 +16,28 @@ import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import { PieChart } from "react-native-chart-kit";
 import { useNavigation } from "@react-navigation/native";
 import useAxios from "../hooks/useAxios";
-import AppHeader from "../components/AppHeader";
 
 const { width } = Dimensions.get("window");
 
 export type ProjectStatus = 'Not Started' | 'In Progress' | 'On Hold' | 'Completed' | 'Cancelled';
 export type ProjectPriority = 'Low' | 'Medium' | 'High' | 'Critical';
+
+export interface TeamMember {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  id: string;
+  // Add any other properties that might exist in the API response
+}
+
+export interface ProjectManager {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  id: string;
+}
 
 export interface Project {
   _id: string;
@@ -31,8 +47,8 @@ export interface Project {
   endDate?: string;
   client?: string;
   clientContact?: string;
-  projectManager: string; // User ID
-  teamMembers: string[]; // Array of User IDs
+  projectManager: ProjectManager;
+  teamMembers: any[]; // Use any[] to be more flexible with API changes
   status: ProjectStatus;
   priority: ProjectPriority;
   budget?: number;
@@ -44,16 +60,72 @@ export interface Project {
   task?: string;
   progress?: number;
   members?: string[];
+  fileUrl?: string;
+  organizationId?: string;
+  sprintId?: string[];
+  __v?: number;
 }
 
-// For form inputs that might not have all required fields
-export type ProjectInput = Omit<Project, '_id' | 'createdAt' | 'updatedAt'> & {
-  _id?: string;
+// Function to generate avatar URLs using randomuser.me
+const generateAvatarUrl = (index, size = 'medium') => {
+  const sizes = {
+    small: 'thumb',
+    medium: 'portrait',
+    large: 'large'
+  };
+  const gender = index % 2 === 0 ? 'men' : 'women';
+  const id = index % 100; // Ensure we have a valid ID between 0-99
+  return `https://randomuser.me/api/portraits/${gender}/${id}.jpg`;
 };
 
-// Function to generate avatar URLs
-const generateAvatarUrl = (seed: string, size = 40) => {
-  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&radius=22&size=${size}`;
+// Helper function to extract team members from API response
+const extractTeamMembers = (project: any): TeamMember[] => {
+  console.log("Extracting team members from:", project.teamMembers);
+  
+  if (!project.teamMembers || !Array.isArray(project.teamMembers)) {
+    return [];
+  }
+  
+  // Handle different possible formats
+  return project.teamMembers.map((member: any, index: number) => {
+    // Truncate very long names to prevent UI issues
+    const truncateName = (name: string, maxLength = 20) => {
+      if (!name) return 'User';
+      return name.length > maxLength ? name.substring(0, maxLength) + '...' : name;
+    };
+    
+    if (typeof member === 'string') {
+      // If team member is just a string ID
+      return {
+        _id: member,
+        firstName: 'User',
+        lastName: '',
+        fullName: 'User',
+        id: member
+      };
+    } else if (member && typeof member === 'object') {
+      // If team member is an object - handle long names
+      const firstName = truncateName(member.firstName || '');
+      const lastName = truncateName(member.lastName || '');
+      
+      return {
+        _id: member._id || member.id || `unknown-${index}`,
+        firstName: firstName || 'User',
+        lastName: lastName,
+        fullName: truncateName(member.fullName || `${firstName} ${lastName}`.trim() || 'User'),
+        id: member._id || member.id || `unknown-${index}`
+      };
+    }
+    
+    // Fallback for unexpected formats
+    return {
+      _id: `unknown-${index}`,
+      firstName: 'User',
+      lastName: '',
+      fullName: 'User',
+      id: `unknown-${index}`
+    };
+  });
 };
 
 const Dashboard = () => {
@@ -72,13 +144,20 @@ const Dashboard = () => {
           url: '/projects',
         });
         
-        console.log('API Response:', response);
+        console.log('Full API Response:', JSON.stringify(response, null, 2));
         
         if (Array.isArray(response)) {
-          setProjects(response);
+          // Process projects to ensure team members are properly formatted
+          const processedProjects = response.map(project => ({
+            ...project,
+            // Ensure teamMembers is always an array of proper objects
+            teamMembers: extractTeamMembers(project)
+          }));
+          
+          setProjects(processedProjects);
           
           // Get recent projects (last 5 created)
-          const sortedByDate = [...response].sort((a, b) => {
+          const sortedByDate = [...processedProjects].sort((a, b) => {
             const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
             const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
             return dateB - dateA;
@@ -126,7 +205,7 @@ const Dashboard = () => {
 
   // Function to handle project row click
   const handleProjectClick = (project: Project) => {
-    navigation.navigate('ProjectOverview', { project });
+    // navigation.navigate('ProjectOverview', { project });
   };
 
   if (isLoading) {
@@ -159,22 +238,6 @@ const Dashboard = () => {
 
   return (
     <ScrollView style={styles.container}>
-      {/* Header */}
-      {/* <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Image 
-            source={{ uri: generateAvatarUrl("mamoona", 40) }} 
-            style={styles.profilePic} 
-          />
-          <Text style={styles.greeting}>Hi, Mamoona</Text>
-        </View>
-        <View style={styles.headerIcons}>
-          <Ionicons name="chatbubble-outline" size={24} color="#333" style={{ marginRight: 15 }} />
-          <Ionicons name="notifications-outline" size={24} color="#333" />
-        </View>
-      </View> */}
-      <AppHeader navigation={navigation} />
-
       {/* Title */}
       <Text style={styles.title}>Projects</Text>
 
@@ -234,33 +297,56 @@ const Dashboard = () => {
         <Text style={styles.sectionTitle}>Recent Projects</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {recentProjects.length > 0 ? (
-            recentProjects.map((project) => (
-              <View key={project._id} style={styles.projectCard}>
-                <View style={styles.projectCardHeader}>
-                  <Text style={styles.projectName}>{project.name}</Text>
-                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(project.status) }]}>
-                    <Text style={styles.statusText}>{project.status}</Text>
+            recentProjects.map((project, projectIndex) => {
+              const teamMembersCount = project.teamMembers ? project.teamMembers.length : 0;
+              
+              return (
+                <View key={project._id} style={styles.projectCard}>
+                  <View style={styles.projectCardHeader}>
+                    <Text 
+                      style={styles.projectName}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {project.name}
+                    </Text>
+                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(project.status) }]}>
+                      <Text style={styles.statusText}>{project.status}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.progressBar}>
+                    <View style={[styles.progressFill, { 
+                      width: `${project.progress || (project.status === "Completed" ? 100 : project.status === "Not Started" ? 0 : 50)}%` 
+                    }]} />
+                  </View>
+                  <View style={styles.membersRow}>
+                    {teamMembersCount > 0 ? (
+                      <>
+                        {project.teamMembers.slice(0, 3).map((member, idx) => (
+                          <Image 
+                            key={member._id || idx} 
+                            source={{ uri: generateAvatarUrl((projectIndex * 3) + idx) }} 
+                            style={styles.memberPic} 
+                            onError={(e) => {
+                              e.nativeEvent.target && (e.nativeEvent.target.src = 'https://randomuser.me/api/portraits/women/44.jpg');
+                            }}
+                          />
+                        ))}
+                        {teamMembersCount > 3 && (
+                          <Text style={styles.moreMembers}>
+                            +{teamMembersCount - 3}
+                          </Text>
+                        )}
+                      </>
+                    ) : (
+                      <View style={styles.noMembersContainer}>
+                        <Text style={styles.noMembersText}>No team members</Text>
+                      </View>
+                    )}
                   </View>
                 </View>
-                <View style={styles.progressBar}>
-                  <View style={[styles.progressFill, { 
-                    width: `${project.progress || (project.status === "Completed" ? 100 : project.status === "Not Started" ? 0 : 50)}%` 
-                  }]} />
-                </View>
-                <View style={styles.membersRow}>
-                  {project.teamMembers && project.teamMembers.slice(0, 3).map((member, idx) => (
-                    <Image 
-                      key={idx} 
-                      source={{ uri: generateAvatarUrl(member, 36) }} 
-                      style={styles.memberPic} 
-                    />
-                  ))}
-                  <Text style={styles.moreMembers}>
-                    +{project.teamMembers ? Math.max(0, project.teamMembers.length - 3) : 0}
-                  </Text>
-                </View>
-              </View>
-            ))
+              );
+            })
           ) : (
             <View style={styles.noProjects}>
               <Text style={styles.noProjectsText}>No recent projects</Text>
@@ -287,40 +373,53 @@ const Dashboard = () => {
 
         {/* Table */}
         <View style={styles.tableHeader}>
-          <Text style={styles.tableHead}>No#</Text>
-          <Text style={styles.tableHead}>Project Name</Text>
-          <Text style={styles.tableHead}>Status</Text>
-          <Text style={styles.tableHead}>Priority</Text>
-          <Text style={styles.tableHead}>Team</Text>
+          <Text style={[styles.tableHead, {flex: 0.5}]}>No#</Text>
+          <Text style={[styles.tableHead, {flex: 1.5}]}>Project Name</Text>
+          <Text style={[styles.tableHead, {flex: 1}]}>Status</Text>
+          <Text style={[styles.tableHead, {flex: 1}]}>Priority</Text>
+          <Text style={[styles.tableHead, {flex: 1}]}>Team</Text>
         </View>
 
         {filteredProjects.length > 0 ? (
-          filteredProjects.map((p, index) => (
-            <TouchableOpacity 
-              key={p._id} 
-              style={styles.tableRow}
-              onPress={() => handleProjectClick(p)}
-            >
-              <Text style={styles.tableCell}>{index + 1}</Text>
-              <Text style={styles.tableCell} numberOfLines={1}>{p.name}</Text>
-              <View style={[styles.statusCell, { backgroundColor: getStatusColor(p.status) }]}>
-                <Text style={styles.statusText}>{p.status}</Text>
-              </View>
-              <Text style={styles.tableCell}>{p.priority}</Text>
-              <View style={styles.memberList}>
-                {p.teamMembers && p.teamMembers.slice(0, 3).map((member, idx) => (
-                  <Image 
-                    key={idx} 
-                    source={{ uri: generateAvatarUrl(member, 32) }} 
-                    style={styles.memberPic} 
-                  />
-                ))}
-                {p.teamMembers && p.teamMembers.length > 3 && (
-                  <Text style={styles.moreMembers}>+{p.teamMembers.length - 3}</Text>
-                )}
-              </View>
-            </TouchableOpacity>
-          ))
+          filteredProjects.map((p, index) => {
+            const teamMembersCount = p.teamMembers ? p.teamMembers.length : 0;
+            
+            return (
+              <TouchableOpacity 
+                key={p._id} 
+                style={styles.tableRow}
+                onPress={() => handleProjectClick(p)}
+              >
+                <Text style={[styles.tableCell, {flex: 0.5}]}>{index + 1}</Text>
+                <Text style={[styles.tableCell, {flex: 1.5}]} numberOfLines={1}>{p.name}</Text>
+                <View style={[styles.statusCell, { backgroundColor: getStatusColor(p.status), flex: 1 }]}>
+                  <Text style={styles.statusText}>{p.status}</Text>
+                </View>
+                <Text style={[styles.tableCell, {flex: 1}]}>{p.priority}</Text>
+                <View style={[styles.memberList, {flex: 1}]}>
+                  {teamMembersCount > 0 ? (
+                    <>
+                      {p.teamMembers.slice(0, 3).map((member, idx) => (
+                        <Image 
+                          key={member._id || idx} 
+                          source={{ uri: generateAvatarUrl((index * 3) + idx) }} 
+                          style={styles.memberPic} 
+                          onError={(e) => {
+                            e.nativeEvent.target && (e.nativeEvent.target.src = 'https://randomuser.me/api/portraits/women/44.jpg');
+                          }}
+                        />
+                      ))}
+                      {teamMembersCount > 3 && (
+                        <Text style={styles.moreMembers}>+{teamMembersCount - 3}</Text>
+                      )}
+                    </>
+                  ) : (
+                    <Text style={styles.noMembersTextSmall}>None</Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          })
         ) : (
           <View style={styles.noResults}>
             <Text style={styles.noResultsText}>
@@ -362,17 +461,6 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
   },
-  header: { 
-    flexDirection: "row", 
-    justifyContent: "space-between", 
-    alignItems: "center", 
-    padding: 15,
-    paddingTop: 30,
-  },
-  headerLeft: { flexDirection: "row", alignItems: "center" },
-  profilePic: { width: 40, height: 40, borderRadius: 20, marginRight: 10 },
-  greeting: { fontSize: 16, fontWeight: "600" },
-  headerIcons: { flexDirection: "row" },
   title: { 
     fontSize: 22, 
     fontWeight: "700", 
@@ -475,14 +563,21 @@ const styles = StyleSheet.create({
   projectCardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     marginBottom: 8,
   },
-  projectName: { fontWeight: "600", fontSize: 14 },
+  projectName: { 
+    fontWeight: "600", 
+    fontSize: 14, 
+    flex: 1, 
+    marginRight: 8,
+    maxWidth: '65%',
+  },
   statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
+    alignSelf: 'flex-start',
   },
   statusText: {
     color: "#fff",
@@ -502,7 +597,8 @@ const styles = StyleSheet.create({
   },
   membersRow: { 
     flexDirection: "row", 
-    alignItems: "center" 
+    alignItems: "center",
+    minHeight: 30,
   },
   memberPic: { 
     width: 28, 
@@ -517,6 +613,14 @@ const styles = StyleSheet.create({
     color: "#FF6B00", 
     fontWeight: "600",
     fontSize: 12,
+  },
+  noMembersContainer: {
+    paddingVertical: 5,
+  },
+  noMembersText: {
+    fontSize: 12,
+    color: "#999",
+    fontStyle: "italic",
   },
   myProjects: { 
     padding: 15,
@@ -555,7 +659,6 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   tableHead: { 
-    flex: 1, 
     fontWeight: "700", 
     fontSize: 12,
     textAlign: "center",
@@ -568,18 +671,15 @@ const styles = StyleSheet.create({
     borderBottomColor: "#eee" 
   },
   tableCell: { 
-    flex: 1, 
     fontSize: 12,
     textAlign: "center",
   },
   memberList: { 
     flexDirection: "row",
-    flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
   statusCell: {
-    flex: 1,
     paddingVertical: 4,
     borderRadius: 12,
     marginHorizontal: 4,
@@ -604,6 +704,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#666",
     textAlign: "center",
+  },
+  noMembersTextSmall: {
+    fontSize: 11,
+    color: "#999",
+    fontStyle: "italic",
   },
 });
 

@@ -29,8 +29,7 @@ export type RootStackParamList = {
   PM: undefined;
   QA: undefined;
   RoleWebView: {role: string}; 
-  App:undefined// Add this line for RoleWebView
-  // Add all your screens here
+  App:undefined;
 };
 type LoginScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -70,7 +69,6 @@ const LoginScreen: React.FC = () => {
     return isValid;
   };
 
- // In your handleLogin function in LoginScreen.tsx
 const handleLogin = async () => {
   if (!validateForm()) {
     return;
@@ -84,11 +82,17 @@ const handleLogin = async () => {
       data: {email, password},
     });
 
-    const user = response.user;
-    dispatch(loginSuccess(user));
+    // If token is part of user object
+    const user = response.user || response;
+    const token = user.token;
+    
+    // Remove token from user object to avoid duplication
+    const { token: userToken, ...userWithoutToken } = user;
+    
+    dispatch(loginSuccess({ user: userWithoutToken, token }));
 
     Alert.alert('Login Successful', `Welcome back, ${user.name}!`);
-    navigation.replace('App'); // Changed from 'RoleWebView' to 'App'
+    navigation.navigate('Home');
   } catch (error: any) {
     const errorMessage =
       error.response?.data?.message || error.message || 'Login failed';

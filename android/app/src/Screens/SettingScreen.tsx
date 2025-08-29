@@ -2,9 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
-import { RootParamList } from '../navigation/types';
+import { DrawerParamList } from '../navigation/types';
 
-type SettingsScreenNavigationProp = DrawerNavigationProp<RootParamList, 'Settings'>;
+type SettingsScreenNavigationProp = DrawerNavigationProp<DrawerParamList, 'AppSettings'>;
 
 interface SettingsScreenProps {
   navigation: SettingsScreenNavigationProp;
@@ -18,9 +18,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.toggleDrawer()}>
-          <Icon name="menu" size={28} color="#4a6fdc" />
-        </TouchableOpacity>
+        <View style={{ width: 28 }} />
         <Text style={styles.headerTitle}>Settings</Text>
         <View style={{ width: 28 }} />
       </View>
@@ -30,7 +28,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
         
         <TouchableOpacity style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Icon name="person" size={22} color="#4a6fdc" style={styles.settingIcon} />
+            <Icon name="person" size={22} color="#d9534f" style={styles.settingIcon} />
             <Text style={styles.settingText}>Account Information</Text>
           </View>
           <Icon name="chevron-right" size={22} color="#a0aec0" />
@@ -38,7 +36,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
 
         <TouchableOpacity style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Icon name="lock" size={22} color="#4a6fdc" style={styles.settingIcon} />
+            <Icon name="lock" size={22} color="#d9534f" style={styles.settingIcon} />
             <Text style={styles.settingText}>Change Password</Text>
           </View>
           <Icon name="chevron-right" size={22} color="#a0aec0" />
@@ -50,26 +48,26 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
         
         <View style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Icon name="notifications" size={22} color="#4a6fdc" style={styles.settingIcon} />
+            <Icon name="notifications" size={22} color="#d9534f" style={styles.settingIcon} />
             <Text style={styles.settingText}>Notifications</Text>
           </View>
           <Switch
             value={notificationsEnabled}
             onValueChange={setNotificationsEnabled}
-            trackColor={{ false: '#e2e8f0', true: '#4a6fdc' }}
+            trackColor={{ false: '#e2e8f0', true: '#d9534f' }}
             thumbColor="#ffffff"
           />
         </View>
 
         <View style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Icon name="dark-mode" size={22} color="#4a6fdc" style={styles.settingIcon} />
+            <Icon name="dark-mode" size={22} color="#d9534f" style={styles.settingIcon} />
             <Text style={styles.settingText}>Dark Mode</Text>
           </View>
           <Switch
             value={darkModeEnabled}
             onValueChange={setDarkModeEnabled}
-            trackColor={{ false: '#e2e8f0', true: '#4a6fdc' }}
+            trackColor={{ false: '#e2e8f0', true: '#d9534f' }}
             thumbColor="#ffffff"
           />
         </View>
@@ -80,7 +78,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
         
         <TouchableOpacity style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Icon name="help" size={22} color="#4a6fdc" style={styles.settingIcon} />
+            <Icon name="help" size={22} color="#d9534f" style={styles.settingIcon} />
             <Text style={styles.settingText}>Help Center</Text>
           </View>
           <Icon name="chevron-right" size={22} color="#a0aec0" />
@@ -88,7 +86,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
 
         <TouchableOpacity style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Icon name="info" size={22} color="#4a6fdc" style={styles.settingIcon} />
+            <Icon name="info" size={22} color="#d9534f" style={styles.settingIcon} />
             <Text style={styles.settingText}>About App</Text>
           </View>
           <Icon name="chevron-right" size={22} color="#a0aec0" />
@@ -133,7 +131,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#4a6fdc',
+    color: '#d9534f',
     marginBottom: 16,
     paddingBottom: 8,
     borderBottomWidth: 1,

@@ -1,3 +1,4 @@
+// components/AppHeader.tsx
 import React from 'react';
 import {
   View,
@@ -5,29 +6,59 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
+  Alert,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useSelector } from "react-redux";
 import { RootState } from "../states/store";
+import { DrawerNavigationProp } from '@react-navigation/drawer';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
+// Define navigation types
+type NavigationProp = DrawerNavigationProp<any> | NativeStackNavigationProp<any>;
 
 interface AppHeaderProps {
-  navigation: any;
+  navigation: NavigationProp;
   title?: string;
   showBackButton?: boolean;
   onBackPress?: () => void;
 }
 
-const AppHeader = ({ navigation, title, showBackButton = false, onBackPress }: AppHeaderProps) => {
+const AppHeader: React.FC<AppHeaderProps> = ({ 
+  navigation, 
+  title, 
+  showBackButton = false, 
+  onBackPress 
+}) => {
   const { currentUser } = useSelector((state: RootState) => state.user);
+  
+  // Show alerts with user data (convert objects to strings)
+  // Alert.alert('Current User Object', JSON.stringify(currentUser, null, 2));
+
+  // Prefer currentUser, fall back to user if currentUser is not available
+  const displayUser = currentUser ;
 
   const handleMenuPress = () => {
-    navigation.toggleDrawer();
+    // Check if toggleDrawer function exists (from drawer navigation)
+    if ('toggleDrawer' in navigation && typeof navigation.toggleDrawer === 'function') {
+      navigation.toggleDrawer();
+    } 
+    // Check if openDrawer function exists
+    else if ('openDrawer' in navigation && typeof navigation.openDrawer === 'function') {
+      navigation.openDrawer();
+    }
+    // Fallback: either go back or show a message
+    else if ('canGoBack' in navigation && navigation.canGoBack && navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      Alert.alert('Info', 'Menu not available on this screen');
+    }
   };
 
   const handleBackPress = () => {
     if (onBackPress) {
       onBackPress();
-    } else {
+    } else if ('canGoBack' in navigation && navigation.canGoBack && navigation.canGoBack()) {
       navigation.goBack();
     }
   };
@@ -55,11 +86,11 @@ const AppHeader = ({ navigation, title, showBackButton = false, onBackPress }: A
           ) : (
             <>
               <Image
-                source={{ uri: currentUser?.avatar ?? 'https://randomuser.me/api/portraits/women/44.jpg' }}
+                source={{ uri: displayUser?.avatar ?? 'https://randomuser.me/api/portraits/women/44.jpg' }}
                 style={styles.avatar}
               />
-              <View>
-                <Text style={styles.greeting}>Hi, {currentUser?.name || 'User'}</Text>
+              <View style={styles.userInfo}>
+                <Text style={styles.greeting}>Hi, {displayUser?.name || 'User'}</Text>
                 <Text style={styles.greetingSubtext}>Welcome back</Text>
               </View>
             </>
@@ -68,9 +99,9 @@ const AppHeader = ({ navigation, title, showBackButton = false, onBackPress }: A
 
         {/* Right side - Icons */}
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.iconButton}>
+          {/* <TouchableOpacity style={styles.iconButton}>
             <Ionicons name="chatbubble-ellipses-outline" size={22} color="#FF5722" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
           <TouchableOpacity style={[styles.iconButton, { marginLeft: 12 }]}>
             <Ionicons name="notifications-outline" size={22} color="#FF5722" />
             <View style={styles.notificationBadge} />
@@ -125,7 +156,10 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    // marginRight: 6,
+    marginRight: 10,
+  },
+  userInfo: {
+    flexDirection: 'column',
   },
   greeting: {
     fontSize: 16,

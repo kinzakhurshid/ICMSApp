@@ -1,25 +1,42 @@
-import { NavigatorScreenParams } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { DrawerNavigationProp } from '@react-navigation/drawer';
-
+// navigation/types.ts
 export type RootStackParamList = {
-  Login: undefined;
-  Signup: undefined;
-  App: NavigatorScreenParams<DrawerParamList>;
-  RoleWebView: { role: string };
+  DrawerNavigator: undefined;
+  // Add other root-level screens if needed
 };
 
 export type DrawerParamList = {
-  Home: undefined;
-  Profile: undefined;
-  Settings: undefined;
-  DeveloperTools?: undefined;
-  // Add other drawer screens here
+  MainTabs: undefined;
+  SprintBoard: undefined;
+  Meeting: undefined;
+  AppSettings: undefined;
+  DeveloperTools: undefined;
 };
 
-// Combine all param lists for type checking
-export type RootParamList = RootStackParamList & DrawerParamList;
+export type TabParamList = {
+  HomeTab: undefined;
+  ProjectsTab: undefined;
+  TasksTab: undefined;
+  InboxTab: undefined;
+  ProfileTab: undefined;
+};
 
-// Navigation props
-export type RootStackNavigationProp = NativeStackNavigationProp<RootStackParamList>;
-export type DrawerNavigationProps = DrawerNavigationProp<DrawerParamList>;
+export type HomeStackParamList = {
+  HomeMain: undefined;
+  RoleWebView: { role: string };
+};
+
+export type ProjectStackParamList = {
+  ProjectList: undefined;
+  ProjectDetail: { projectId: string };
+  CreateProject: undefined;
+};
+
+export type TaskStackParamList = {
+  TaskList: undefined;
+};
+
+// Combine all param lists for useNavigation hook
+export type AppNavigationProp = {
+  navigate: (screen: keyof RootStackParamList | keyof DrawerParamList | keyof TabParamList) => void;
+  // Add more navigation methods as needed
+};

@@ -1,15 +1,8 @@
 // hooks/useAxios.ts
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { RootState } from "../states/store";
-import {
-  apiRequestStart,
-  apiRequestSuccess,
-  apiRequestFailure,
-  setAuthToken,
-  clearAuthToken,
-} from "../states/apiSlice";
 
 const API_BASE_URL = "http://89.116.32.31:5001/api";
 
@@ -18,6 +11,7 @@ const axiosInstance = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: true,
 });
 
 interface ApiRequest {
@@ -33,68 +27,56 @@ interface ApiRequest {
 interface UseAxiosReturn {
   callApi: (request: ApiRequest) => Promise<any>;
   loading: boolean;
-  error: string | null;
+  error: any;
+  response: any;
 }
 
 const useAxios = (): UseAxiosReturn => {
-  const dispatch = useDispatch();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const token = useSelector((state: RootState) => state.api.token);
-  const currentUser = useSelector((state: RootState) => state.user.currentUser);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<any>(null);
+  const [response, setResponse] = useState<any>(null);
+  const { currentUser,token } = useSelector((state: RootState) => state.user);
 
-  const callApi = useCallback(
-    async ({
-      method,
-      url,
-      data,
-      params,
-      headers = {},
-      responseType,
-      includeAuth = true,
-    }: ApiRequest): Promise<any> => {
-      dispatch(apiRequestStart());
-      setLoading(true);
-      setError(null);
+  const callApi = async ({
+    method,
+    url,
+    data,
+    params,
+    headers = {},
+    responseType,
+    includeAuth = true,
+  }: ApiRequest): Promise<any> => {
+    setLoading(true);
+    setError(null);
+    setResponse(null);
 
-      try {
-        const authToken = token || currentUser?.token;
-
-        if (authToken && includeAuth) {
-          headers.Authorization = `Bearer ${authToken}`;
-        }
-
-        const res: AxiosResponse = await axiosInstance({
-          method,
-          url,
-          data,
-          params,
-          headers,
-          responseType,
-        });
-
-        dispatch(apiRequestSuccess(res.data));
-        return res.data;
-      } catch (err: any) {
-        const errorData = err.response?.data || err.message;
-        const errorMessage = typeof errorData === 'string' ? errorData : JSON.stringify(errorData);
-        
-        dispatch(apiRequestFailure(errorMessage));
-        setError(errorMessage);
-        
-        if (err.response?.status === 401) {
-          dispatch(clearAuthToken());
-        }
-
-        throw errorData;
-      } finally {
-        setLoading(false);
+    try {
+      if (token && includeAuth) {
+        console.log(token)
+        headers.Authorization = `Bearer ${token}`;
       }
-    },
-    [dispatch, token, currentUser?.token]
-  );
 
-  return { callApi, loading, error };
+      const res: AxiosResponse = await axiosInstance({
+        method,
+        url,
+        data,
+        params,
+        headers,
+        responseType,
+      });
+
+      setResponse(res.data);
+      return res.data;
+    } catch (err: any) {
+      const errorData = err.response?.data || err.message;
+      setError(errorData);
+      throw errorData;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { callApi, loading, error, response };
 };
 
 export default useAxios;

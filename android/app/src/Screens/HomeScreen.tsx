@@ -8,27 +8,17 @@ import {
   TouchableOpacity,
   TextInput,
   Dimensions,
-  ActivityIndicator
+  ActivityIndicator,
+  Alert,
+  Modal
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
-import { BarChart } from 'react-native-chart-kit';
-import useAxios from '../hooks/useAxios';
 import { useSelector } from "react-redux";
 import { RootState } from "../states/store";
 import dayjs from 'dayjs';
-import AppHeader from '../components/AppHeader';
-
-type Mode = "day" | "week" | "month" | "year";
-
-interface GraphStatsResponse {
-  projects: {
-    startDate: string;
-    endDate: string;
-    // other project fields if needed
-  }[];
-}
+import useAxios from '../hooks/useAxios';
 
 interface DashboardStatsResponse {
   totalProjects: number;
@@ -68,12 +58,6 @@ interface Task {
   updatedAt: string;
 }
 
-interface User {
-  name: string;
-  organization: string;
-  avatar?: string;
-}
-
 interface CardData {
   id: number;
   label: string;
@@ -88,41 +72,41 @@ interface Pagination {
   total: number;
 }
 
+type TimeFilter = 'today' | 'week' | 'month' | 'year' | 'all' | 'custom';
+
 const DashboardUI = ({ navigation }: { navigation: any }) => {
   const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
   const { callApi } = useAxios();
   const [loading, setLoading] = useState({
     cards: true,
-    graph: true,
     tasks: true
   });
   const [dashbStats, setDashStats] = useState<DashboardStatsResponse>();
-  const [graphStats, setGraphStats] = useState<GraphStatsResponse>();
-  const { currentUser } = useSelector((state: RootState) => state.user);
+  const { currentUser, token } = useSelector((state: RootState) => state.user);
   const [searchQuery, setSearchQuery] = useState('');
-  const [mode, setMode] = useState<Mode>('week');
-  const [referenceDate, setReferenceDate] = useState(dayjs());
   const [tasks, setTasks] = useState<Task[]>([]);
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
     limit: 10,
     total: 0
   });
+  const [showDateFilter, setShowDateFilter] = useState(false);
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('month');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
 
   useEffect(() => {
     fetchDashboardStats();
-    fetchGraphStats();
     fetchTasks();
-  }, [mode, referenceDate]);
+  }, []);
 
   useEffect(() => {
-    // Debounce search to avoid too many API calls
     const timeoutId = setTimeout(() => {
       fetchTasks();
     }, 500);
     
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, activeTab]);
+  }, [searchQuery, activeTab, timeFilter, customStartDate, customEndDate]);
 
   const fetchDashboardStats = async () => {
     try {
@@ -140,46 +124,60 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
     }
   };
 
-  const fetchGraphStats = async () => {
-    try {
-      setLoading(prev => ({ ...prev, graph: true }));
-      const response = await callApi({
-        method: "GET",
-        url: `/projects/stats`,
-        params: {
-          mode,
-          referenceDate: referenceDate.format("YYYY-MM-DD"),
-          organizationId: currentUser?.organization
-        }
-      });
-      console.log('Graph Stats Response:', response);
-      setGraphStats(response);
-    } catch (error) {
-      console.error("Error fetching graph stats:", error);
-    } finally {
-      setLoading(prev => ({ ...prev, graph: false }));
-    }
-  };
-
   const getDateRange = () => {
+    if (timeFilter === 'all') {
+      return {
+        timePeriod: 'custom',
+        startDate: new Date(0).toISOString(),
+        endDate: new Date().toISOString(),
+      };
+    }
+
+    if (timeFilter === 'custom') {
+      if (!customStartDate || !customEndDate) {
+        return {
+          timePeriod: 'custom',
+          startDate: new Date(0).toISOString(),
+          endDate: new Date().toISOString(),
+        };
+      }
+      return {
+        timePeriod: 'custom',
+        startDate: new Date(customStartDate).toISOString(),
+        endDate: new Date(customEndDate).toISOString(),
+      };
+    }
+
     const now = dayjs();
     let startDate, endDate;
     
-    if (mode === 'day') {
-      startDate = referenceDate.startOf('day').format('YYYY-MM-DD');
-      endDate = referenceDate.endOf('day').format('YYYY-MM-DD');
-    } else if (mode === 'week') {
-      startDate = referenceDate.startOf('week').format('YYYY-MM-DD');
-      endDate = referenceDate.endOf('week').format('YYYY-MM-DD');
-    } else if (mode === 'month') {
-      startDate = referenceDate.startOf('month').format('YYYY-MM-DD');
-      endDate = referenceDate.endOf('month').format('YYYY-MM-DD');
-    } else {
-      startDate = referenceDate.startOf('year').format('YYYY-MM-DD');
-      endDate = referenceDate.endOf('year').format('YYYY-MM-DD');
+    switch(timeFilter) {
+      case 'today':
+        startDate = now.startOf('day').toISOString();
+        endDate = now.endOf('day').toISOString();
+        break;
+      case 'week':
+        startDate = now.startOf('week').toISOString();
+        endDate = now.endOf('week').toISOString();
+        break;
+      case 'month':
+        startDate = now.startOf('month').toISOString();
+        endDate = now.endOf('month').toISOString();
+        break;
+      case 'year':
+        startDate = now.startOf('year').toISOString();
+        endDate = now.endOf('year').toISOString();
+        break;
+      default:
+        startDate = now.startOf('month').toISOString();
+        endDate = now.endOf('month').toISOString();
     }
     
-    return { startDate, endDate };
+    return {
+      timePeriod: 'custom',
+      startDate,
+      endDate
+    };
   };
 
   const fetchTasks = async () => {
@@ -199,18 +197,20 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
         ...dateRange
       };
 
+      console.log('API Request Params:', params);
+
       const response = await callApi({
         method: 'GET',
         url: '/task/getAll',
-        params
+        params, 
       });
 
       if (response?.success) {
         setTasks(response.data.tasks || []);
         setPagination({
-          page: response.data.pagination.page,
-          limit: response.data.pagination.limit,
-          total: response.data.pagination.total
+          page: response.data.pagination?.page || 1,
+          limit: response.data.pagination?.limit || 10,
+          total: response.data.pagination?.total || 0
         });
       }
     } catch (err) {
@@ -220,96 +220,34 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
     }
   };
 
-  const handlePrev = () => setReferenceDate(prev => prev.subtract(1, mode));
-  const handleNext = () => setReferenceDate(prev => prev.add(1, mode));
+  const handleTimeFilterChange = (filter: TimeFilter) => {
+    setTimeFilter(filter);
+    setShowDateFilter(false);
+  };
 
-  // Generate optimized labels based on mode
-  const generateLabels = () => {
-    if (mode === "week") {
-      return Array.from({ length: 7 }, (_, i) =>
-        referenceDate.startOf("week").add(i, "day").format("ddd")
-      );
-    } else if (mode === "month") {
-      // For month, show only every 5th day to avoid clutter
-      const daysInMonth = referenceDate.daysInMonth();
-      const labels = [];
-      for (let i = 1; i <= daysInMonth; i += 5) {
-        labels.push(`${i}`);
-        // Add the last day if it's not included
-        if (i + 5 > daysInMonth && i !== daysInMonth) {
-          labels.push(`${daysInMonth}`);
-        }
-      }
-      return labels;
-    } else if (mode === "year") {
-      return Array.from({ length: 12 }, (_, i) => dayjs().month(i).format("MMM"));
-    } else {
-      return [referenceDate.format("DD MMM")];
+  const getTimeFilterLabel = () => {
+    switch (timeFilter) {
+      case 'today': return 'Today';
+      case 'week': return 'This Week';
+      case 'month': return 'This Month';
+      case 'year': return 'This Year';
+      case 'all': return 'All Time';
+      case 'custom': return 'Custom Range';
+      default: return 'This Month';
     }
   };
 
-  // Calculate started and ended counts for the chart with optimized labels
-  const calculateChartData = () => {
-    const labels = generateLabels();
-    const projects = graphStats?.projects || [];
-
-    const startedCounts = labels.map(label => {
-      if (mode === "month") {
-        // For month, count projects started within the 5-day range
-        const day = parseInt(label);
-        const nextDay = day + (labels.includes(`${day + 5}`) ? 5 : (referenceDate.daysInMonth() - day + 1));
-        const count = projects.filter(p => {
-          const startDay = dayjs(p.startDate).date();
-          return startDay >= day && startDay < nextDay;
-        }).length;
-        return count;
-      } else {
-        const count = projects.filter(p =>
-          dayjs(p.startDate).format(
-            mode === "year"
-              ? "MMM"
-              : mode === "week"
-                ? "ddd"
-                : "DD MMM"
-          ) === label
-        ).length;
-        return count;
-      }
-    });
-
-    const endedCounts = labels.map(label => {
-      if (mode === "month") {
-        // For month, count projects ended within the 5-day range
-        const day = parseInt(label);
-        const nextDay = day + (labels.includes(`${day + 5}`) ? 5 : (referenceDate.daysInMonth() - day + 1));
-        const count = projects.filter(p => {
-          const endDay = dayjs(p.endDate).date();
-          return endDay >= day && endDay < nextDay;
-        }).length;
-        return count;
-      } else {
-        const count = projects.filter(p =>
-          dayjs(p.endDate).format(
-            mode === "year"
-              ? "MMM"
-              : mode === "week"
-                ? "ddd"
-                : "DD MMM"
-          ) === label
-        ).length;
-        return count;
-      }
-    });
-
-    return {
-      labels,
-      startedCounts,
-      endedCounts
-    };
+  const applyCustomDateRange = () => {
+    if (customStartDate && customEndDate) {
+      setShowDateFilter(false);
+      fetchTasks();
+    } else {
+      Alert.alert('Error', 'Please select both start and end dates');
+    }
   };
 
   // Cards data
-  const cards: CardData[] = [
+const cards: CardData[] = [
     {
       id: 1,
       label: "Total Projects",
@@ -328,14 +266,14 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
       id: 3,
       label: "High Priority Projects",
       value: dashbStats?.highPriorityProjects || 0,
-      icon: <MaterialIcons name="priority-high" size={24} color="#F44336" />,
+      icon: <MaterialIcons name="assignment" size={24} color="#F44336" />,
       bgColor: '#FFEBEE',
     },
     {
       id: 4,
       label: "High Priority Tasks",
       value: dashbStats?.highPriorityTasks || 0,
-      icon: <FontAwesome name="exclamation-circle" size={24} color="#4CAF50" />,
+      icon: <MaterialIcons name="description" size={24} color="#4CAF50" />,
       bgColor: '#E8F5E9',
     },
     {
@@ -347,33 +285,7 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
     },
   ];
 
-  // Chart data
-  const { labels, startedCounts, endedCounts } = calculateChartData();
-  const chartData = {
-    labels,
-    datasets: [
-      {
-        data: startedCounts,
-        colors: Array(labels.length).fill(
-          (opacity = 1) => `rgba(59, 130, 246, ${opacity})` // blue
-        )
-      },
-      {
-        data: endedCounts,
-        colors: labels.map((_, i) =>
-          i % 2 === 0
-            ? ((opacity = 1) => `rgba(239, 68, 68, ${opacity}`) // 🔴 red
-            : ((opacity = 1) => `rgba(249, 115, 22, ${opacity})`) // 🟠 orange
-        )
-      }
-    ]
-  };
 
-  // Calculate max value for Y axis
-  const maxValue = Math.max(...startedCounts, ...endedCounts);
-  const yAxisMax = Math.ceil((maxValue + 1) / 5) * 5;
-
-  // Filtered tasks helper
   const filteredTasks = (tasks: Task[] = []) => {
     return tasks.filter(task => {
       const project = task.projectId?.name || '';
@@ -402,7 +314,7 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
     scrollRef.current?.scrollTo({ x: newPosition, animated: true });
   };
 
-  if (loading.cards || loading.graph) {
+  if (loading.cards) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#FF5722" />
@@ -412,8 +324,6 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <AppHeader navigation={navigation} />
-
       {/* Cards */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Overview</Text>
@@ -477,13 +387,13 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
       {/* Tasks */}
       <View style={styles.taskSection}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Monthly Tasks</Text>
+          <Text style={styles.sectionTitle}>Tasks</Text>
           <TouchableOpacity>
             <Text style={styles.sectionActionText}>View All</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Search */}
+        {/* Search and Filter */}
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
           <TextInput
@@ -493,9 +403,99 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
-          <TouchableOpacity style={styles.filterButton}>
+          <TouchableOpacity 
+            style={styles.filterButton}
+            onPress={() => setShowDateFilter(true)}
+          >
             <Ionicons name="filter-outline" size={20} color="#333" />
           </TouchableOpacity>
+        </View>
+
+        {/* Date Filter Modal */}
+        <Modal
+          visible={showDateFilter}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowDateFilter(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Select Date Range</Text>
+              
+              {/* Quick Filter Buttons */}
+              <View style={styles.quickFilterContainer}>
+                {(['today', 'week', 'month', 'year', 'all'] as TimeFilter[]).map((filter) => (
+                  <TouchableOpacity
+                    key={filter}
+                    style={[
+                      styles.quickFilterButton,
+                      timeFilter === filter && styles.quickFilterButtonActive
+                    ]}
+                    onPress={() => handleTimeFilterChange(filter)}
+                  >
+                    <Text style={[
+                      styles.quickFilterText,
+                      timeFilter === filter && styles.quickFilterTextActive
+                    ]}>
+                      {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Custom Date Range */}
+              <Text style={styles.customRangeTitle}>Custom Range:</Text>
+              <View style={styles.customDateContainer}>
+                <View style={styles.dateInputContainer}>
+                  <Text style={styles.dateLabel}>Start Date</Text>
+                  <TextInput
+                    style={styles.dateInput}
+                    placeholder="YYYY-MM-DD"
+                    value={customStartDate}
+                    onChangeText={setCustomStartDate}
+                    onFocus={() => setTimeFilter('custom')}
+                  />
+                </View>
+                <View style={styles.dateInputContainer}>
+                  <Text style={styles.dateLabel}>End Date</Text>
+                  <TextInput
+                    style={styles.dateInput}
+                    placeholder="YYYY-MM-DD"
+                    value={customEndDate}
+                    onChangeText={setCustomEndDate}
+                    onFocus={() => setTimeFilter('custom')}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={() => setShowDateFilter(false)}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.applyButton]}
+                  onPress={applyCustomDateRange}
+                >
+                  <Text style={styles.applyButtonText}>Apply</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Current Filter Display */}
+        <View style={styles.currentFilterContainer}>
+          <Text style={styles.currentFilterText}>
+            Showing: {getTimeFilterLabel()}
+          </Text>
+          {(timeFilter === 'custom' && customStartDate && customEndDate) && (
+            <Text style={styles.customDateText}>
+              {dayjs(customStartDate).format('MMM D, YYYY')} - {dayjs(customEndDate).format('MMM D, YYYY')}
+            </Text>
+          )}
         </View>
 
         {/* Tabs */}
@@ -526,63 +526,83 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
         ) : (
           <>
             {/* Table */}
-            <View style={styles.table}>
-              {/* Header */}
-              <View style={styles.tableHeader}>
-                <Text style={[styles.headerText, { flex: 0.6 }]}>#</Text>
-                <Text style={[styles.headerText, { flex: 2 }]}>Project</Text>
-                <Text style={[styles.headerText, { flex: 2 }]}>Task</Text>
-                <Text style={[styles.headerText, { flex: 1.5 }]}>Assignee</Text>
-                <Text style={[styles.headerText, { flex: 1 }]}>Status</Text>
-              </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableScrollView}>
+              <View style={styles.table}>
+                {/* Header */}
+                <View style={styles.tableHeader}>
+                  <View style={[styles.headerCell, styles.indexCell]}>
+                    <Text style={styles.headerText}>#</Text>
+                  </View>
+                  <View style={[styles.headerCell, styles.projectCell]}>
+                    <Text style={styles.headerText}>Project</Text>
+                  </View>
+                  <View style={[styles.headerCell, styles.taskCell]}>
+                    <Text style={styles.headerText}>Task</Text>
+                  </View>
+                  <View style={[styles.headerCell, styles.assigneeCell]}>
+                    <Text style={styles.headerText}>Assignee</Text>
+                  </View>
+                  <View style={[styles.headerCell, styles.statusCell]}>
+                    <Text style={styles.headerText}>Status</Text>
+                  </View>
+                </View>
 
-              {/* Rows */}
-              {filteredTasks(tasks).map((item, index) => {
-                const assignee = item.assignedTo?.[0];
-                const assigneeName = assignee ? `${assignee.firstName} ${assignee.lastName}` : 'Unassigned';
-                
-                return (
-                  <View key={item._id} style={styles.tableRow}>
-                    <Text style={[styles.rowText, { flex: 0.6 }]}>{index + 1}</Text>
-                    <Text style={[styles.rowText, { flex: 2 }]} numberOfLines={1}>{item.projectId?.name || 'No Project'}</Text>
-                    <Text style={[styles.rowText, { flex: 2 }]} numberOfLines={1}>{item.title}</Text>
-                    <View style={[styles.assigneeContainer, { flex: 1.5 }]}>
-                      {assignee?.profileImage ? (
-                        <Image
-                          source={{ uri: assignee.profileImage }}
-                          style={styles.assigneeAvatar}
-                        />
-                      ) : (
-                        <View style={[styles.assigneeAvatar, styles.placeholderAvatar]}>
-                          <Text style={styles.placeholderText}>
-                            {assigneeName.charAt(0).toUpperCase()}
+                {/* Rows */}
+                {filteredTasks(tasks).map((item, index) => {
+                  const assignee = item.assignedTo?.[0];
+                  const assigneeName = assignee ? `${assignee.firstName} ${assignee.lastName}` : 'Unassigned';
+                  
+                  return (
+                    <View key={item._id} style={styles.tableRow}>
+                      <View style={[styles.rowCell, styles.indexCell]}>
+                        <Text style={styles.rowText}>{index + 1}</Text>
+                      </View>
+                      <View style={[styles.rowCell, styles.projectCell]}>
+                        <Text style={styles.rowText} numberOfLines={1}>{item.projectId?.name || 'No Project'}</Text>
+                      </View>
+                      <View style={[styles.rowCell, styles.taskCell]}>
+                        <Text style={styles.rowText} numberOfLines={1}>{item.title}</Text>
+                      </View>
+                      <View style={[styles.rowCell, styles.assigneeCell]}>
+                        <View style={styles.assigneeContainer}>
+                          {assignee?.profileImage ? (
+                            <Image
+                              source={{ uri: assignee.profileImage }}
+                              style={styles.assigneeAvatar}
+                            />
+                          ) : (
+                            <View style={[styles.assigneeAvatar, styles.placeholderAvatar]}>
+                              <Text style={styles.placeholderText}>
+                                {assigneeName.charAt(0).toUpperCase()}
+                              </Text>
+                            </View>
+                          )}
+                          <Text style={styles.assigneeName} numberOfLines={1}>{assigneeName}</Text>
+                        </View>
+                      </View>
+                      <View style={[styles.rowCell, styles.statusCell]}>
+                        <View style={[
+                          styles.statusBadge,
+                          item.status === 'completed' ? styles.completedBadge : 
+                          item.status === 'inProgress' ? styles.inProgressBadge : styles.todoBadge
+                        ]}>
+                          <Text style={styles.statusText}>
+                            {item.status === 'completed' ? 'Done' : 
+                              item.status === 'inProgress' ? 'In Progress' : 'To Do'}
                           </Text>
                         </View>
-                      )}
-                      <Text style={styles.assigneeName} numberOfLines={1}>{assigneeName}</Text>
-                    </View>
-                    <View style={[styles.statusContainer, { flex: 1 }]}>
-                      <View style={[
-                        styles.statusBadge,
-                        item.status === 'completed' ? styles.completedBadge : 
-                        item.status === 'inProgress' ? styles.inProgressBadge : styles.todoBadge
-                      ]}>
-                        <Text style={styles.statusText}>
-                          {item.status === 'completed' ? 'Done' : 
-                           item.status === 'inProgress' ? 'In Progress' : 'To Do'}
-                        </Text>
                       </View>
                     </View>
-                  </View>
-                );
-              })}
+                  );
+                })}
 
-              {filteredTasks(tasks).length === 0 && (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>No tasks found</Text>
-                </View>
-              )}
-            </View>
+                {filteredTasks(tasks).length === 0 && (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateText}>No tasks found</Text>
+                  </View>
+                )}
+              </View>
+            </ScrollView>
 
             {/* Pagination Controls */}
             {pagination.total > pagination.limit && (
@@ -626,7 +646,7 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9F9F9' },
+container: { flex: 1, backgroundColor: '#F9F9F9' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9F9F9' },
   sectionTitle: { fontSize: 18, fontWeight: '700', color: '#333' }, 
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 15, marginTop: 15 },
@@ -649,13 +669,83 @@ const styles = StyleSheet.create({
   activeTab: { backgroundColor: '#FF5722' },
   tabText: { fontSize: 14, color: '#666' },
   activeTabText: { fontSize: 14, color: '#FFF', fontWeight: '600' },
-  table: { backgroundColor: '#FFF', borderRadius: 12, marginHorizontal: 20, padding: 15, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2, minHeight: 200 },
-  tableHeader: { flexDirection: 'row', paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#EEE', marginBottom: 10 },
-  headerText: { fontSize: 13, fontWeight: '600', color: '#666', textTransform: 'uppercase' },
-  tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
-  rowText: { fontSize: 14, color: '#333', paddingRight: 5 },
-  assigneeContainer: { flexDirection: 'row', alignItems: 'center' },
-  assigneeAvatar: { width: 28, height: 28, borderRadius: 14, marginRight: 8 },
+  tableScrollView: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    marginHorizontal: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    minHeight: 200,
+    maxHeight: 400,
+  },
+  table: {
+    minWidth: Dimensions.get('window').width - 40,
+  },
+  tableHeader: { 
+    flexDirection: 'row', 
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1, 
+    borderBottomColor: '#EEE',
+    backgroundColor: '#F9F9F9',
+  },
+  headerCell: {
+    paddingHorizontal: 5,
+    justifyContent: 'center',
+  },
+  indexCell: {
+    width: 40,
+    alignItems: 'center',
+  },
+  projectCell: {
+    width: 120,
+  },
+  taskCell: {
+    width: 150,
+  },
+  assigneeCell: {
+    width: 120,
+  },
+  statusCell: {
+    width: 100,
+    alignItems: 'center',
+  },
+  headerText: { 
+    fontSize: 13, 
+    fontWeight: '600', 
+    color: '#666', 
+    textTransform: 'uppercase' 
+  },
+  tableRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1, 
+    borderBottomColor: '#F5F5F5',
+    minHeight: 50,
+  },
+  rowCell: {
+    paddingHorizontal: 5,
+    justifyContent: 'center',
+  },
+  rowText: { 
+    fontSize: 14, 
+    color: '#333',
+  },
+  assigneeContainer: { 
+    flexDirection: 'row', 
+    alignItems: 'center',
+  },
+  assigneeAvatar: { 
+    width: 28, 
+    height: 28, 
+    borderRadius: 14, 
+    marginRight: 8 
+  },
   placeholderAvatar: { 
     backgroundColor: '#E0E0E0', 
     justifyContent: 'center', 
@@ -666,23 +756,40 @@ const styles = StyleSheet.create({
     fontWeight: 'bold', 
     fontSize: 12 
   },
-  assigneeName: { fontSize: 14, color: '#333', maxWidth: 80 },
-  statusContainer: { alignItems: 'center' },
+  assigneeName: { 
+    fontSize: 14, 
+    color: '#333', 
+    flexShrink: 1,
+  },
   statusBadge: { 
     paddingHorizontal: 8, 
     paddingVertical: 4, 
-    borderRadius: 12 
+    borderRadius: 12,
   },
-  todoBadge: { backgroundColor: '#FFECB3' },
-  inProgressBadge: { backgroundColor: '#B3E5FC' },
-  completedBadge: { backgroundColor: '#C8E6C9' },
+  todoBadge: { 
+    backgroundColor: '#FFECB3' 
+  },
+  inProgressBadge: { 
+    backgroundColor: '#B3E5FC' 
+  },
+  completedBadge: { 
+    backgroundColor: '#C8E6C9' 
+  },
   statusText: { 
     fontSize: 12, 
     fontWeight: '600',
-    color: '#333' 
+    color: '#333',
+    textAlign: 'center',
   },
-  emptyState: { paddingVertical: 20, justifyContent: 'center', alignItems: 'center' },
-  emptyStateText: { fontSize: 14, color: '#999' },
+  emptyState: { 
+    paddingVertical: 20, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  emptyStateText: { 
+    fontSize: 14, 
+    color: '#999' 
+  },
   loadingTasks: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -716,7 +823,117 @@ const styles = StyleSheet.create({
   paginationInfo: {
     marginHorizontal: 15,
     color: '#666'
-  }
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 12,
+    width: '90%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+    color: '#333',
+  },
+  quickFilterContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    marginBottom: 20,
+    gap: 8,
+  },
+  quickFilterButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+  },
+  quickFilterButtonActive: {
+    backgroundColor: '#FF5722',
+  },
+  quickFilterText: {
+    fontSize: 12,
+    color: '#666',
+  },
+  quickFilterTextActive: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  customRangeTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 10,
+    color: '#333',
+  },
+  customDateContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    gap: 10,
+  },
+  dateInputContainer: {
+    flex: 1,
+  },
+  dateLabel: {
+    fontSize: 12,
+    marginBottom: 5,
+    color: '#666',
+  },
+  dateInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 14,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  modalButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#f0f0f0',
+  },
+  applyButton: {
+    backgroundColor: '#FF5722',
+  },
+  cancelButtonText: {
+    color: '#666',
+    fontWeight: '600',
+  },
+  applyButtonText: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  currentFilterContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 15,
+  },
+  currentFilterText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FF5722',
+  },
+  customDateText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
 });
 
 export default DashboardUI;
