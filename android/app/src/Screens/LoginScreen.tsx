@@ -17,9 +17,10 @@ import LinearGradient from 'react-native-linear-gradient';
 import {useAppDispatch} from '../hooks/useAppDispatch';
 import useAxios from '../hooks/useAxios';
 import {loginStart, loginSuccess, loginFailure} from '../states/userSlice';
-import {store} from '../states/store';
+import {RootState, store} from '../states/store';
 import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import { useSelector } from 'react-redux';
 export type RootStackParamList = {
   Login: undefined;
   Signup: undefined;
@@ -43,7 +44,8 @@ const LoginScreen: React.FC = () => {
   const [errors, setErrors] = useState({email: '', password: ''});
   const dispatch = useAppDispatch();
   const {callApi, loading} = useAxios();
-
+  const { currentUser, token } = useSelector((state: RootState) => state.user);
+   console.log('LoginScreen component rendered',token);
   const validateForm = () => {
     console.log('Validating form'); // Debugging line
     const newErrors = {email: '', password: ''};
@@ -68,7 +70,14 @@ const LoginScreen: React.FC = () => {
     setErrors(newErrors);
     return isValid;
   };
-
+const checkNetworkConnectivity = async () => {
+  try {
+    const response = await fetch('https://www.google.com', { method: 'HEAD' });
+    return { isConnected: response.ok };
+  } catch (error) {
+    return { isConnected: false };
+  }
+};
 const handleLogin = async () => {
   if (!validateForm()) {
     return;
@@ -76,6 +85,10 @@ const handleLogin = async () => {
 
   try {
     dispatch(loginStart());
+       const networkState = await checkNetworkConnectivity();
+    if (!networkState.isConnected) {
+      throw new Error('No internet connection');
+    }
     const response = await callApi({
       method: 'POST',
       url: '/user/login',
@@ -94,6 +107,9 @@ const handleLogin = async () => {
     Alert.alert('Login Successful', `Welcome back, ${user.name}!`);
     navigation.navigate('Home');
   } catch (error: any) {
+     console.log('Full error object:', error);
+    console.log('Error response:', error.response);
+    console.log('Error message:', error.message);
     const errorMessage =
       error.response?.data?.message || error.message || 'Login failed';
     dispatch(loginFailure(errorMessage));

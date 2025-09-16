@@ -1,86 +1,35 @@
 apply plugin: "com.android.application"
 apply plugin: "com.facebook.react"
 
-/**
- * This is the configuration block to customize your React Native Android app.
- * By default you don't need to apply any configuration, just uncomment the lines you need.
- */
 react {
-    /* Folders */
-    //   The root of your project, i.e. where "package.json" lives. Default is '..'
-    // root = file("../")
-    //   The folder where the react-native NPM package is. Default is ../node_modules/react-native
-    // reactNativeDir = file("../node_modules/react-native")
-    //   The folder where the react-native Codegen package is. Default is ../node_modules/@react-native/codegen
-    // codegenDir = file("../node_modules/@react-native/codegen")
-    //   The cli.js file which is the React Native CLI entrypoint. Default is ../node_modules/react-native/cli.js
-    // cliFile = file("../node_modules/react-native/cli.js")
-
-    /* Variants */
-    //   The list of variants to that are debuggable. For those we're going to
-    //   skip the bundling of the JS bundle and the assets. By default is just 'debug'.
-    //   If you add flavors like lite, prod, etc. you'll have to list your debuggableVariants.
-    // debuggableVariants = ["liteDebug", "prodDebug"]
-
-    /* Bundling */
-    //   A list containing the node command and its flags. Default is just 'node'.
-    // nodeExecutableAndArgs = ["node"]
-    //
-    //   The command to run when bundling. By default is 'bundle'
-    // bundleCommand = "ram-bundle"
-    //
-    //   The path to the CLI configuration file. Default is empty.
-    // bundleConfig = file(../rn-cli.config.js)
-    //
-    //   The name of the generated asset file containing your JS bundle
-    // bundleAssetName = "MyApplication.android.bundle"
-    //
-    //   The entry file for bundle generation. Default is 'index.android.js' or 'index.js'
-    // entryFile = file("../js/MyApplication.android.js")
-    //
-    //   A list of extra flags to pass to the 'bundle' commands.
-    //   See https://github.com/react-native-community/cli/blob/main/docs/commands.md#bundle
-    // extraPackagerArgs = []
-
-    /* Hermes Commands */
-    //   The hermes compiler command to run. By default it is 'hermesc'
-    // hermesCommand = "$rootDir/my-custom-hermesc/bin/hermesc"
-    //
-    //   The list of flags to pass to the Hermes compiler. By default is "-O", "-output-source-map"
-    // hermesFlags = ["-O", "-output-source-map"]
+    /* React configuration (keep as is) */
 }
 
-/**
- * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
- */
 def enableProguardInReleaseBuilds = false
-
-/**
- * The preferred build flavor of JavaScriptCore (JSC)
- *
- * For example, to use the international variant, you can use:
- * `def jscFlavor = 'org.webkit:android-jsc-intl:+'`
- *
- * The international variant includes ICU i18n library and necessary data
- * allowing to use e.g. `Date.toLocaleString` and `String.localeCompare` that
- * give correct results when using with locales other than en-US. Note that
- * this variant is about 6MiB larger per architecture than default.
- */
 def jscFlavor = 'org.webkit:android-jsc:+'
 
 android {
+    // Use the version from rootProject (which we'll set to 33)
     ndkVersion rootProject.ext.ndkVersion
-
-    compileSdkVersion rootProject.ext.compileSdkVersion
+    compileSdk rootProject.ext.compileSdkVersion  // Use rootProject value
 
     namespace "com.icmsapp"
     defaultConfig {
         applicationId "com.icmsapp"
         minSdkVersion rootProject.ext.minSdkVersion
-        targetSdkVersion rootProject.ext.targetSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion  // Use rootProject value
         versionCode 1
         versionName "1.0"
+        
+        // Add missing configuration for new AGP versions
+        vectorDrawables.useSupportLibrary = true
     }
+    
+    // Add buildFeatures block for BuildConfig
+    buildFeatures {
+        buildConfig true
+    }
+    
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
@@ -88,41 +37,105 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
-           release {
+        release {
             storeFile file(MYAPP_RELEASE_STORE_FILE)
             storePassword MYAPP_RELEASE_STORE_PASSWORD
             keyAlias MYAPP_RELEASE_KEY_ALIAS
             keyPassword MYAPP_RELEASE_KEY_PASSWORD
         }
     }
+    
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
             signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
+    
+    compileOptions {
+         sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    // kotlinOptions {
+    //     jvmTarget = "17"
+    // }
 }
 
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
     implementation project(':react-native-svg')
-    debugImplementation("com.facebook.flipper:flipper:${FLIPPER_VERSION}")
-    debugImplementation("com.facebook.flipper:flipper-network-plugin:${FLIPPER_VERSION}") {
-        exclude group:'com.squareup.okhttp3', module:'okhttp'
-    }
-
-    debugImplementation("com.facebook.flipper:flipper-fresco-plugin:${FLIPPER_VERSION}")
+    
+    // Use compatible AndroidX versions for RN 0.72
+    implementation("androidx.core:core:1.9.0")
+    implementation("androidx.core:core-ktx:1.9.0")
+    implementation("androidx.activity:activity:1.6.1")
+    
+    // FLIPPER HAS BEEN COMPLETELY REMOVED TO RESOLVE BUILD ISSUES
+    
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {
         implementation jscFlavor
+    }
+}
+
+// Add comprehensive resolution strategy to fix ALL dependency conflicts
+configurations.all {
+    resolutionStrategy {
+        eachDependency { details ->
+            // AndroidX dependencies
+            if (details.requested.group == 'androidx.core') details.useVersion '1.9.0'
+            if (details.requested.group == 'androidx.activity') details.useVersion '1.6.1'
+            if (details.requested.group == 'androidx.lifecycle') details.useVersion '2.5.1'
+            if (details.requested.group == 'androidx.exifinterface') details.useVersion '1.3.6'
+            if (details.requested.group == 'androidx.transition') details.useVersion '1.4.1'
+            if (details.requested.group == 'androidx.recyclerview') details.useVersion '1.1.0'
+            if (details.requested.group == 'androidx.startup') details.useVersion '1.1.1'
+            if (details.requested.group == 'androidx.appcompat') details.useVersion '1.6.1'
+            if (details.requested.group == 'androidx.annotation') details.useVersion '1.3.0'
+            if (details.requested.group == 'androidx.fragment') details.useVersion '1.3.6'
+            if (details.requested.group == 'androidx.tracing') details.useVersion '1.1.0'
+            if (details.requested.group == 'androidx.savedstate') details.useVersion '1.2.0'
+            if (details.requested.group == 'androidx.swiperefreshlayout') details.useVersion '1.1.0'
+            if (details.requested.group == 'androidx.drawerlayout') details.useVersion '1.1.1'
+            if (details.requested.group == 'androidx.collection') details.useVersion '1.1.0'
+            if (details.requested.group == 'androidx.customview') details.useVersion '1.1.0'
+            if (details.requested.group == 'androidx.vectordrawable') details.useVersion '1.1.0'
+            
+            // Other dependencies
+            if (details.requested.group == 'org.jetbrains.kotlin') details.useVersion '1.8.22'
+            if (details.requested.group == 'org.jetbrains.kotlinx') details.useVersion '1.6.4'
+            if (details.requested.group == 'com.google.android.material') details.useVersion '1.6.1'
+            if (details.requested.group == 'com.facebook.soloader') details.useVersion '0.10.5'
+            if (details.requested.group == 'com.facebook.fresco') details.useVersion '2.6.0'
+            if (details.requested.group == 'com.google.code.findbugs') details.useVersion '3.0.2'
+            if (details.requested.group == 'com.squareup.okhttp3') details.useVersion '4.9.2'
+            if (details.requested.group == 'com.squareup.okio') details.useVersion '2.9.0'
+            
+            // Kotlin serialization
+            if (details.requested.group == 'org.jetbrains.kotlinx' && details.requested.name == 'kotlinx-serialization-json') {
+                details.useVersion '1.5.1'
+            }
+        }
+        
+        // Explicit force directives for critical dependencies
+        force 'androidx.exifinterface:exifinterface:1.3.6'
+        force 'androidx.transition:transition:1.4.1'
+        force 'androidx.recyclerview:recyclerview:1.1.0'
+        force 'androidx.startup:startup-runtime:1.1.1'
+        force 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
+        force 'androidx.drawerlayout:drawerlayout:1.1.1'
+        force 'androidx.collection:collection:1.1.0'
+        force 'androidx.customview:customview:1.1.0'
+        force 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4'
+        
+        failOnVersionConflict()
     }
 }
 

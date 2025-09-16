@@ -4,7 +4,7 @@ import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import { useSelector } from "react-redux";
 import { RootState } from "../states/store";
 
-const API_BASE_URL = "http://89.116.32.31:5001/api";
+const API_BASE_URL = "https://intelgency.com/api";
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -49,7 +49,7 @@ const useAxios = (): UseAxiosReturn => {
     setLoading(true);
     setError(null);
     setResponse(null);
-
+  console.log("Uploading to:", API_BASE_URL + "/chats/sendAttachments");
     try {
       if (token && includeAuth) {
         console.log(token)
