@@ -1,0 +1,26 @@
+diff --git a/node_modules/react-native-blob-util/android/build.gradle b/node_modules/react-native-blob-util/android/build.gradle
+index 4fd9e0b..3fa9638 100644
+--- a/node_modules/react-native-blob-util/android/build.gradle
++++ b/node_modules/react-native-blob-util/android/build.gradle
+@@ -46,6 +46,10 @@ if (isNewArchitectureEnabled()) {
+ android {
+     compileSdkVersion safeExtGet('compileSdkVersion', 30)
+     buildToolsVersion safeExtGet('buildToolsVersion', '28.0.3')
++      
++    buildFeatures {
++        buildConfig true
++    }
+     defaultConfig {
+         minSdkVersion safeExtGet('minSdkVersion', 16)
+         targetSdkVersion safeExtGet('targetSdkVersion', 30)
+diff --git a/node_modules/react-native-blob-util/android/build/intermediates/aar_metadata/debug/aar-metadata.properties b/node_modules/react-native-blob-util/android/build/intermediates/aar_metadata/debug/aar-metadata.properties
+new file mode 100644
+index 0000000..776557e
+--- /dev/null
++++ b/node_modules/react-native-blob-util/android/build/intermediates/aar_metadata/debug/aar-metadata.properties
+@@ -0,0 +1,5 @@
++aarFormatVersion=1.0
++aarMetadataVersion=1.0
++minCompileSdk=1
++minCompileSdkExtension=0
++minAndroidGradlePluginVersion=1.0.0

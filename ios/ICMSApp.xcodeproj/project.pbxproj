@@ -8,11 +8,11 @@
 
 /* Begin PBXBuildFile section */
 		00E356F31AD99517003FC87E /* ICMSAppTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 00E356F21AD99517003FC87E /* ICMSAppTests.m */; };
+		12B302567A97E6FA8A5442E9 /* libPods-ICMSApp-ICMSAppTests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 56B46E041279A050EDB55357 /* libPods-ICMSApp-ICMSAppTests.a */; };
 		13B07FBC1A68108700A75B9A /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB01A68108700A75B9A /* AppDelegate.mm */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		13B07FC11A68108700A75B9A /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB71A68108700A75B9A /* main.m */; };
-		31FF077C39C1FE3F0271AD64 /* libPods-ICMSApp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E7A5799CB0A8126334A0663C /* libPods-ICMSApp.a */; };
-		4410F1E8A35F8BC68ADCEFAE /* libPods-ICMSApp-ICMSAppTests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2E1593A524CB57B50EF81CD5 /* libPods-ICMSApp-ICMSAppTests.a */; };
+		3B65AC0359B2BCC3EB20D752 /* libPods-ICMSApp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = F1C76D9FA011CEFDAF0E9413 /* libPods-ICMSApp.a */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 /* End PBXBuildFile section */
 
@@ -36,14 +36,14 @@
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = ICMSApp/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = ICMSApp/Info.plist; sourceTree = "<group>"; };
 		13B07FB71A68108700A75B9A /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = main.m; path = ICMSApp/main.m; sourceTree = "<group>"; };
-		2E1593A524CB57B50EF81CD5 /* libPods-ICMSApp-ICMSAppTests.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-ICMSApp-ICMSAppTests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		3E3E468B8C620C5B8567AC30 /* Pods-ICMSApp-ICMSAppTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ICMSApp-ICMSAppTests.debug.xcconfig"; path = "Target Support Files/Pods-ICMSApp-ICMSAppTests/Pods-ICMSApp-ICMSAppTests.debug.xcconfig"; sourceTree = "<group>"; };
+		2E6FE56C5C2533FA04759366 /* Pods-ICMSApp-ICMSAppTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ICMSApp-ICMSAppTests.release.xcconfig"; path = "Target Support Files/Pods-ICMSApp-ICMSAppTests/Pods-ICMSApp-ICMSAppTests.release.xcconfig"; sourceTree = "<group>"; };
+		56B46E041279A050EDB55357 /* libPods-ICMSApp-ICMSAppTests.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-ICMSApp-ICMSAppTests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		65786BCF43659FC08BF60B76 /* Pods-ICMSApp.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ICMSApp.debug.xcconfig"; path = "Target Support Files/Pods-ICMSApp/Pods-ICMSApp.debug.xcconfig"; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = ICMSApp/LaunchScreen.storyboard; sourceTree = "<group>"; };
-		BF2637CEBA6534B3669DB85C /* Pods-ICMSApp.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ICMSApp.release.xcconfig"; path = "Target Support Files/Pods-ICMSApp/Pods-ICMSApp.release.xcconfig"; sourceTree = "<group>"; };
-		D8D713A8438E25FCEB228124 /* Pods-ICMSApp-ICMSAppTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ICMSApp-ICMSAppTests.release.xcconfig"; path = "Target Support Files/Pods-ICMSApp-ICMSAppTests/Pods-ICMSApp-ICMSAppTests.release.xcconfig"; sourceTree = "<group>"; };
-		E7A5799CB0A8126334A0663C /* libPods-ICMSApp.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-ICMSApp.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B7339D21BE89A0A8BB73315A /* Pods-ICMSApp.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ICMSApp.release.xcconfig"; path = "Target Support Files/Pods-ICMSApp/Pods-ICMSApp.release.xcconfig"; sourceTree = "<group>"; };
+		C159544E70B651DD71316CEC /* Pods-ICMSApp-ICMSAppTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ICMSApp-ICMSAppTests.debug.xcconfig"; path = "Target Support Files/Pods-ICMSApp-ICMSAppTests/Pods-ICMSApp-ICMSAppTests.debug.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
-		F0FB3CCB5864D3C1E1910C4C /* Pods-ICMSApp.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ICMSApp.debug.xcconfig"; path = "Target Support Files/Pods-ICMSApp/Pods-ICMSApp.debug.xcconfig"; sourceTree = "<group>"; };
+		F1C76D9FA011CEFDAF0E9413 /* libPods-ICMSApp.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-ICMSApp.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -51,7 +51,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				4410F1E8A35F8BC68ADCEFAE /* libPods-ICMSApp-ICMSAppTests.a in Frameworks */,
+				12B302567A97E6FA8A5442E9 /* libPods-ICMSApp-ICMSAppTests.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -59,7 +59,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				31FF077C39C1FE3F0271AD64 /* libPods-ICMSApp.a in Frameworks */,
+				3B65AC0359B2BCC3EB20D752 /* libPods-ICMSApp.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -100,8 +100,8 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				E7A5799CB0A8126334A0663C /* libPods-ICMSApp.a */,
-				2E1593A524CB57B50EF81CD5 /* libPods-ICMSApp-ICMSAppTests.a */,
+				F1C76D9FA011CEFDAF0E9413 /* libPods-ICMSApp.a */,
+				56B46E041279A050EDB55357 /* libPods-ICMSApp-ICMSAppTests.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -140,10 +140,10 @@
 		BBD78D7AC51CEA395F1C20DB /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				F0FB3CCB5864D3C1E1910C4C /* Pods-ICMSApp.debug.xcconfig */,
-				BF2637CEBA6534B3669DB85C /* Pods-ICMSApp.release.xcconfig */,
-				3E3E468B8C620C5B8567AC30 /* Pods-ICMSApp-ICMSAppTests.debug.xcconfig */,
-				D8D713A8438E25FCEB228124 /* Pods-ICMSApp-ICMSAppTests.release.xcconfig */,
+				65786BCF43659FC08BF60B76 /* Pods-ICMSApp.debug.xcconfig */,
+				B7339D21BE89A0A8BB73315A /* Pods-ICMSApp.release.xcconfig */,
+				C159544E70B651DD71316CEC /* Pods-ICMSApp-ICMSAppTests.debug.xcconfig */,
+				2E6FE56C5C2533FA04759366 /* Pods-ICMSApp-ICMSAppTests.release.xcconfig */,
 			);
 			path = Pods;
 			sourceTree = "<group>";
@@ -155,12 +155,12 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 00E357021AD99517003FC87E /* Build configuration list for PBXNativeTarget "ICMSAppTests" */;
 			buildPhases = (
-				06DE875E3571C148E94C52C2 /* [CP] Check Pods Manifest.lock */,
+				4940C4EAC50492BD4E5B5D58 /* [CP] Check Pods Manifest.lock */,
 				00E356EA1AD99517003FC87E /* Sources */,
 				00E356EB1AD99517003FC87E /* Frameworks */,
 				00E356EC1AD99517003FC87E /* Resources */,
-				E1B4ADFF046F37DC855CCC6D /* [CP] Embed Pods Frameworks */,
-				198770401E1FCCE0D0A9AC00 /* [CP] Copy Pods Resources */,
+				3ADA73D092FBDCD4550AE3E6 /* [CP] Embed Pods Frameworks */,
+				B78C2795FDB7A6D7B70A3DDD /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -176,14 +176,14 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "ICMSApp" */;
 			buildPhases = (
-				56FB6184371B48DC899BEBD7 /* [CP] Check Pods Manifest.lock */,
+				A269838724039FD7D5EC3021 /* [CP] Check Pods Manifest.lock */,
 				FD10A7F022414F080027D42C /* Start Packager */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
-				EBF4097867C68F289EBE21CE /* [CP] Embed Pods Frameworks */,
-				3E1E1E633E3666FFC01B4BF2 /* [CP] Copy Pods Resources */,
+				86FD97ACC3508C7273209D1A /* [CP] Embed Pods Frameworks */,
+				B36D73BABAB712CA5D0FC970 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -266,7 +266,24 @@
 			shellPath = /bin/sh;
 			shellScript = "set -e\n\nWITH_ENVIRONMENT=\"../node_modules/react-native/scripts/xcode/with-environment.sh\"\nREACT_NATIVE_XCODE=\"../node_modules/react-native/scripts/react-native-xcode.sh\"\n\n/bin/sh -c \"$WITH_ENVIRONMENT $REACT_NATIVE_XCODE\"\n";
 		};
-		06DE875E3571C148E94C52C2 /* [CP] Check Pods Manifest.lock */ = {
+		3ADA73D092FBDCD4550AE3E6 /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-ICMSApp-ICMSAppTests/Pods-ICMSApp-ICMSAppTests-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-ICMSApp-ICMSAppTests/Pods-ICMSApp-ICMSAppTests-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-ICMSApp-ICMSAppTests/Pods-ICMSApp-ICMSAppTests-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		4940C4EAC50492BD4E5B5D58 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -288,41 +305,24 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		198770401E1FCCE0D0A9AC00 /* [CP] Copy Pods Resources */ = {
+		86FD97ACC3508C7273209D1A /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-ICMSApp-ICMSAppTests/Pods-ICMSApp-ICMSAppTests-resources-${CONFIGURATION}-input-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-ICMSApp/Pods-ICMSApp-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			name = "[CP] Copy Pods Resources";
+			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-ICMSApp-ICMSAppTests/Pods-ICMSApp-ICMSAppTests-resources-${CONFIGURATION}-output-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-ICMSApp/Pods-ICMSApp-frameworks-${CONFIGURATION}-output-files.xcfilelist",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-ICMSApp-ICMSAppTests/Pods-ICMSApp-ICMSAppTests-resources.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-ICMSApp/Pods-ICMSApp-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		3E1E1E633E3666FFC01B4BF2 /* [CP] Copy Pods Resources */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-ICMSApp/Pods-ICMSApp-resources-${CONFIGURATION}-input-files.xcfilelist",
-			);
-			name = "[CP] Copy Pods Resources";
-			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-ICMSApp/Pods-ICMSApp-resources-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-ICMSApp/Pods-ICMSApp-resources.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-		56FB6184371B48DC899BEBD7 /* [CP] Check Pods Manifest.lock */ = {
+		A269838724039FD7D5EC3021 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -344,38 +344,38 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		E1B4ADFF046F37DC855CCC6D /* [CP] Embed Pods Frameworks */ = {
+		B36D73BABAB712CA5D0FC970 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-ICMSApp-ICMSAppTests/Pods-ICMSApp-ICMSAppTests-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-ICMSApp/Pods-ICMSApp-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			name = "[CP] Embed Pods Frameworks";
+			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-ICMSApp-ICMSAppTests/Pods-ICMSApp-ICMSAppTests-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-ICMSApp/Pods-ICMSApp-resources-${CONFIGURATION}-output-files.xcfilelist",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-ICMSApp-ICMSAppTests/Pods-ICMSApp-ICMSAppTests-frameworks.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-ICMSApp/Pods-ICMSApp-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		EBF4097867C68F289EBE21CE /* [CP] Embed Pods Frameworks */ = {
+		B78C2795FDB7A6D7B70A3DDD /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-ICMSApp/Pods-ICMSApp-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-ICMSApp-ICMSAppTests/Pods-ICMSApp-ICMSAppTests-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			name = "[CP] Embed Pods Frameworks";
+			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-ICMSApp/Pods-ICMSApp-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-ICMSApp-ICMSAppTests/Pods-ICMSApp-ICMSAppTests-resources-${CONFIGURATION}-output-files.xcfilelist",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-ICMSApp/Pods-ICMSApp-frameworks.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-ICMSApp-ICMSAppTests/Pods-ICMSApp-ICMSAppTests-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 		FD10A7F022414F080027D42C /* Start Packager */ = {
@@ -430,7 +430,7 @@
 /* Begin XCBuildConfiguration section */
 		00E356F61AD99517003FC87E /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 3E3E468B8C620C5B8567AC30 /* Pods-ICMSApp-ICMSAppTests.debug.xcconfig */;
+			baseConfigurationReference = C159544E70B651DD71316CEC /* Pods-ICMSApp-ICMSAppTests.debug.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				GCC_PREPROCESSOR_DEFINITIONS = (
@@ -457,7 +457,7 @@
 		};
 		00E356F71AD99517003FC87E /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = D8D713A8438E25FCEB228124 /* Pods-ICMSApp-ICMSAppTests.release.xcconfig */;
+			baseConfigurationReference = 2E6FE56C5C2533FA04759366 /* Pods-ICMSApp-ICMSAppTests.release.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				COPY_PHASE_STRIP = NO;
@@ -481,12 +481,12 @@
 		};
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = F0FB3CCB5864D3C1E1910C4C /* Pods-ICMSApp.debug.xcconfig */;
+			baseConfigurationReference = 65786BCF43659FC08BF60B76 /* Pods-ICMSApp.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 28TN58LDUJ;
+				DEVELOPMENT_TEAM = K5W9R92RTR;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = ICMSApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -509,12 +509,12 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = BF2637CEBA6534B3669DB85C /* Pods-ICMSApp.release.xcconfig */;
+			baseConfigurationReference = B7339D21BE89A0A8BB73315A /* Pods-ICMSApp.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 28TN58LDUJ;
+				DEVELOPMENT_TEAM = K5W9R92RTR;
 				INFOPLIST_FILE = ICMSApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

@@ -1,10 +1,10 @@
-// navigation/MainNavigator.tsx (updated)
+// navigation/MainNavigator.tsx (FIXED)
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import HomeScreen from '../Screens/HomeScreen';
-import InboxScreen from '../Screens/InboxScreen';
+import InboxWrapper from '../Screens/InboxWrapper'; // Use the wrapper
 import ProfileScreen from '../Screens/ProfileScreen';
 import SettingsScreen from '../Screens/SettingScreen';
 import RoleWebViewScreen from '../Screens/RoleWebView';
@@ -81,7 +81,6 @@ function ProjectStackScreen() {
     >
       <ProjectStack.Screen name="ProjectList" component={ProjectScreen} />
       <ProjectStack.Screen name="ProjectDetail" component={ProjectOverview} />
-      {/* <ProjectStack.Screen name="CreateProject" component={CreateProject} /> */}
     </ProjectStack.Navigator>
   );
 }
@@ -99,7 +98,7 @@ function TaskStackScreen() {
   );
 }
 
-// Inbox Stack
+// Inbox Stack - Use the wrapper component
 function InboxStackScreen() {
   return (
     <InboxStack.Navigator
@@ -107,7 +106,11 @@ function InboxStackScreen() {
         header: () => <AppHeader navigation={navigation} />,
       })}
     >
-      <InboxStack.Screen name="InboxMain" component={InboxScreen} />
+      <InboxStack.Screen 
+        name="InboxMain" 
+        component={InboxWrapper} // Use the wrapper instead of InboxScreen directly
+        options={{ headerShown: false }} // Hide header since InboxScreen has its own
+      />
     </InboxStack.Navigator>
   );
 }
@@ -189,11 +192,6 @@ const MainTabNavigator: React.FC = () => {
         component={InboxStackScreen} 
         options={{ title: 'Inbox' }}
       />
-      {/* <Tab.Screen 
-        name="ProfileTab" 
-        component={ProfileStackScreen} 
-        options={{ title: 'Profile' }}
-      /> */}
     </Tab.Navigator>
   );
 };
