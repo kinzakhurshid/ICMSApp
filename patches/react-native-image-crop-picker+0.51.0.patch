@@ -27,6 +27,35 @@ index 0000000..c9e0f4b
 +		<nature>org.eclipse.buildship.core.gradleprojectnature</nature>
 +	</natures>
 +</projectDescription>
+diff --git a/node_modules/react-native-image-crop-picker/android/bin/.project b/node_modules/react-native-image-crop-picker/android/bin/.project
+new file mode 100644
+index 0000000..c9e0f4b
+--- /dev/null
++++ b/node_modules/react-native-image-crop-picker/android/bin/.project
+@@ -0,0 +1,23 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<projectDescription>
++	<name>react-native-image-crop-picker</name>
++	<comment>Project react-native-image-crop-picker created by Buildship.</comment>
++	<projects>
++	</projects>
++	<buildSpec>
++		<buildCommand>
++			<name>org.eclipse.jdt.core.javabuilder</name>
++			<arguments>
++			</arguments>
++		</buildCommand>
++		<buildCommand>
++			<name>org.eclipse.buildship.core.gradleprojectbuilder</name>
++			<arguments>
++			</arguments>
++		</buildCommand>
++	</buildSpec>
++	<natures>
++		<nature>org.eclipse.jdt.core.javanature</nature>
++		<nature>org.eclipse.buildship.core.gradleprojectnature</nature>
++	</natures>
++</projectDescription>
 diff --git a/node_modules/react-native-image-crop-picker/android/bin/build.gradle b/node_modules/react-native-image-crop-picker/android/bin/build.gradle
 new file mode 100644
 index 0000000..675c60c
@@ -2804,11 +2833,11 @@ index 0000000..169e2bd
 Binary files /dev/null and b/node_modules/react-native-image-crop-picker/android/build/intermediates/compiled_local_resources/debug/out/xml_ivpusic_imagepicker_provider_paths.xml.flat differ
 diff --git a/node_modules/react-native-image-crop-picker/android/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties b/node_modules/react-native-image-crop-picker/android/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties
 new file mode 100644
-index 0000000..fe4f87f
+index 0000000..640ac8f
 --- /dev/null
 +++ b/node_modules/react-native-image-crop-picker/android/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties
 @@ -0,0 +1,2 @@
-+#Fri Sep 12 10:10:58 PKT 2025
++#Wed Sep 17 10:33:58 PKT 2025
 +com.reactnative.ivpusic.imagepicker.react-native-image-crop-picker-main-7\:/xml/ivpusic_imagepicker_provider_paths.xml=/Users/kinzakhurshid/Desktop/ICMSApp/node_modules/react-native-image-crop-picker/android/build/intermediates/packaged_res/debug/xml/ivpusic_imagepicker_provider_paths.xml
 diff --git a/node_modules/react-native-image-crop-picker/android/build/intermediates/incremental/debug/packageDebugResources/merger.xml b/node_modules/react-native-image-crop-picker/android/build/intermediates/incremental/debug/packageDebugResources/merger.xml
 new file mode 100644
@@ -4768,31 +4797,23 @@ index 0000000..01a4e7b
 +		ADDED from /Users/kinzakhurshid/Desktop/ICMSApp/node_modules/react-native-image-crop-picker/android/src/main/AndroidManifest.xml
 +		INJECTED from /Users/kinzakhurshid/Desktop/ICMSApp/node_modules/react-native-image-crop-picker/android/src/main/AndroidManifest.xml
 diff --git a/node_modules/react-native-image-crop-picker/android/src/main/java/com/reactnative/ivpusic/imagepicker/PickerPackage.java b/node_modules/react-native-image-crop-picker/android/src/main/java/com/reactnative/ivpusic/imagepicker/PickerPackage.java
-index fbc1c2d..48c4380 100644
+index fbc1c2d..a45cd51 100644
 --- a/node_modules/react-native-image-crop-picker/android/src/main/java/com/reactnative/ivpusic/imagepicker/PickerPackage.java
 +++ b/node_modules/react-native-image-crop-picker/android/src/main/java/com/reactnative/ivpusic/imagepicker/PickerPackage.java
-@@ -49,14 +49,16 @@ public class PickerPackage extends TurboReactPackage {
-             boolean isTurboModule = BuildConfig.IS_NEW_ARCHITECTURE_ENABLED;
-             moduleInfos.put(
-                     ImageCropPicker.NAME,
--                    new ReactModuleInfo(
--                            ImageCropPicker.NAME,
--                            ImageCropPicker.NAME,
+@@ -52,11 +52,11 @@ public class PickerPackage extends TurboReactPackage {
+                     new ReactModuleInfo(
+                             ImageCropPicker.NAME,
+                             ImageCropPicker.NAME,
 -                            false,
 -                            false,
 -                            false,
 -                            isTurboModule
 -                    ));
-+                 new ReactModuleInfo(
-+    ImageCropPicker.NAME,  // name
-+    ImageCropPicker.NAME,  // className
-+    false,                 // canOverrideExistingModule
-+    false,                 // needsEagerInit
-+    false,                 // hasConstants
-+    isTurboModule,         // isCxxModule
-+    true                   // isTurboModule (new 7th param)
-+)
-+);
++                            false, // canOverrideExistingModule
++                            false, // needsEagerInit
++                            true, // hasConstants (changed from false to true)
++                            false, // isCxxModule
++                            isTurboModule));
              return moduleInfos;
          };
      }

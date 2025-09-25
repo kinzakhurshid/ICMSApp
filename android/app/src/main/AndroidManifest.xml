@@ -1,15 +1,43 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.icmsapp">
 
     <uses-permission android:name="android.permission.INTERNET" />
-<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-<uses-permission android:name="android.permission.CAMERA" />
-<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-<uses-permission android:name="android.permission.RECORD_AUDIO" />
-<uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-<uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-<uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-<uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    
+    <!-- Updated storage permissions for Android 10+ -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    
+    <!-- Fix the conflict with react-native-image-crop-picker -->
+    <uses-permission 
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE" 
+        android:maxSdkVersion="29"
+        tools:replace="android:maxSdkVersion" />
+        
+    <!-- Note: MANAGE_EXTERNAL_STORAGE requires special approval from Google Play -->
+    <!-- Consider removing if not absolutely necessary -->
+    <uses-permission 
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE" 
+        android:minSdkVersion="30" 
+        android:maxSdkVersion="33"
+        tools:ignore="ScopedStorage" />
+
+    <!-- WebRTC specific features -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.hardware.audio.pro" android:required="false" />
+    <uses-feature android:name="android.hardware.wifi" android:required="false" />
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+
     <application
       android:name=".MainApplication"
       android:label="@string/app_name"
@@ -18,8 +46,16 @@
       android:allowBackup="false"
       android:theme="@style/AppTheme"
       android:usesCleartextTraffic="true"
-      android:networkSecurityConfig="@xml/network_security_config">
+      android:networkSecurityConfig="@xml/network_security_config"
+      android:requestLegacyExternalStorage="true"
+      android:hardwareAccelerated="true"
+      tools:replace="android:allowBackup,android:usesCleartextTraffic">
       
+      <!-- WebRTC Service -->
+      <service 
+        android:name="com.oney.WebRTCService.CallService" 
+        android:enabled="true" 
+        android:exported="false" />
       
       <activity
         android:name=".MainActivity"
@@ -27,7 +63,8 @@
         android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
         android:launchMode="singleTask"
         android:windowSoftInputMode="adjustResize"
-        android:exported="true">
+        android:exported="true"
+        android:hardwareAccelerated="true">
         <intent-filter>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />

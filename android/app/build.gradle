@@ -21,8 +21,14 @@ android {
         versionCode 1
         versionName "1.0"
         
-        // Add missing configuration for new AGP versions
+        // === ADD THESE WEBRTC CONFIGURATIONS ===
+        multiDexEnabled true
         vectorDrawables.useSupportLibrary = true
+        
+        // WebRTC NDK configuration
+        ndk {
+            abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
+        }
     }
     
     // Add buildFeatures block for BuildConfig
@@ -57,13 +63,29 @@ android {
     }
     
     compileOptions {
-         sourceCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
-    // kotlinOptions {
-    //     jvmTarget = "17"
-    // }
+    // === ADD PACKAGING OPTIONS FOR WEBRTC ===
+    packagingOptions {
+        pickFirst '**/libjsc.so'
+        pickFirst '**/libc++_shared.so'
+        pickFirst '**/libfbjni.so'
+        // WebRTC specific exclusions
+        exclude 'META-INF/DEPENDENCIES'
+        exclude 'META-INF/NOTICE'
+        exclude 'META-INF/LICENSE'
+        exclude 'META-INF/LICENSE.txt'
+        exclude 'META-INF/NOTICE.txt'
+        exclude '**/libopenh264.so'
+    }
+    
+    // === ADD LINT OPTIONS TO IGNORE WEBRTC WARNINGS ===
+    lintOptions {
+        checkReleaseBuilds false
+        abortOnError false
+    }
 }
 
 dependencies {
@@ -71,10 +93,21 @@ dependencies {
     implementation("com.facebook.react:react-android")
     implementation project(':react-native-svg')
     
+    // === ADD WEBRTC AND RELATED DEPENDENCIES ===
+    implementation project(':react-native-webrtc')
+    
     // Use compatible AndroidX versions for RN 0.72
-    implementation("androidx.core:core:1.9.0")
-    implementation("androidx.core:core-ktx:1.9.0")
-    implementation("androidx.activity:activity:1.6.1")
+    implementation "androidx.core:core:1.9.0"
+    implementation "androidx.appcompat:appcompat:1.6.1"
+    
+    // MultiDex support for WebRTC
+    implementation "androidx.multidex:multidex:2.0.1"
+    
+    // WebRTC required dependencies - EXCLUDE constraintlayout from material to avoid conflict
+    implementation("com.google.android.material:material:1.8.0") {
+        exclude group: 'androidx.constraintlayout', module: 'constraintlayout'
+    }
+    implementation "androidx.constraintlayout:constraintlayout:2.1.4"
     
     // FLIPPER HAS BEEN COMPLETELY REMOVED TO RESOLVE BUILD ISSUES
     
@@ -85,57 +118,42 @@ dependencies {
     }
 }
 
-// Add comprehensive resolution strategy to fix ALL dependency conflicts
+// === SIMPLIFIED RESOLUTION STRATEGY FOR WEBRTC COMPATIBILITY ===
+// === COMPATIBLE RESOLUTION STRATEGY ===
 configurations.all {
     resolutionStrategy {
-        eachDependency { details ->
-            // AndroidX dependencies
-            if (details.requested.group == 'androidx.core') details.useVersion '1.9.0'
-            if (details.requested.group == 'androidx.activity') details.useVersion '1.6.1'
-            if (details.requested.group == 'androidx.lifecycle') details.useVersion '2.5.1'
-            if (details.requested.group == 'androidx.exifinterface') details.useVersion '1.3.6'
-            if (details.requested.group == 'androidx.transition') details.useVersion '1.4.1'
-            if (details.requested.group == 'androidx.recyclerview') details.useVersion '1.1.0'
-            if (details.requested.group == 'androidx.startup') details.useVersion '1.1.1'
-            if (details.requested.group == 'androidx.appcompat') details.useVersion '1.6.1'
-            if (details.requested.group == 'androidx.annotation') details.useVersion '1.3.0'
-            if (details.requested.group == 'androidx.fragment') details.useVersion '1.3.6'
-            if (details.requested.group == 'androidx.tracing') details.useVersion '1.1.0'
-            if (details.requested.group == 'androidx.savedstate') details.useVersion '1.2.0'
-            if (details.requested.group == 'androidx.swiperefreshlayout') details.useVersion '1.1.0'
-            if (details.requested.group == 'androidx.drawerlayout') details.useVersion '1.1.1'
-            if (details.requested.group == 'androidx.collection') details.useVersion '1.1.0'
-            if (details.requested.group == 'androidx.customview') details.useVersion '1.1.0'
-            if (details.requested.group == 'androidx.vectordrawable') details.useVersion '1.1.0'
-            
-            // Other dependencies
-            if (details.requested.group == 'org.jetbrains.kotlin') details.useVersion '1.8.22'
-            if (details.requested.group == 'org.jetbrains.kotlinx') details.useVersion '1.6.4'
-            if (details.requested.group == 'com.google.android.material') details.useVersion '1.6.1'
-            if (details.requested.group == 'com.facebook.soloader') details.useVersion '0.10.5'
-            if (details.requested.group == 'com.facebook.fresco') details.useVersion '2.6.0'
-            if (details.requested.group == 'com.google.code.findbugs') details.useVersion '3.0.2'
-            if (details.requested.group == 'com.squareup.okhttp3') details.useVersion '4.9.2'
-            if (details.requested.group == 'com.squareup.okio') details.useVersion '2.9.0'
-            
-            // Kotlin serialization
-            if (details.requested.group == 'org.jetbrains.kotlinx' && details.requested.name == 'kotlinx-serialization-json') {
-                details.useVersion '1.5.1'
-            }
-        }
+        // Force compatible AndroidX versions for your chosen SDK
+        force 'androidx.core:core:1.12.0'
+        force 'androidx.core:core-ktx:1.12.0'
+        force 'androidx.activity:activity:1.8.0'
+        force 'androidx.appcompat:appcompat:1.6.1'
+        force 'androidx.constraintlayout:constraintlayout:2.1.4'
         
-        // Explicit force directives for critical dependencies
-        force 'androidx.exifinterface:exifinterface:1.3.6'
-        force 'androidx.transition:transition:1.4.1'
-        force 'androidx.recyclerview:recyclerview:1.1.0'
-        force 'androidx.startup:startup-runtime:1.1.1'
-        force 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
-        force 'androidx.drawerlayout:drawerlayout:1.1.1'
-        force 'androidx.collection:collection:1.1.0'
-        force 'androidx.customview:customview:1.1.0'
-        force 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4'
-        
-        failOnVersionConflict()
+        preferProjectModules()
+    }
+}
+
+dependencies {
+    implementation("com.facebook.react:react-android")
+    implementation project(':react-native-svg')
+    implementation project(':react-native-webrtc')
+    
+    // Use versions compatible with your chosen SDK
+    implementation "androidx.core:core:1.12.0"
+    implementation "androidx.core:core-ktx:1.12.0"
+    implementation "androidx.activity:activity:1.8.0"
+    implementation "androidx.appcompat:appcompat:1.6.1"
+    implementation "androidx.multidex:multidex:2.0.1"
+    
+    implementation("com.google.android.material:material:1.9.0") {
+        exclude group: 'androidx.constraintlayout', module: 'constraintlayout'
+    }
+    implementation "androidx.constraintlayout:constraintlayout:2.1.4"
+    
+    if (hermesEnabled.toBoolean()) {
+        implementation("com.facebook.react:hermes-android")
+    } else {
+        implementation jscFlavor
     }
 }
 

@@ -1,6 +1,6 @@
 buildscript {
     ext {
-        // ✅ Use Android 14 SDK because react-native-permissions requires it
+        // ✅ Keep your SDK versions but upgrade AGP
         buildToolsVersion = "34.0.0"
         compileSdkVersion = 34
         targetSdkVersion = 34
@@ -11,8 +11,8 @@ buildscript {
         // ✅ RN 0.72 works with Kotlin 1.8.x
         kotlinVersion = "1.8.22"
 
-        // ✅ AGP 7.3.1 is safe for RN 0.72
-        androidGradlePluginVersion = "7.3.1"
+        // ✅ Upgrade AGP to support SDK 34
+        androidGradlePluginVersion = "8.1.0" // or "8.0.2"
     }
 
     repositories {
@@ -24,5 +24,63 @@ buildscript {
         classpath("com.android.tools.build:gradle:$androidGradlePluginVersion")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+    }
+}
+// Add this at the very bottom of your android/build.gradle file
+
+allprojects {
+    plugins.withType(com.android.build.gradle.LibraryPlugin) {
+        android {
+            // Force namespace for all library projects
+            if (project.file('src/main/AndroidManifest.xml').exists()) {
+                def manifest = new XmlSlurper().parse(project.file('src/main/AndroidManifest.xml'))
+                namespace = manifest.@package.text()
+            } else {
+                namespace = "com.temp.${project.name}"
+            }
+            
+            // Force buildConfig enabled
+            buildFeatures {
+                buildConfig true
+            }
+            
+            // Set consistent versions
+            compileSdk 33
+            buildToolsVersion "33.0.0"
+            
+            defaultConfig {
+                minSdk 21
+                targetSdk 33
+            }
+            
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_1_8
+                targetCompatibility JavaVersion.VERSION_1_8
+            }
+        }
+    }
+}
+
+subprojects { subproject ->
+    afterEvaluate {
+        if ((subproject.plugins.hasPlugin('android') || subproject.plugins.hasPlugin('android-library'))) {
+            // Ensure namespace is set
+            if (!subproject.android.hasProperty('namespace') || subproject.android.namespace == null) {
+                try {
+                    def manifestFile = subproject.file('src/main/AndroidManifest.xml')
+                    if (manifestFile.exists()) {
+                        def xml = new XmlParser().parse(manifestFile)
+                        subproject.android.namespace = xml.@package
+                        println "Set namespace for ${subproject.name}: ${xml.@package}"
+                    }
+                } catch (Exception e) {
+                    subproject.android.namespace = "com.temp.${subproject.name}"
+                    println "Set default namespace for ${subproject.name}"
+                }
+            }
+            
+            // Ensure buildConfig is enabled
+            subproject.android.buildFeatures.buildConfig = true
+        }
     }
 }

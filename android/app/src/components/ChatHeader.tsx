@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, TouchableOpacity, Image, StyleSheet, Modal } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Chat, User } from '../types/chattypes';
 
@@ -9,6 +9,10 @@ interface ChatHeaderProps {
   onTogglePinned: () => void;
   onlineUsers: string[];
   onBack: () => void;
+  onStartVoiceCall: () => void;
+  onStartVideoCall: () => void;
+  isInCall?: boolean;
+  showCallButtons?: boolean;
 }
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({
@@ -17,31 +21,71 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   onTogglePinned,
   onlineUsers,
   onBack,
+  onStartVoiceCall,
+  onStartVideoCall,
+  isInCall = false,
+  showCallButtons = false,
 }) => {
+  const [menuVisible, setMenuVisible] = useState(false);
+
+  const toggleMenu = () => setMenuVisible(prev => !prev);
+
+  const getOtherMember = useCallback(() => {
+    if (chat.isGroup) return null;
+    if (!chat.members || chat.members.length === 0) return null;
+
+    const processedMembers = chat.members.map(member => {
+      if (typeof member === 'string') {
+        return { _id: member, name: 'Unknown User', avatar: '' };
+      }
+
+      const memberId = member.id;
+      if (!memberId) return null;
+
+      return {
+        _id: memberId,
+        name: member.name || 'Unknown User',
+        avatar: member.profilePic || member.avatar || '',
+      };
+    }).filter(member => member !== null);
+
+    if (processedMembers.length === 0) return null;
+
+    const otherMember = processedMembers.find(member => member._id !== currentUser._id);
+
+    return otherMember || processedMembers[0];
+  }, [chat.members, chat.isGroup, currentUser._id]);
+
+  const otherMember = getOtherMember();
+  const otherMemberId = otherMember?._id;
+
+  const validOnlineUsers = onlineUsers.filter(
+    userId => userId !== null && userId !== undefined && typeof userId === 'string'
+  );
+
+  const isOtherUserOnline = otherMemberId
+    ? validOnlineUsers.includes(otherMemberId)
+    : false;
+
   const getChatName = () => {
     if (chat.name) return chat.name;
-    const otherMember = chat.members.find((m) => m._id !== currentUser._id);
-    return otherMember?.name || "Unknown";
+    if (otherMember) return otherMember.name || 'Unknown User';
+    return 'Unknown User';
   };
 
   const getOnlineStatus = () => {
     if (chat.isGroup) {
-      const onlineCount = chat.members.filter(
-        (m) =>
-          m._id !== currentUser._id &&
-          onlineUsers.includes(m._id)
-      ).length;
+      const onlineCount = chat.members.filter(m => {
+        const memberId = typeof m === 'object' ? m._id : m;
+        return memberId !== currentUser._id && validOnlineUsers.includes(memberId);
+      }).length;
       return `${onlineCount} online`;
     } else {
-      const otherMember = chat.members.find((m) => m._id !== currentUser._id);
-      if (!otherMember) return "";
-      return onlineUsers.includes(otherMember._id) ? "Online" : "Offline";
+      return isOtherUserOnline ? 'Online' : 'Offline';
     }
   };
 
-  const isOnline = chat.members.some((member) =>
-    onlineUsers.includes(member._id)
-  );
+  const shouldShowCallButtons = !chat.isGroup && !isInCall && isOtherUserOnline && showCallButtons;
 
   return (
     <View style={styles.container}>
@@ -54,11 +98,11 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         <View style={styles.avatarContainer}>
           <Image
             source={{
-              uri: chat.avatar || "https://randomuser.me/api/portraits/lego/1.jpg",
+              uri: chat.avatar || otherMember?.avatar || "https://randomuser.me/api/portraits/lego/1.jpg",
             }}
             style={styles.avatar}
           />
-          {!chat.isGroup && isOnline && (
+          {!chat.isGroup && isOtherUserOnline && (
             <View style={styles.onlineIndicator} />
           )}
         </View>
@@ -69,24 +113,45 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       </View>
 
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.actionButton}>
-          <Ionicons name="search" size={20} color="#374151" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton} onPress={onTogglePinned}>
-          <Ionicons name="pin" size={20} color="#374151" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton}>
-          <Ionicons name="call" size={20} color="#374151" />
-        </TouchableOpacity>
+        {/* Voice Call Button (directly visible) */}
+        {shouldShowCallButtons && (
+          <TouchableOpacity onPress={onStartVoiceCall} style={styles.actionButton}>
+            <Ionicons name="call" size={24} color="#007AFF" />
+          </TouchableOpacity>
+        )}
+
+        {/* Group Members icon (for group chats) */}
         {chat.isGroup && (
           <TouchableOpacity style={styles.actionButton}>
             <Ionicons name="people" size={20} color="#374151" />
           </TouchableOpacity>
         )}
-        <TouchableOpacity style={styles.actionButton}>
+
+        {/* Three-dot menu */}
+        <TouchableOpacity style={styles.actionButton} onPress={toggleMenu}>
           <Ionicons name="ellipsis-vertical" size={20} color="#374151" />
         </TouchableOpacity>
       </View>
+
+      {/* Dropdown Menu */}
+      {menuVisible && (
+        <View style={styles.menu}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); onTogglePinned(); }}>
+            <Ionicons name="pin" size={20} color="#374151" style={styles.menuIcon} />
+            <Text style={styles.menuText}>Pin Chat</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem}>
+            <Ionicons name="search" size={20} color="#374151" style={styles.menuIcon} />
+            <Text style={styles.menuText}>Search</Text>
+          </TouchableOpacity>
+          {shouldShowCallButtons && (
+            <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); onStartVideoCall(); }}>
+              <Ionicons name="videocam" size={20} color="#007AFF" style={styles.menuIcon} />
+              <Text style={styles.menuText}>Video Call</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
     </View>
   );
 };
@@ -99,6 +164,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
     backgroundColor: '#F9FAFB',
+    position: 'relative',
   },
   backButton: {
     padding: 4,
@@ -148,6 +214,29 @@ const styles = StyleSheet.create({
   actionButton: {
     padding: 8,
     marginLeft: 8,
+  },
+  menu: {
+    position: 'absolute',
+    top: 60,
+    right: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    elevation: 5,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    zIndex: 1000,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  menuIcon: {
+    marginRight: 10,
+  },
+  menuText: {
+    fontSize: 14,
+    color: '#111827',
   },
 });
 

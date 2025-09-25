@@ -16,7 +16,7 @@ export interface Message {
   readBy: string[];
   deletedFor: string[];
   reactions: Reaction[];
-  type: 'text' | 'image' | 'file' | 'audio' | 'video';
+  type: "image" | "video" | "audio" | "text" | "file" | "attachment"; 
   attachments: any[];
   createdAt: Date;
   updatedAt: Date;
@@ -71,7 +71,7 @@ export interface Message {
   readBy: string[];
   deletedFor: string[];
   reactions: Reaction[];
-  type: 'text' | 'image' | 'file' | 'audio' | 'video';
+  type: 'text' | 'image' | 'file' | 'audio' | 'video'|"attachment";
   attachments: any[];
   createdAt: Date;
   updatedAt: Date;

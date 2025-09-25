@@ -1,7 +1,7 @@
 // Context/SocketContext.tsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import io, { Socket } from 'socket.io-client';
-
+import { callManager } from '../components/callManager';
 interface SocketContextType {
   socket: Socket | null;
   isConnected: boolean;
@@ -67,7 +67,11 @@ export const SocketProvider: React.FC<{ children: React.ReactNode; token: any  }
     }
     return null;
   };
-
+useEffect(() => {
+  if (socket) {
+    callManager.setSocket(socket);
+  }
+}, [socket]);
   const reconnect = () => {
     if (socket) {
       socket.disconnect();

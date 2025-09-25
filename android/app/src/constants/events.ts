@@ -11,3 +11,11 @@ export const UPDATE_LAST_MESSAGE = "UPDATE_LAST_MESSAGE";
 export const START_TYPING = "START_TYPING";
 export const STOP_TYPING = "STOP_TYPING";
 export const UPDATE_MESSAGE = "UPDATE_MESSAGE";
+// Add these to your constants/events.ts file
+export const CALL_INVITE = 'callInvite';
+export const CALL_ACCEPTED = 'callAccepted';
+export const CALL_REJECTED = 'callRejected';
+export const CALL_ENDED = 'callEnded';
+export const CALL_ICE_CANDIDATE = 'callIceCandidate';
+export const CALL_OFFER = 'callOffer';
+export const CALL_ANSWER = 'callAnswer';
