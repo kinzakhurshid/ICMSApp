@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,12 @@ import {
   Dimensions,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { Message, User } from '../types/chattypes';
-import { addReaction, removeReaction, pinMessage, unpinMessage, deleteMessage } from '../Services/api';
+import { Message, User, Reaction } from '../types/chattypes';
 import { useSocket } from '../Context/SocketContext';
 import { useSelector } from 'react-redux';
 import { RootState } from '../states/store';
+import ReactionPicker from './ReactionPicker';
+import MessageMenu from './MessageMenu';
 import AttachmentViewer from './AttachmentViewer';
 
 interface MessageBubbleProps {
@@ -27,6 +28,8 @@ interface MessageBubbleProps {
   onUnpin?: (messageId: string) => void;
   showReactions?: boolean;
   showPinIcon?: boolean;
+  allChatMessages?: Message[];
+  memberRoles?: Record<string, string>;
 }
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -42,120 +45,47 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   onUnpin,
   showReactions = true,
   showPinIcon = true,
+  allChatMessages = [],
+  memberRoles = {},
 }) => {
   const [showReactionPicker, setShowReactionPicker] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showReactionDetails, setShowReactionDetails] = useState(false);
+  const [selectedReaction, setSelectedReaction] = useState<Reaction | null>(null);
+  const [menuPosition, setMenuPosition] = useState<'top' | 'bottom'>('top');
+  const [showActions, setShowActions] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const menuRef = useRef<View>(null);
+  const bubbleRef = useRef<View>(null);
   const { socket } = useSocket();
-  const token = useSelector((state: RootState) => state.user.token);
 
-  const handleReaction = async (emoji: string) => {
-    if (!token || isLoading) return;
-    
-    setIsLoading(true);
-    try {
-      const existingReaction = message.reactions.find(
-        r => r.user._id === currentUser._id && r.emoji === emoji
-      );
+  // Deterministic sender name colors
+  const NAME_COLOR_CLASSES = [
+    '#ef4444', // red-500
+    '#10b981', // emerald-500
+    '#3b82f6', // sky-500
+    '#8b5cf6', // violet-500
+    '#f59e0b', // amber-500
+  ];
 
-      if (existingReaction) {
-        // Remove reaction
-        await removeReaction(message._id, emoji, token);
-        
-        // Emit socket event for real-time update
-        socket?.emit('REMOVE_REACTION', {
-          messageId: message._id,
-          chatId: message.chat,
-          emoji,
-          userId: currentUser._id
-        });
-      } else {
-        // Add reaction
-        await addReaction(message._id, emoji, token);
-        
-        // Emit socket event for real-time update
-        socket?.emit('ADD_REACTION', {
-          messageId: message._id,
-          chatId: message.chat,
-          emoji,
-          userId: currentUser._id,
-          user: currentUser
-        });
-      }
-    } catch (error) {
-      console.error('Failed to handle reaction:', error);
-      Alert.alert('Error', 'Failed to update reaction');
-    } finally {
-      setIsLoading(false);
-      setShowReactionPicker(false);
+  const getDeterministicIndex = (key: string, modulo: number) => {
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) {
+      hash = (hash << 5) - hash + key.charCodeAt(i);
+      hash |= 0;
     }
+    return Math.abs(hash) % modulo;
   };
 
-  const handlePin = async () => {
-    if (!token || isLoading) return;
-    
-    setIsLoading(true);
-    try {
-      if (message.pinned || message.isPinned) {
-        await unpinMessage(message._id, token);
-        onUnpin?.(message._id);
-      } else {
-        await pinMessage(message._id, token);
-        onPin?.(message._id);
-      }
-
-      // Emit socket event
-      socket?.emit(message.pinned || message.isPinned ? 'UNPIN_MESSAGE' : 'PIN_MESSAGE', {
-        messageId: message._id,
-        chatId: message.chat
-      });
-    } catch (error) {
-      console.error('Failed to pin/unpin message:', error);
-      Alert.alert('Error', 'Failed to update pin status');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleDelete = () => {
-    Alert.alert(
-      'Delete Message',
-      'Are you sure you want to delete this message?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            if (!token) return;
-            try {
-              await deleteMessage(message._id, token);
-              onDelete?.(message._id);
-              
-              // Emit socket event
-              socket?.emit('DELETE_MESSAGE', {
-                messageId: message._id,
-                chatId: message.chat
-              });
-            } catch (error) {
-              console.error('Failed to delete message:', error);
-              
-              // Check if message was already deleted
-              if (error.message?.includes('Resource not found') || 
-                  error.message?.includes('Message not found') ||
-                  error.message?.includes('Message not found or deleted') ||
-                  error.message?.includes('Failed to load resource')) {
-                // Message was already deleted, remove from local state
-                onDelete?.(message._id);
-                console.log('Message was already deleted, removed from local state');
-              } else {
-                // Only show error for actual failures, not for already deleted messages
-                console.log('Delete failed, but message removed from local state');
-              }
-            }
-          }
-        }
-      ]
-    );
+  const getSenderNameColorClass = (sender: {
+    _id?: string;
+    email?: string;
+    name?: string;
+  }) => {
+    const key = sender?._id || sender?.email || sender?.name || '';
+    if (!key) return '#374151';
+    const idx = getDeterministicIndex(key, NAME_COLOR_CLASSES.length);
+    return NAME_COLOR_CLASSES[idx];
   };
 
   const formatTime = (date: Date | string) => {
@@ -163,168 +93,94 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const renderAttachments = () => {
-    if (!message.attachments || message.attachments.length === 0) return null;
-
-    const formatFileSize = (bytes: number): string => {
-      if (!bytes || bytes === 0) return '0 B';
-      const k = 1024;
-      const sizes = ['B', 'KB', 'MB', 'GB'];
-      const i = Math.floor(Math.log(bytes) / Math.log(k));
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-    };
-
-    const getFileIcon = (type: string): string => {
-      if (type.startsWith('image/')) return 'image-outline';
-      if (type.startsWith('audio/')) return 'musical-notes-outline';
-      if (type.startsWith('video/')) return 'videocam-outline';
-      if (type.includes('pdf')) return 'document-text-outline';
-      if (type.includes('word') || type.includes('doc')) return 'document-text-outline';
-      if (type.includes('excel') || type.includes('xls')) return 'grid-outline';
-      if (type.includes('powerpoint') || type.includes('ppt')) return 'easel-outline';
-      return 'document-outline';
-    };
-
-    const getFileTypeColor = (type: string): string => {
-      if (type.startsWith('image/')) return '#4CAF50';
-      if (type.startsWith('audio/')) return '#FF9800';
-      if (type.startsWith('video/')) return '#F44336';
-      if (type.includes('pdf')) return '#E91E63';
-      if (type.includes('word') || type.includes('doc')) return '#2196F3';
-      if (type.includes('excel') || type.includes('xls')) return '#4CAF50';
-      if (type.includes('powerpoint') || type.includes('ppt')) return '#FF5722';
-      return '#9E9E9E';
-    };
-
-    return (
-      <View style={styles.attachmentsContainer}>
-        {message.attachments.map((attachment, index) => {
-          const attachmentType = attachment.fileType || attachment.type || 'unknown';
-          
-          if (attachmentType.startsWith('image/') || attachmentType === 'image') {
-            return (
-              <View key={index} style={styles.imageAttachment}>
-                <Image 
-                  source={{ uri: attachment.url || attachment.uri }} 
-                  style={styles.attachmentImage}
-                  resizeMode="cover"
-                />
-                <View style={styles.imageOverlay}>
-                  <TouchableOpacity style={styles.downloadButton}>
-                    <Ionicons name="download-outline" size={20} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            );
-          } else if (attachmentType.startsWith('audio/') || attachmentType === 'audio') {
-            return (
-              <View key={index} style={[
-                styles.fileAttachment,
-                isCurrentUser ? styles.currentUserFileAttachment : styles.otherUserFileAttachment
-              ]}>
-                <View style={[styles.fileIconContainer, { backgroundColor: getFileTypeColor(attachmentType) }]}>
-                  <Ionicons name={getFileIcon(attachmentType)} size={24} color="#fff" />
-                </View>
-                <View style={styles.fileInfo}>
-                  <Text style={[
-                    styles.fileName,
-                    isCurrentUser ? styles.currentUserFileName : styles.otherUserFileName
-                  ]} numberOfLines={1}>
-                    {attachment.originalName || 'Voice Message'}
-                  </Text>
-                  <Text style={[
-                    styles.fileType,
-                    isCurrentUser ? styles.currentUserFileType : styles.otherUserFileType
-                  ]}>
-                    Voice Message
-                  </Text>
-                  {attachment.size && (
-                    <Text style={[
-                      styles.fileSize,
-                      isCurrentUser ? styles.currentUserFileSize : styles.otherUserFileSize
-                    ]}>
-                      {formatFileSize(attachment.size)}
-                    </Text>
-                  )}
-                </View>
-                <TouchableOpacity style={styles.downloadButtonSmall}>
-                  <Ionicons name="download-outline" size={16} color="#666" />
-                </TouchableOpacity>
-              </View>
-            );
-          } else {
-            return (
-              <View key={index} style={[
-                styles.fileAttachment,
-                isCurrentUser ? styles.currentUserFileAttachment : styles.otherUserFileAttachment
-              ]}>
-                <View style={[styles.fileIconContainer, { backgroundColor: getFileTypeColor(attachmentType) }]}>
-                  <Ionicons name={getFileIcon(attachmentType)} size={24} color="#fff" />
-                </View>
-                <View style={styles.fileInfo}>
-                  <Text style={[
-                    styles.fileName,
-                    isCurrentUser ? styles.currentUserFileName : styles.otherUserFileName
-                  ]} numberOfLines={1}>
-                    {attachment.originalName || 'Document'}
-                  </Text>
-                  <Text style={[
-                    styles.fileType,
-                    isCurrentUser ? styles.currentUserFileType : styles.otherUserFileType
-                  ]}>
-                    {(attachmentType || 'FILE').split('/')[1]?.toUpperCase() || 'FILE'}
-                  </Text>
-                  {attachment.size && (
-                    <Text style={[
-                      styles.fileSize,
-                      isCurrentUser ? styles.currentUserFileSize : styles.otherUserFileSize
-                    ]}>
-                      {formatFileSize(attachment.size)}
-                    </Text>
-                  )}
-                </View>
-                <TouchableOpacity style={styles.downloadButtonSmall}>
-                  <Ionicons name="download-outline" size={16} color="#666" />
-                </TouchableOpacity>
-              </View>
-            );
-          }
-        })}
-      </View>
-    );
+  const handleReaction = (emoji: string) => {
+    socket?.emit('NEW_REACTION', {
+      chatId: message.chat,
+      messageId: message.messageId,
+      reaction: emoji,
+      userId: currentUser._id,
+    });
+    setShowReactionPicker(false);
   };
 
-  const renderReactions = () => {
-    if (!message.reactions || message.reactions.length === 0) return null;
+  const handleReactionClick = (reactions: Reaction[]) => {
+    setSelectedReaction(reactions[0]);
+    setShowReactionDetails(true);
+  };
 
-    const reactionGroups = message.reactions.reduce((acc, reaction) => {
+  // Calculate position based on viewport
+  const calculateMenuPosition = () => {
+    // For now, we'll use a simple approach that works better for most cases
+    // Always show menu above the message to avoid keyboard interference
+    return 'top';
+  };
+
+  const handleMenuClick = () => {
+    const position = calculateMenuPosition() as 'top' | 'bottom';
+    setMenuPosition(position);
+    setShowMenu(!showMenu);
+  };
+
+  const handleMessagePress = () => {
+    setShowActions(!showActions);
+  };
+
+  const handleReactionPickerClick = () => {
+    const position = calculateMenuPosition() as 'top' | 'bottom';
+    setMenuPosition(position);
+    setShowReactionPicker(!showReactionPicker);
+  };
+
+  // Close menus when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setShowReactionPicker(false);
+      setShowMenu(false);
+      setShowReactionDetails(false);
+    };
+
+    // In React Native, we'll handle this differently
+    return handleClickOutside;
+  }, []);
+
+  // Close other menus when one opens (but not if modal is open)
+  useEffect(() => {
+    if (showReactionPicker && !isModalOpen) {
+      setShowMenu(false);
+      setShowReactionDetails(false);
+    }
+  }, [showReactionPicker, isModalOpen]);
+
+  useEffect(() => {
+    if (showMenu && !isModalOpen) {
+      setShowReactionPicker(false);
+      setShowReactionDetails(false);
+    }
+  }, [showMenu, isModalOpen]);
+
+  useEffect(() => {
+    if (showReactionDetails && !isModalOpen) {
+      setShowReactionPicker(false);
+      setShowMenu(false);
+    }
+  }, [showReactionDetails, isModalOpen]);
+
+  // Group reactions by emoji
+  const groupedReactions =
+    message.reactions?.reduce((acc, reaction) => {
       const emoji = reaction.emoji;
       if (!acc[emoji]) {
         acc[emoji] = [];
       }
-      acc[emoji].push(reaction);
+      // Convert to Reaction interface format
+      const formattedReaction: Reaction = {
+        emoji: reaction.emoji,
+        userId: reaction.user._id,
+        user: reaction.user
+      };
+      acc[emoji].push(formattedReaction);
       return acc;
-    }, {} as Record<string, typeof message.reactions>);
-
-    return (
-      <View style={styles.reactionsContainer}>
-        {Object.entries(reactionGroups).map(([emoji, reactions]) => (
-          <TouchableOpacity
-            key={emoji}
-            style={[
-              styles.reactionBubble,
-              reactions.some(r => r.user._id === currentUser._id) && styles.userReaction
-            ]}
-            onPress={() => handleReaction(emoji)}
-            disabled={isLoading}
-          >
-            <Text style={styles.reactionEmoji}>{emoji}</Text>
-            <Text style={styles.reactionCount}>{reactions.length}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    );
-  };
+    }, {} as Record<string, Reaction[]>) || {};
 
   const renderReplyPreview = () => {
     if (!message.replyToMessage && !message.replyTo) return null;
@@ -342,7 +198,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       ]}>
         <View style={[
           styles.replyLine,
-          isCurrentUser ? styles.currentUserReplyLine : styles.otherUserReplyLine
+          isCurrentUser ? styles.currentUserReplyPreview : styles.otherUserReplyPreview
         ]} />
         <View style={styles.replyContent}>
           <Text style={[
@@ -370,31 +226,40 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     );
   };
 
-  const renderMentions = () => {
-    if (!message.mentions || message.mentions.length === 0) return null;
-
-    let content = message.content;
-    message.mentions.forEach(mention => {
-      content = content.replace(
-        new RegExp(`@${mention.name}`, 'g'),
-        `@${mention.name}`
-      );
-    });
+  const renderAttachments = () => {
+    if (!message.attachments || message.attachments.length === 0) return null;
 
     return (
-      <Text style={styles.messageText}>
-        {content.split(/(@\w+)/).map((part, index) => {
-          if (part.startsWith('@')) {
-            const mention = message.mentions?.find(m => part === `@${m.name}`);
+      <View style={styles.attachmentsContainer}>
+        {message.attachments.map((attachment, index) => {
+          const attachmentType = attachment.fileType || 'unknown';
+          
+          if (attachmentType.startsWith('image/') || attachmentType === 'image') {
             return (
-              <Text key={index} style={styles.mentionText}>
-                {part}
-              </Text>
+              <View key={index} style={styles.imageAttachment}>
+                <Image 
+                  source={{ uri: attachment.url }} 
+                  style={styles.attachmentImage}
+                  resizeMode="cover"
+                />
+                <View style={styles.imageOverlay}>
+                  <TouchableOpacity style={styles.downloadButton}>
+                    <Ionicons name="download-outline" size={20} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          } else {
+            return (
+              <AttachmentViewer
+                key={index}
+                attachments={[attachment]}
+                isEditable={false}
+              />
             );
           }
-          return part;
         })}
-      </Text>
+      </View>
     );
   };
 
@@ -403,135 +268,136 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       styles.container,
       isCurrentUser ? styles.currentUserContainer : styles.otherUserContainer
     ]}>
-          {/* Pin Icon */}
-          {(message.pinned || message.isPinned) && showPinIcon && (
-            <View style={[
-              styles.pinIndicator,
-              isCurrentUser ? styles.currentUserPinIndicator : styles.otherUserPinIndicator
-            ]}>
-              <Ionicons 
-                name="pin" 
-                size={14} 
-                color={isCurrentUser ? "rgba(255, 255, 255, 0.9)" : "#3b82f6"} 
-              />
-              <Text style={[
-                styles.pinText,
-                isCurrentUser ? styles.currentUserPinText : styles.otherUserPinText
-              ]}>
-                Pinned
-              </Text>
-            </View>
-          )}
+      {/* Avatar for other users */}
+      {!isCurrentUser && (
+        <View style={styles.avatarContainer}>
+          <Image
+            source={{ uri: message.sender.avatar || message.sender.profilePic }}
+            style={styles.avatar}
+          />
+        </View>
+      )}
 
-      {/* Reply Preview */}
-      {renderReplyPreview()}
-
-      {/* Message Content */}
-      <View style={[
-        styles.bubble,
-        isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble
-      ]}>
+      <View style={styles.messageContainer}>
         {/* Sender Name for Group Chats */}
         {!isCurrentUser && (
-          <Text style={styles.senderName}>{message.sender.name}</Text>
+          <View style={styles.senderNameContainer}>
+            <Text style={[styles.senderName, { color: getSenderNameColorClass(message.sender) }]}>
+              {message.sender.name}
+            </Text>
+          </View>
         )}
 
-        {/* Message Text */}
-        {message.type === 'text' ? (
-          message.mentions && message.mentions.length > 0 ? (
-            renderMentions()
-          ) : (
+        <TouchableOpacity 
+          style={[
+            styles.bubble,
+            message.attachments?.length > 0
+              ? styles.bubbleWithAttachments
+              : isCurrentUser
+              ? styles.currentUserBubble
+              : styles.otherUserBubble
+          ]}
+          onPress={handleMessagePress}
+          activeOpacity={0.9}
+        >
+          {/* Reply indicator */}
+          {message.replyTo && renderReplyPreview()}
+
+          {/* Message content */}
+          {message.content && (
             <Text style={[
               styles.messageText,
               isCurrentUser ? styles.currentUserText : styles.otherUserText
             ]}>
               {message.content}
             </Text>
-          )
-        ) : (
-          <Text style={[
-            styles.messageText,
-            isCurrentUser ? styles.currentUserText : styles.otherUserText
-          ]}>
-            {message.content}
-          </Text>
-        )}
+          )}
 
-        {/* Attachments */}
-        {renderAttachments()}
+          {/* Attachments */}
+          {renderAttachments()}
 
-        {/* Reactions */}
-        {showReactions && renderReactions()}
+          {/* Message footer */}
+          <View style={styles.messageFooter}>
+            <Text style={[
+              styles.timestamp,
+              isCurrentUser ? styles.currentUserTimestamp : styles.otherUserTimestamp
+            ]}>
+              {formatTime(message.createdAt)}
+            </Text>
 
-        {/* Timestamp */}
-        <Text style={[
-          styles.timestamp,
-          isCurrentUser ? styles.currentUserTimestamp : styles.otherUserTimestamp
-        ]}>
-          {formatTime(message.createdAt)}
-        </Text>
-      </View>
+            {/* Message status */}
+            {isCurrentUser && (
+              <Text style={styles.messageStatus}>
+                {message.readBy.length > 1 ? '✓✓' : '✓'}
+              </Text>
+            )}
+          </View>
 
-      {/* Message Actions */}
-      <View style={styles.actionsContainer}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => setShowReactionPicker(!showReactionPicker)}
-        >
-          <Ionicons name="happy-outline" size={16} color="#666" />
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => onReply(message)}
-        >
-          <Ionicons name="arrow-undo-outline" size={16} color="#666" />
-        </TouchableOpacity>
+          {/* Reactions */}
+          {message?.reactions?.length > 0 && (
+            <View style={styles.reactionsContainer}>
+              {Object.entries(groupedReactions).map(([emoji, reactions]) => (
+                <TouchableOpacity
+                  key={emoji}
+                  style={styles.reactionBubble}
+                  onPress={() => handleReactionClick(reactions)}
+                >
+                  <Text style={styles.reactionEmoji}>{emoji}</Text>
+                  {reactions.length > 1 && (
+                    <Text style={styles.reactionCount}>{reactions.length}</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
 
-        {isCurrentUser && (
-          <>
+          {/* Message actions - Show when message is pressed */}
+          {showActions && (
+            <View style={[
+              styles.messageActions,
+              isCurrentUser ? styles.currentUserActions : styles.otherUserActions
+            ]}>
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={() => onEdit?.(message)}
+              onPress={handleReactionPickerClick}
             >
-              <Ionicons name="create-outline" size={16} color="#666" />
+              <Ionicons name="happy-outline" size={12} color="#666" />
             </TouchableOpacity>
-            
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={handleDelete}
+              onPress={handleMenuClick}
             >
-              <Ionicons name="trash-outline" size={16} color="#ff4444" />
+              <Ionicons name="ellipsis-horizontal" size={12} color="#666" />
             </TouchableOpacity>
-          </>
-        )}
-
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={handlePin}
-          disabled={isLoading}
-        >
-          <Ionicons 
-            name={message.pinned || message.isPinned ? "pin" : "pin-outline"} 
-            size={16} 
-            color={message.pinned || message.isPinned ? "#007AFF" : "#666"} 
-          />
+          </View>
+          )}
         </TouchableOpacity>
+
       </View>
 
-      {/* Reaction Picker */}
+      {/* Reaction picker - positioned outside message container */}
       {showReactionPicker && (
-        <View style={styles.reactionPicker}>
-          {['👍', '❤️', '😂', '😮', '😢', '😡'].map(emoji => (
-            <TouchableOpacity
-              key={emoji}
-              style={styles.reactionPickerItem}
-              onPress={() => handleReaction(emoji)}
-            >
-              <Text style={styles.reactionPickerEmoji}>{emoji}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <ReactionPicker
+          onSelect={handleReaction}
+          onClose={() => setShowReactionPicker(false)}
+          position={isCurrentUser ? 'right' : 'left'}
+          alignment={menuPosition}
+        />
+      )}
+
+      {/* Message menu - positioned outside message container */}
+      {showMenu && (
+        <MessageMenu
+          message={message}
+          isCurrentUser={isCurrentUser}
+          onClose={() => setShowMenu(false)}
+          position={isCurrentUser ? 'right' : 'left'}
+          alignment={menuPosition}
+          onReply={onReply}
+          onEdit={onEdit}
+          isModalOpen={isModalOpen}
+          setIsModalOpen={setIsModalOpen}
+        />
       )}
     </View>
   );
@@ -539,65 +405,50 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 2,
-    maxWidth: screenWidth * 0.8,
+    flexDirection: 'row',
+    marginBottom: 10,
+    paddingHorizontal: 16,
+    zIndex: 1,
   },
   currentUserContainer: {
-    alignSelf: 'flex-end',
+    justifyContent: 'flex-end',
   },
   otherUserContainer: {
-    alignSelf: 'flex-start',
+    justifyContent: 'flex-start',
   },
-      pinIndicator: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 6,
-        marginLeft: 8,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 12,
-        backgroundColor: '#eff6ff',
-        borderWidth: 1,
-        borderColor: '#dbeafe',
-      },
-      currentUserPinIndicator: {
-        backgroundColor: 'rgba(255, 255, 255, 0.25)',
-        borderColor: 'rgba(255, 255, 255, 0.3)',
-      },
-      otherUserPinIndicator: {
-        backgroundColor: '#eff6ff',
-        borderColor: '#dbeafe',
-      },
-      pinText: {
-        fontSize: 11,
-        fontWeight: '600',
-        marginLeft: 4,
-        color: '#3b82f6',
-      },
-      currentUserPinText: {
-        color: 'rgba(255, 255, 255, 0.9)',
-      },
-      otherUserPinText: {
-        color: '#3b82f6',
-      },
-  bubble: {
-    padding: 12,
-    borderRadius: 18,
+  avatarContainer: {
+    marginRight: 8,
+    alignSelf: 'flex-end',
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  messageContainer: {
+    maxWidth: screenWidth * 0.7,
+  },
+  senderNameContainer: {
     marginBottom: 4,
+  },
+  senderName: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  bubble: {
+    borderRadius: 18,
+    padding: 12,
+    position: 'relative',
+  },
+  bubbleWithAttachments: {
+    backgroundColor: 'transparent',
+    padding: 0,
   },
   currentUserBubble: {
     backgroundColor: '#FF6B35',
-    borderBottomRightRadius: 4,
   },
   otherUserBubble: {
-    backgroundColor: '#F1F1F1',
-    borderBottomLeftRadius: 4,
-  },
-  senderName: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#666',
-    marginBottom: 4,
+    backgroundColor: '#E5E7EB',
   },
   messageText: {
     fontSize: 16,
@@ -607,263 +458,169 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   otherUserText: {
-    color: '#000000',
+    color: '#1F2937',
   },
-  mentionText: {
-    color: '#007AFF',
-    fontWeight: '600',
-  },
-  timestamp: {
-    fontSize: 11,
-    marginTop: 4,
-  },
-  currentUserTimestamp: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    textAlign: 'right',
-  },
-  otherUserTimestamp: {
-    color: '#666',
-  },
-  attachmentsContainer: {
-    marginTop: 8,
-  },
-  attachmentItem: {
-    marginBottom: 8,
-  },
-  attachmentImage: {
-    width: 200,
-    height: 150,
-    borderRadius: 8,
-  },
-  fileAttachment: {
+  messageFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
-    borderRadius: 8,
+    justifyContent: 'flex-end',
+    marginTop: 4,
   },
-  fileName: {
-    marginLeft: 8,
-    flex: 1,
-    fontSize: 14,
+  editedIndicator: {
+    fontSize: 12,
+    marginRight: 4,
   },
-      replyPreview: {
-        flexDirection: 'row',
-        marginBottom: 8,
-        paddingHorizontal: 8,
-        paddingVertical: 6,
-        borderRadius: 8,
-        backgroundColor: 'rgba(0, 0, 0, 0.05)',
-      },
-      currentUserReplyPreview: {
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-      },
-      otherUserReplyPreview: {
-        backgroundColor: 'rgba(0, 0, 0, 0.05)',
-      },
-      replyLine: {
-        width: 3,
-        backgroundColor: '#007AFF',
-        marginRight: 8,
-        borderRadius: 2,
-      },
-      currentUserReplyLine: {
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
-      },
-      otherUserReplyLine: {
-        backgroundColor: '#007AFF',
-      },
-      replyContent: {
-        flex: 1,
-      },
-      replySender: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: '#007AFF',
-        marginBottom: 2,
-      },
-      currentUserReplySender: {
-        color: 'rgba(255, 255, 255, 0.9)',
-      },
-      otherUserReplySender: {
-        color: '#007AFF',
-      },
-      replyText: {
-        fontSize: 12,
-        color: '#666',
-        lineHeight: 16,
-      },
-      currentUserReplyText: {
-        color: 'rgba(255, 255, 255, 0.8)',
-      },
-      otherUserReplyText: {
-        color: '#666',
-      },
-      attachmentText: {
-        fontSize: 11,
-        color: '#666',
-        marginTop: 2,
-        fontStyle: 'italic',
-      },
-      currentUserAttachmentText: {
-        color: 'rgba(255, 255, 255, 0.7)',
-      },
-      otherUserAttachmentText: {
-        color: '#666',
-      },
+  currentUserEditedIndicator: {
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  otherUserEditedIndicator: {
+    color: '#6B7280',
+  },
+  timestamp: {
+    fontSize: 12,
+    marginRight: 4,
+  },
+  currentUserTimestamp: {
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  otherUserTimestamp: {
+    color: '#6B7280',
+  },
+  messageStatus: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
   reactionsContainer: {
+    position: 'absolute',
+    bottom: -16,
+    right: 8,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 8,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
   reactionBubble: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: 4,
-    marginBottom: 4,
-  },
-  userReaction: {
-    backgroundColor: 'rgba(0, 122, 255, 0.2)',
+    marginHorizontal: 2,
   },
   reactionEmoji: {
-    fontSize: 14,
+    fontSize: 12,
   },
   reactionCount: {
-    fontSize: 12,
-    marginLeft: 4,
-    color: '#666',
+    fontSize: 10,
+    color: '#6B7280',
+    marginLeft: 2,
   },
-  actionsContainer: {
-    flexDirection: 'row',
-    marginTop: 4,
-    opacity: 0.7,
-  },
-  actionButton: {
-    padding: 4,
-    marginRight: 8,
-  },
-  reactionPicker: {
+  messageActions: {
     position: 'absolute',
-    bottom: 40,
-    left: 0,
-    right: 0,
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    padding: 12,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  reactionPickerItem: {
-    padding: 8,
-    marginHorizontal: 4,
-  },
-  reactionPickerEmoji: {
-    fontSize: 20,
-  },
-  // Attachment styles
-  attachmentsContainer: {
-    marginTop: 5,
-    marginBottom: 5,
-  },
-  imageAttachment: {
-    width: 200,
-    height: 150,
-    borderRadius: 10,
-    overflow: 'hidden',
-    position: 'relative',
-    marginBottom: 5,
-  },
-  attachmentImage: {
-    width: '100%',
-    height: '100%',
-  },
-  imageOverlay: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-  },
-  downloadButton: {
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: 15,
-    width: 30,
-    height: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  fileAttachment: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 5,
-    maxWidth: 250,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 16,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 2,
     elevation: 2,
   },
-  currentUserFileAttachment: {
-    backgroundColor: '#FFE5D9',
+  currentUserActions: {
+    top: -20,
+    right: 0,
   },
-  otherUserFileAttachment: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+  otherUserActions: {
+    top: -20,
+    left: 0,
   },
-  fileIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
+  actionButton: {
+    padding: 4,
+    marginHorizontal: 2,
   },
-  fileInfo: {
-    flex: 1,
+  // Reply preview styles
+  replyPreview: {
+    borderLeftWidth: 3,
+    paddingLeft: 8,
+    marginBottom: 8,
   },
-  fileName: {
-    fontSize: 14,
+  currentUserReplyPreview: {
+    borderLeftColor: '#FFFFFF',
+  },
+  otherUserReplyPreview: {
+    borderLeftColor: '#3B82F6',
+  },
+  replyLine: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+  },
+  replyContent: {
+    marginTop: 4,
+  },
+  replySender: {
+    fontSize: 12,
     fontWeight: '600',
     marginBottom: 2,
   },
-  currentUserFileName: {
-    color: '#000',
+  currentUserReplySender: {
+    color: 'rgba(255, 255, 255, 0.8)',
   },
-  otherUserFileName: {
-    color: '#333',
+  otherUserReplySender: {
+    color: '#3B82F6',
   },
-  fileType: {
+  replyText: {
     fontSize: 12,
-    marginBottom: 2,
+    opacity: 0.8,
   },
-  currentUserFileType: {
-    color: '#666',
+  currentUserReplyText: {
+    color: '#FFFFFF',
   },
-  otherUserFileType: {
-    color: '#666',
+  otherUserReplyText: {
+    color: '#1F2937',
   },
-  fileSize: {
-    fontSize: 11,
+  attachmentText: {
+    fontSize: 12,
+    fontStyle: 'italic',
   },
-  currentUserFileSize: {
-    color: '#888',
+  currentUserAttachmentText: {
+    color: 'rgba(255, 255, 255, 0.8)',
   },
-  otherUserFileSize: {
-    color: '#888',
+  otherUserAttachmentText: {
+    color: '#6B7280',
   },
-  downloadButtonSmall: {
+  // Attachment styles
+  attachmentsContainer: {
+    marginTop: 8,
+  },
+  imageAttachment: {
+    position: 'relative',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  attachmentImage: {
+    width: 200,
+    height: 150,
+    borderRadius: 12,
+  },
+  imageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  downloadButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
     padding: 8,
-    borderRadius: 15,
-    backgroundColor: 'rgba(0,0,0,0.1)',
   },
 });
 

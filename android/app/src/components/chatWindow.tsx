@@ -723,7 +723,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 20}
       enabled={true}
     >
       <ChatHeader
@@ -772,6 +772,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         onTyping={handleTyping}
         replyTo={replyTo}
         onCancelReply={handleCancelReply}
+        editingMessage={editingMessage}
+        onCancelEdit={handleCancelEdit}
         chatId={chat._id}
         members={members}
       />

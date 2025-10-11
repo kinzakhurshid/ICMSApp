@@ -30,6 +30,8 @@ interface MessageInputProps {
   onTyping?: (isTyping: boolean) => void;
   replyTo?: Message | null;
   onCancelReply?: () => void;
+  editingMessage?: Message | null;
+  onCancelEdit?: () => void;
   chatId: string;
   members: User[];
   disabled?: boolean;
@@ -93,6 +95,8 @@ const MessageInput: React.FC<{
   onTyping?: (isTyping: boolean) => void;
   replyTo?: Message | null;
   onCancelReply?: () => void;
+  editingMessage?: Message | null;
+  onCancelEdit?: () => void;
   chatId: string;
   members: User[];
   disabled?: boolean;
@@ -101,11 +105,22 @@ const MessageInput: React.FC<{
   onTyping,
   replyTo,
   onCancelReply,
+  editingMessage,
+  onCancelEdit,
   chatId,
   members,
   disabled = false,
 }) => {
   const [message, setMessage] = useState('');
+  
+  // Update message when editing
+  useEffect(() => {
+    if (editingMessage) {
+      setMessage(editingMessage.content || '');
+    } else {
+      setMessage('');
+    }
+  }, [editingMessage]);
 
   // Request microphone permission for voice recording
   const requestMicrophonePermission = async (): Promise<boolean> => {
@@ -224,6 +239,9 @@ const MessageInput: React.FC<{
         
         // Clear reply state
         onCancelReply?.();
+        
+        // Clear edit state
+        onCancelEdit?.();
   };
 
       const handleVoiceMessage = async (audioUrl: string, duration: number) => {
@@ -288,6 +306,7 @@ const MessageInput: React.FC<{
   const handleAttachment = () => {
     setShowFileTypeSelector(true);
   };
+
 
   const handleFileTypeSelect = (type: 'image' | 'video' | 'document' | 'camera') => {
     switch (type) {
@@ -488,7 +507,7 @@ const MessageInput: React.FC<{
   );
 
   return (
-      <View style={styles.container}>
+      <View style={[styles.container, { marginBottom: keyboardHeight > 0 ? keyboardHeight - 50 : 0 }]}>
       {/* Reply Preview */}
       {replyTo && (
         <View style={styles.replyPreview}>
@@ -499,6 +518,21 @@ const MessageInput: React.FC<{
             </Text>
           </View>
           <TouchableOpacity onPress={onCancelReply} style={styles.cancelReply}>
+            <Ionicons name="close" size={20} color="#666" />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Edit Preview */}
+      {editingMessage && (
+        <View style={styles.editPreview}>
+          <View style={styles.editContent}>
+            <Text style={styles.editSender}>Editing message</Text>
+            <Text style={styles.editText} numberOfLines={1}>
+              {editingMessage.content}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={onCancelEdit} style={styles.cancelReply}>
             <Ionicons name="close" size={20} color="#666" />
           </TouchableOpacity>
         </View>
@@ -545,7 +579,7 @@ const MessageInput: React.FC<{
           onPress={handleAttachment}
           disabled={disabled || isUploading}
         >
-          <Ionicons name="add" size={24} color="#666" />
+          <Ionicons name="add" size={24} color="#FF6B35" />
         </TouchableOpacity>
 
                         <TouchableOpacity 
@@ -564,7 +598,7 @@ const MessageInput: React.FC<{
           }}
           disabled={disabled}
         >
-          <Ionicons name="mic" size={24} color="#666" />
+          <Ionicons name="mic" size={24} color="#FF6B35" />
                         </TouchableOpacity>
                         
         <View style={styles.textInputContainer}>
@@ -585,8 +619,9 @@ const MessageInput: React.FC<{
           onPress={() => setShowEmojiPicker(!showEmojiPicker)}
           disabled={disabled}
         >
-          <Ionicons name="happy-outline" size={24} color="#666" />
+          <Ionicons name="happy-outline" size={24} color="#FF6B35" />
             </TouchableOpacity>
+
 
             <TouchableOpacity
               style={[
@@ -674,6 +709,27 @@ const styles = StyleSheet.create({
   replyText: {
     fontSize: 14,
     color: '#666',
+    marginTop: 2,
+  },
+  editPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#fff3cd',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  editContent: {
+    flex: 1,
+  },
+  editSender: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#856404',
+  },
+  editText: {
+    fontSize: 14,
+    color: '#856404',
     marginTop: 2,
   },
   cancelReply: {
@@ -803,7 +859,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   sendButton: { 
-    backgroundColor: '#007AFF',
+    backgroundColor: '#FF6B35',
     borderRadius: 20,
     width: 40,
     height: 40,
