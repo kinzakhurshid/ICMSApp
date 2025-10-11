@@ -4,342 +4,157 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Keyboard,
-  Platform,
-  Animated,
-  Easing,
   Text,
-  ScrollView,
-  Dimensions,
-  KeyboardAvoidingView,
-  StatusBar,
-  Alert,
-  ActivityIndicator,
+  FlatList,
   Image,
+  Alert,
+  Platform,
+  Keyboard,
+  Modal,
+  PermissionsAndroid,
 } from 'react-native';
-import { Smile, Send } from 'lucide-react-native';
-import useAxios from '../hooks/useAxios';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import ImagePicker from 'react-native-image-crop-picker';
+import { uploadAttachment } from '../Services/api';
+import { useSocket } from '../Context/SocketContext';
 import { useSelector } from 'react-redux';
 import { RootState } from '../states/store';
-
-// Import the new components
-import VoiceRecorder from './VoiceRecorder';
-import VoiceMessagePlayer from './VoiceMessagePlayer';
-import FileUploadHandler from './FileUploadHandler';
-import EmojiPicker from './EmojiPicker';
-
-// Types
-export interface Attachment {
-  public_id: string;
-  url: string;
-  originalName: string;
-  fileType: 'image' | 'video' | 'audio' | 'document' | 'other';
-  size?: number;
-  thumbnail?: string;
-}
-
-interface VoiceMessageData {
-  uri: string;
-  duration: number;
-  waveform?: number[];
-  id: string;
-}
+import AttachmentPreview from './AttachmentPreview';
+import FileTypeSelector from './FileTypeSelector';
+import { User, Message, MentionSuggestion } from '../types/chattypes';
+import VoiceMessageRecorder from './VoiceMessageRecorder';
+import DocumentPicker from 'react-native-document-picker';
 
 interface MessageInputProps {
-  value: string;
-  onChangeText: (value: string) => void;
-  onSend: (text: string, attachments?: Attachment[], voiceMessages?: VoiceMessageData[]) => void;
-  onAttachmentsUpload?: (attachments: Attachment[]) => void;
+  onSendMessage: (content: string, attachments?: any[], replyTo?: string, mentions?: string[]) => void;
+  onTyping?: (isTyping: boolean) => void;
+  replyTo?: Message | null;
+  onCancelReply?: () => void;
   chatId: string;
-  typing?: boolean;
-  uploading?: boolean;
-  style?: any;
+  members: User[];
+  disabled?: boolean;
 }
 
-// File utility functions (export these)
-export const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-};
+const EMOJIS = [
+  '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇',
+  '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚',
+  '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩',
+  '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣',
+  '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬',
+  '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗',
+  '🤔', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😬', '🙄', '😯',
+  '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🤐',
+  '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕', '🤑', '🤠', '😈',
+  '👿', '👹', '👺', '🤡', '💩', '👻', '💀', '☠️', '👽', '👾',
+  '🤖', '🎃', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿',
+  '😾', '👶', '🧒', '👦', '👧', '🧑', '👨', '👩', '🧓', '👴',
+  '👵', '👱', '🧔', '👨‍🦰', '👩‍🦰', '👨‍🦱', '👩‍🦱', '👨‍🦳', '👩‍🦳', '👨‍🦲',
+  '👩‍🦲', '🤵', '👰', '🤰', '🤱', '👼', '🎅', '🤶', '🦸', '🦹',
+  '🧙', '🧚', '🧛', '🧜', '🧝', '🧞', '🧟', '💆', '💇', '🚶',
+  '🏃', '💃', '🕺', '👯', '🧖', '🧗', '🤺', '🏇', '⛷️', '🏂',
+  '🏌️', '🏄', '🚣', '🏊', '⛹️', '🏋️', '🚴', '🚵', '🤸', '🤼',
+  '🤽', '🤾', '🤹', '🧘', '🛀', '🛌', '👭', '👫', '👬', '💏',
+  '💑', '👪', '🗣️', '👤', '👥', '👣', '🐵', '🐒', '🦍', '🐶',
+  '🐕', '🐩', '🐺', '🦊', '🐱', '🐈', '🦁', '🐯', '🐅', '🐆',
+  '🐴', '🐎', '🦄', '🦓', '🦌', '🐮', '🐂', '🐃', '🐄', '🐷',
+  '🐖', '🐗', '🐽', '🐏', '🐑', '🐐', '🐪', '🐫', '🦙', '🐘',
+  '🦏', '🦛', '🐭', '🐁', '🐀', '🐹', '🐰', '🐇', '🐿️', '🦔',
+  '🦇', '🐻', '🐨', '🐼', '🦥', '🦦', '🦡', '🐾', '🦃', '🐔',
+  '🐓', '🐣', '🐤', '🐥', '🐦', '🐧', '🕊️', '🦅', '🦆', '🦉',
+  '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🐛', '🦋', '🐌', '🐞',
+  '🐜', '🦟', '🦗', '🕷️', '🕸️', '🦂', '🐢', '🐍', '🦎', '🦖',
+  '🦕', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡', '🐠', '🐟', '🐬',
+  '🐳', '🐋', '🦈', '🐊', '🐅', '🐆', '🦓', '🦍', '🐘', '🦏',
+  '🦛', '🐪', '🐫', '🦙', '🐃', '🐂', '🐄', '🐎', '🐖', '🐏',
+  '🐑', '🐐', '🦌', '🐕', '🐩', '🐈', '🐓', '🦃', '🦚', '🦜',
+  '🦢', '🦩', '🕊️', '🐇', '🐁', '🐀', '🐿️', '🦔', '🐾', '🐉',
+  '🐲', '🌵', '🎄', '🌲', '🌳', '🌴', '🌱', '🌿', '☘️', '🍀',
+  '🎍', '🎋', '🍃', '🍂', '🍁', '🍄', '🐚', '🌾', '💐', '🌷',
+  '🌹', '🥀', '🌺', '🌸', '🌼', '🌻', '🌞', '🌝', '🌛', '🌜',
+  '🌚', '🌕', '🌖', '🌗', '🌘', '🌑', '🌒', '🌓', '🌔', '🌙',
+  '⭐', '🌟', '💫', '✨', '☄️', '☀️', '🌤️', '⛅', '🌥️', '☁️',
+  '🌦️', '🌧️', '⛈️', '🌩️', '🌨️', '❄️', '☃️', '⛄', '🌬️', '💨',
+  '💧', '💦', '☔', '☂️', '🌊', '🌫️', '🍏', '🍎', '🍐', '🍊',
+  '🍋', '🍌', '🍉', '🍇', '🍓', '🍈', '🍒', '🍑', '🥭', '🍍',
+  '🥥', '🥝', '🍅', '🍆', '🥑', '🥦', '🥬', '🥒', '🌶️', '🌽',
+  '🥕', '🧄', '🧅', '🥔', '🍠', '🥐', '🥖', '🍞', '🥨', '🥯',
+  '🧀', '🥚', '🍳', '🧈', '🥞', '🧇', '🥓', '🥩', '🍗', '🍖',
+  '🦴', '🌭', '🍔', '🍟', '🍕', '🥪', '🥙', '🧆', '🌮', '🌯',
+  '🥗', '🥘', '🥫', '🍝', '🍜', '🍲', '🍛', '🍣', '🍱', '🥟',
+  '🦪', '🍤', '🍙', '🍚', '🍘', '🍥', '🥠', '🍢', '🍡', '🍧',
+  '🍨', '🍦', '🥧', '🧁', '🍰', '🎂', '🍮', '🍭', '🍬', '🍫',
+  '🍿', '🍩', '🍪', '🌰', '🥜', '🍯', '🥛', '🍼', '☕', '🍵',
+  '🧃', '🥤', '🍶', '🍺', '🍻', '🥂', '🍷', '🥃', '🍸', '🍹',
+  '🧉', '🍾', '🧊', '🥄', '🍴', '🍽️', '🥣', '🥡', '🥢', '🧂'
+];
 
-export const formatTime = (seconds: number) => {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-};
-
-export const getFileType = (fileName: string, mimeType?: string): Attachment['fileType'] => {
-  const extension = fileName.split('.').pop()?.toLowerCase();
-  
-  if (mimeType?.startsWith('image/')) return 'image';
-  if (mimeType?.startsWith('video/')) return 'video';
-  if (mimeType?.startsWith('audio/')) return 'audio';
-  
-  if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(extension || '')) return 'image';
-  if (['mp4', 'mov', 'avi', 'wmv', 'flv', 'webm', 'mkv'].includes(extension || '')) return 'video';
-  if (['mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac'].includes(extension || '')) return 'audio';
-  if (['pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension || '')) return 'document';
-  
-  return 'other';
-};
-
-// File size validation
-export const validateFileSize = (fileSize: number, maxSizeMB = 20): boolean => {
-  const maxSizeBytes = maxSizeMB * 1024 * 1024;
-  return fileSize <= maxSizeBytes;
-};
-
-// Main MessageInput Component
-const MessageInput: React.FC<MessageInputProps> = ({
-  value,
-  onChangeText,
-  onSend,
-  onAttachmentsUpload,
+const MessageInput: React.FC<{
+  onSendMessage: (content: string, attachments?: any[], replyToId?: string, mentions?: string[]) => void;
+  onTyping?: (isTyping: boolean) => void;
+  replyTo?: Message | null;
+  onCancelReply?: () => void;
+  chatId: string;
+  members: User[];
+  disabled?: boolean;
+}> = ({
+  onSendMessage,
+  onTyping,
+  replyTo,
+  onCancelReply,
   chatId,
-  typing = false,
-  uploading = false,
-  style,
+  members,
+  disabled = false,
 }) => {
-  const inputRef = useRef<TextInput>(null);
-  const [isFocused, setIsFocused] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<any[]>([]);
-  const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
-  const [voiceMessages, setVoiceMessages] = useState<VoiceMessageData[]>([]);
-  const { callApi } = useAxios();
-  const slideAnim = useRef(new Animated.Value(0)).current;
-  const token = useSelector((state: RootState) => state.user);
+  const [message, setMessage] = useState('');
 
-  const handleVoiceRecordingComplete = async (audioData: {
-    uri: string;
-    duration: number;
-    waveform?: number[];
-  }) => {
+  // Request microphone permission for voice recording
+  const requestMicrophonePermission = async (): Promise<boolean> => {
+    if (Platform.OS !== 'android') {
+      return true;
+    }
+
     try {
-      // Add the voice message to the list
-      const voiceMessage: VoiceMessageData = {
-        ...audioData,
-        id: `voice-${Date.now()}`,
-      };
-      
-      setVoiceMessages(prev => [...prev, voiceMessage]);
-      setShowVoiceRecorder(false);
-      
-    } catch (error) {
-      console.error('Error handling voice recording:', error);
-      Alert.alert('Error', 'Failed to process voice message. Please try again.');
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+        {
+          title: 'Microphone Permission',
+          message: 'This app needs access to your microphone to record voice messages.',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'OK',
+        }
+      );
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    } catch (err) {
+      console.warn('Permission request error:', err);
+      return false;
     }
   };
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showMentionPicker, setShowMentionPicker] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [attachments, setAttachments] = useState<any[]>([]);
+  const [pendingAttachments, setPendingAttachments] = useState<any[]>([]);
+  const [showAttachmentPreview, setShowAttachmentPreview] = useState(false);
+  const [showFileTypeSelector, setShowFileTypeSelector] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
+  
+  const inputRef = useRef<TextInput>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout>();
+  const { socket } = useSocket();
+  const token = useSelector((state: RootState) => state.user.token);
 
-  const handleVoiceRecordingCancel = () => {
-    setShowVoiceRecorder(false);
-  };
-
-  const handleEmojiSelect = (emoji: string) => {
-    const newText = value + emoji;
-    onChangeText(newText);
-  };
-
-  const toggleEmojiPicker = () => {
-    if (showEmojiPicker) {
-      setShowEmojiPicker(false);
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 100);
-    } else {
-      setShowEmojiPicker(true);
-      Keyboard.dismiss();
-    }
-  };
-
-  const handleFilesSelected = (files: any[]) => {
-    setSelectedFiles(prev => [...prev, ...files]);
-  };
-
-  const handleVoiceRecord = () => {
-    setShowVoiceRecorder(true);
-    Keyboard.dismiss();
-  };
-
-  const removeVoiceMessage = (id: string) => {
-    setVoiceMessages(prev => prev.filter(vm => vm.id !== id));
-  };
-
-  const uploadFiles = async (filesToUpload: any[]) => {
-    setIsUploading(true);
-    const uploadedAttachments: Attachment[] = [];
-    
-    for (const fileData of filesToUpload) {
-      try {
-        if (!fileData.file) continue;
-        
-        // Check file size before uploading (client-side validation)
-        const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
-        if (fileData.file.size > MAX_FILE_SIZE) {
-          Alert.alert(
-            'File Too Large',
-            `The file "${fileData.file.name}" exceeds the 20MB size limit.`,
-            [{ text: 'OK' }]
-          );
-          setSelectedFiles(prev => prev.map(f => 
-            f.id === fileData.id ? {...f, status: 'error'} : f
-          ));
-          continue;
-        }
-        
-        // Update file status to uploading
-        setSelectedFiles(prev => prev.map(f => 
-            f.id === fileData.id ? {...f, status: 'uploading'} : f
-        ));
-        
-        const formData = new FormData();
-        formData.append('attachment', {
-          uri: fileData.file.uri,
-          name: fileData.file.name,
-          type: fileData.file.type,
-        });
-        formData.append('chatId', chatId);
-        
-        const response = await callApi({
-          method: 'POST',
-          url: '/chats/sendAttachments',
-          data: formData,
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-          onUploadProgress: (progressEvent) => {
-            const progress = Math.round(
-              (progressEvent.loaded * 100) / (progressEvent.total || 1)
-            );
-            setSelectedFiles(prev => prev.map(f => 
-              f.id === fileData.id ? {...f, uploadProgress: progress} : f
-            ));
-          },
-        });
-        
-        // Improved response handling
-        let fileUrl = '';
-        let publicId = '';
-        let thumbnailUrl = '';
-
-        // Try different possible response structures
-        if (response.data) {
-          // Handle case where response is wrapped in data property
-          fileUrl = response.data.fileUrl || response.data.url || '';
-          publicId = response.data.public_id || response.data.publicId || '';
-          thumbnailUrl = response.data.thumbnailUrl || response.data.thumbnail || '';
-        } else {
-          // Handle direct response
-          fileUrl = response.fileUrl || response.url || '';
-          publicId = response.public_id || response.publicId || '';
-          thumbnailUrl = response.thumbnailUrl || response.thumbnail || '';
-        }
-
-        if (fileUrl) {
-          const uploadedFile: Attachment = {
-            public_id: publicId || `file_${Date.now()}`,
-            url: fileUrl,
-            originalName: fileData.file.name,
-            fileType: getFileType(fileData.file.name, fileData.file.type),
-            size: fileData.file.size,
-            thumbnail: thumbnailUrl,
-          };
-          
-          // Update file status to completed
-          setSelectedFiles(prev => prev.map(f => 
-            f.id === fileData.id ? {...f, status: 'completed', uploadProgress: 100, attachment: uploadedFile} : f
-          ));
-          
-          uploadedAttachments.push(uploadedFile);
-        } else {
-          console.error('Unexpected server response structure:', response);
-          throw new Error('Server response missing required file URL');
-        }
-        
-      } catch (error: any) {
-        console.error('Error uploading file:', error);
-        
-        let errorMessage = 'Failed to upload file';
-        if (error.response?.status === 413) {
-          errorMessage = 'File is too large. Maximum size is 20MB.';
-        } else if (error.message) {
-          errorMessage = error.message;
-        }
-        
-        Alert.alert('Upload Error', errorMessage);
-        
-        setSelectedFiles(prev => prev.map(f => 
-          f.id === fileData.id ? {...f, status: 'error'} : f
-        ));
-      }
-    }
-    
-    // Update attachments with all uploaded files
-    const newAttachments = [...attachments, ...uploadedAttachments];
-    setAttachments(newAttachments);
-    
-    if (onAttachmentsUpload && uploadedAttachments.length > 0) {
-      onAttachmentsUpload(newAttachments);
-    }
-    
-    setIsUploading(false);
-    return uploadedAttachments;
-  };
-
-  const handleSend = async () => {
-    if (value.trim() || selectedFiles.length > 0 || voiceMessages.length > 0) {
-      try {
-        // Upload files first if any
-        let uploadedAttachments: Attachment[] = [];
-        if (selectedFiles.length > 0) {
-          setIsUploading(true);
-          uploadedAttachments = await uploadFiles(selectedFiles);
-        }
-        
-        // Send message with text, attachments, and voice messages
-        onSend(value, uploadedAttachments, voiceMessages);
-        
-        // Reset input and states
-        onChangeText('');
-        setAttachments([]);
-        setSelectedFiles([]);
-        setVoiceMessages([]);
-        
-        if (Platform.OS === 'ios') {
-          Keyboard.dismiss();
-        }
-        
-      } catch (error) {
-        console.error('Error sending message:', error);
-        Alert.alert('Error', 'Failed to send message. Please try again.');
-      } finally {
-        setIsUploading(false);
-      }
-    }
-  };
-
+  // Keyboard event listeners
   useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener(
-      Platform.OS === 'android' ? 'keyboardDidShow' : 'keyboardWillShow',
-      (e) => {
-        setKeyboardHeight(e.endCoordinates.height);
-        setShowEmojiPicker(false);
-        setShowVoiceRecorder(false);
-      }
-    );
-    
-    const keyboardDidHideListener = Keyboard.addListener(
-      Platform.OS === 'android' ? 'keyboardDidHide' : 'keyboardWillHide',
-      () => {
-        setKeyboardHeight(0);
-      }
-    );
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
 
     return () => {
       keyboardDidShowListener.remove();
@@ -347,330 +162,656 @@ const MessageInput: React.FC<MessageInputProps> = ({
     };
   }, []);
 
-  useEffect(() => {
-    Animated.timing(slideAnim, {
-      toValue: showEmojiPicker ? 1 : 0,
-      duration: 300,
-      easing: Easing.inOut(Easing.ease),
-      useNativeDriver: true,
-    }).start();
-  }, [showEmojiPicker]);
+  const filteredMembers = members.filter(member =>
+    member.name.toLowerCase().includes(mentionQuery.toLowerCase())
+  );
 
-  const canSend = value.trim().length > 0 || selectedFiles.length > 0 || voiceMessages.length > 0;
-  const isSending = isUploading || uploading;
+  const handleTextChange = (text: string) => {
+    setMessage(text);
+    
+    // Handle mentions
+    const mentionMatch = text.match(/@(\w*)$/);
+    if (mentionMatch) {
+      setMentionQuery(mentionMatch[1]);
+      setShowMentionPicker(true);
+    } else {
+      setShowMentionPicker(false);
+    }
+
+    // Handle typing indicator
+    if (!isTyping && text.length > 0) {
+      setIsTyping(true);
+      onTyping?.(true);
+      socket?.emit('START_TYPING', { chatId });
+    }
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      setIsTyping(false);
+      onTyping?.(false);
+      socket?.emit('STOP_TYPING', { chatId });
+    }, 2000);
+  };
+
+  const handleSend = () => {
+    if (!message.trim() && attachments.length === 0) return;
+
+    // Extract mentions
+    const mentionMatches = message.match(/@(\w+)/g);
+    const mentionedUserIds = mentionMatches?.map(match => {
+      const username = match.substring(1);
+      const user = members.find(m => m.name.toLowerCase() === username.toLowerCase());
+      return user?._id;
+    }).filter((id): id is string => Boolean(id)) || [];
+
+    onSendMessage(
+      message.trim(),
+      attachments,
+      replyTo?._id,
+      mentionedUserIds
+    );
+
+        setMessage('');
+        setAttachments([]);
+        setShowEmojiPicker(false);
+        setShowMentionPicker(false);
+        setIsTyping(false);
+        onTyping?.(false);
+        socket?.emit('STOP_TYPING', { chatId });
+        
+        // Clear reply state
+        onCancelReply?.();
+  };
+
+      const handleVoiceMessage = async (audioUrl: string, duration: number) => {
+        // Add voice message to pending attachments for preview
+        const timestamp = Date.now();
+        
+        // Determine file type from the actual file extension
+        let fileType = 'audio/mp4'; // Default to MP4 since library creates MP4
+        let fileExtension = 'mp4';
+        
+        if (audioUrl) {
+          const extension = audioUrl.split('.').pop()?.toLowerCase();
+          if (extension === 'mp3') {
+            fileType = 'audio/mp3';
+            fileExtension = 'mp3';
+          } else if (extension === 'wav') {
+            fileType = 'audio/wav';
+            fileExtension = 'wav';
+          } else if (extension === 'aac') {
+            fileType = 'audio/aac';
+            fileExtension = 'aac';
+          } else if (extension === 'm4a') {
+            fileType = 'audio/m4a';
+            fileExtension = 'm4a';
+          } else if (extension === 'mp4') {
+            fileType = 'audio/mp4';
+            fileExtension = 'mp4';
+          }
+          // Default to mp4 since that's what the library creates
+        }
+
+        const voiceAttachment = {
+          uri: audioUrl,
+          type: fileType,
+          name: `${timestamp}-voice-message.${fileExtension}`,
+          size: 0,
+          id: Date.now() + Math.random(),
+          duration: duration,
+          originalName: `Voice Message ${Math.floor(duration / 60)}:${(duration % 60).toString().padStart(2, '0')}`
+        };
+
+        setPendingAttachments(prev => [...prev, voiceAttachment]);
+        setShowAttachmentPreview(true);
+        console.log('Voice attachment added:', voiceAttachment);
+        setShowVoiceRecorder(false);
+        onCancelReply?.();
+      };
+
+  const handleEmojiSelect = (emoji: string) => {
+    setMessage(prev => prev + emoji);
+    setShowEmojiPicker(false);
+    inputRef.current?.focus();
+  };
+
+  const handleMentionSelect = (member: User) => {
+    const newMessage = message.replace(/@\w*$/, `@${member.name} `);
+    setMessage(newMessage);
+    setShowMentionPicker(false);
+        inputRef.current?.focus();
+  };
+
+  const handleAttachment = () => {
+    setShowFileTypeSelector(true);
+  };
+
+  const handleFileTypeSelect = (type: 'image' | 'video' | 'document' | 'camera') => {
+    switch (type) {
+      case 'camera':
+        openCamera();
+        break;
+      case 'image':
+        openGallery();
+        break;
+      case 'video':
+        openVideoPicker();
+        break;
+      case 'document':
+        openDocumentPicker();
+        break;
+    }
+  };
+
+  const openCamera = () => {
+    ImagePicker.openCamera({
+      mediaType: 'photo',
+      quality: 0.8,
+    }).then(handleImageResponse).catch(console.log);
+  };
+
+  const openGallery = () => {
+    ImagePicker.openPicker({
+      mediaType: 'photo',
+      quality: 0.8,
+      multiple: true,
+      maxFiles: 5,
+    }).then(handleImageResponse).catch(console.log);
+  };
+
+  const openVideoPicker = () => {
+    ImagePicker.openPicker({
+      mediaType: 'video',
+      quality: 0.8,
+      multiple: true,
+      maxFiles: 3,
+    }).then(handleImageResponse).catch(console.log);
+  };
+
+  const openDocumentPicker = async () => {
+    try {
+      const results = await DocumentPicker.pick({
+        type: [DocumentPicker.types.allFiles],
+        allowMultiSelection: true,
+      });
+      
+      if (results && results.length > 0) {
+        const fileDataArray = results.map((file: any) => ({
+          uri: file.uri,
+          type: file.type || 'application/octet-stream',
+          name: file.name || 'Document',
+          size: file.size || 0,
+          id: Date.now() + Math.random()
+        }));
+        
+        setPendingAttachments(prev => [...prev, ...fileDataArray]);
+        setShowAttachmentPreview(true);
+      }
+    } catch (error) {
+      if (DocumentPicker.isCancel(error)) {
+        // User cancelled the picker
+        console.log('Document picker cancelled');
+      } else {
+        console.error('Document picker error:', error);
+        Alert.alert('Error', 'Failed to select document');
+      }
+    }
+  };
+
+  const handleImageResponse = async (response: any) => {
+    if (!response || response.didCancel) return;
+
+    // Handle single file response
+    const files = Array.isArray(response) ? response : [response];
+    
+    // Prepare file data for preview (without uploading yet)
+    const fileDataArray = files.map((file: any) => {
+      const uri = file.path || file.uri;
+      const type = file.mime || file.type || 'image/jpeg';
+      
+      // Safe file name extraction
+      let name = file.filename || file.name;
+      if (!name && uri) {
+        try {
+          name = uri.split('/').pop() || 'file.jpg';
+        } catch (error) {
+          name = `file_${Date.now()}.jpg`;
+        }
+      }
+      if (!name) {
+        name = `file_${Date.now()}.jpg`;
+      }
+
+      return {
+        uri,
+        type,
+        name,
+        size: file.size || 0,
+        id: Date.now() + Math.random() // Unique ID for each file
+      };
+    });
+
+    // Add to pending attachments and show preview
+    console.log('Adding files to pending attachments:', fileDataArray);
+    setPendingAttachments(prev => [...prev, ...fileDataArray]);
+    setShowAttachmentPreview(true);
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const removePendingAttachment = (index: number) => {
+    setPendingAttachments(prev => prev.filter((_, i) => i !== index));
+    if (pendingAttachments.length === 1) {
+      setShowAttachmentPreview(false);
+    }
+  };
+
+  const handleSendAttachments = async () => {
+    if (pendingAttachments.length === 0) return;
+
+    setIsUploading(true);
+    try {
+      const uploadedFiles = await Promise.all(
+        pendingAttachments.map(async (fileData: any) => {
+          console.log('Uploading attachment:', fileData);
+          const uploadResponse = await uploadAttachment(chatId, fileData, token!);
+          return uploadResponse;
+        })
+      );
+
+      // Send message with uploaded attachments
+      onSendMessage(message.trim(), uploadedFiles, replyTo?._id, []);
+      
+      // Clear pending attachments and close preview
+      setPendingAttachments([]);
+      setShowAttachmentPreview(false);
+      setMessage('');
+      } catch (error) {
+      console.error('Upload failed:', error);
+      Alert.alert('Error', 'Failed to upload attachments');
+      } finally {
+        setIsUploading(false);
+      }
+  };
+
+  const handleCancelAttachments = () => {
+    setPendingAttachments([]);
+    setShowAttachmentPreview(false);
+  };
+
+  const renderAttachment = (attachment: any, index: number) => (
+    <View key={index} style={styles.attachmentPreview}>
+      {attachment.fileType?.startsWith('image/') ? (
+        <Image source={{ uri: attachment.url }} style={styles.attachmentImage} />
+      ) : (
+        <View style={styles.filePreview}>
+          <Ionicons name="document" size={20} color="#666" />
+          <Text style={styles.fileName} numberOfLines={1}>
+            {attachment.fileName || 'File'}
+          </Text>
+        </View>
+      )}
+      <TouchableOpacity
+        style={styles.removeAttachment}
+        onPress={() => removeAttachment(index)}
+      >
+        <Ionicons name="close" size={16} color="#fff" />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderMentionItem = ({ item }: { item: User }) => (
+    <TouchableOpacity
+      style={styles.mentionItem}
+      onPress={() => handleMentionSelect(item)}
+    >
+      <Image
+        source={{ uri: item.avatar || item.profilePic }}
+        style={styles.mentionAvatar}
+      />
+      <Text style={styles.mentionName}>{item.name}</Text>
+    </TouchableOpacity>
+  );
+
+  const renderEmojiItem = ({ item }: { item: string }) => (
+    <TouchableOpacity
+      style={styles.emojiItem}
+      onPress={() => handleEmojiSelect(item)}
+    >
+      <Text style={styles.emojiText}>{item}</Text>
+    </TouchableOpacity>
+  );
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.select({ 
-        ios: 0, 
-        android: StatusBar.currentHeight 
-      })}
-      style={[styles.keyboardAvoid, style]}
-    >
       <View style={styles.container}>
-        <EmojiPicker
-          visible={showEmojiPicker}
-          onEmojiSelect={handleEmojiSelect}
-          onClose={() => setShowEmojiPicker(false)}
-          slideAnim={slideAnim}
-        />
-        
-        {/* Voice recorder */}
-        {showVoiceRecorder && (
-          <VoiceRecorder
-            onRecordingComplete={handleVoiceRecordingComplete}
-            onRecordingCancel={handleVoiceRecordingCancel}
-            chatId={chatId}
+      {/* Reply Preview */}
+      {replyTo && (
+        <View style={styles.replyPreview}>
+          <View style={styles.replyContent}>
+            <Text style={styles.replySender}>Replying to {replyTo.sender.name}</Text>
+            <Text style={styles.replyText} numberOfLines={1}>
+              {replyTo.content}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={onCancelReply} style={styles.cancelReply}>
+            <Ionicons name="close" size={20} color="#666" />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Attachments Preview */}
+      {attachments.length > 0 && (
+        <View style={styles.attachmentsContainer}>
+          {attachments.map(renderAttachment)}
+        </View>
+      )}
+
+      {/* Mention Picker */}
+      {showMentionPicker && (
+        <View style={styles.mentionPicker}>
+          <FlatList
+            data={filteredMembers}
+            keyExtractor={(item) => item._id}
+            renderItem={renderMentionItem}
+            style={styles.mentionList}
+            keyboardShouldPersistTaps="handled"
           />
-        )}
-        
-        {/* Voice messages preview */}
-        {voiceMessages.length > 0 && (
-          <View style={styles.voiceMessagesContainer}>
-            <Text style={styles.voiceMessagesTitle}>Voice Messages ({voiceMessages.length})</Text>
-            {voiceMessages.map((voiceMsg) => (
-              <VoiceMessagePlayer
-                key={voiceMsg.id}
-                voiceMessage={voiceMsg}
-                onRemove={() => removeVoiceMessage(voiceMsg.id)}
-              />
-            ))}
+        </View>
+      )}
+
+      {/* Emoji Picker */}
+      {showEmojiPicker && (
+        <View style={styles.emojiPicker}>
+          <FlatList
+            data={EMOJIS}
+            keyExtractor={(item, index) => index.toString()}
+            renderItem={renderEmojiItem}
+            numColumns={8}
+            style={styles.emojiList}
+            keyboardShouldPersistTaps="handled"
+          />
           </View>
         )}
 
-        {/* Attachment previews */}
-        {selectedFiles.length > 0 && (
-          <View style={styles.attachmentsPreviewContainer}>
-            <View style={styles.attachmentsPreview}>
-              <Text style={styles.attachmentsTitle}>Attachments ({selectedFiles.length})</Text>
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false}
-                style={styles.attachmentsScroll}
-                contentContainerStyle={styles.attachmentsContent}
-              >
-                {selectedFiles.map((fileData, index) => {
-                  if (!fileData.file) return null;
-                  
-                  return (
-                    <View key={fileData.id} style={styles.attachmentPreviewItem}>
-                      <View style={styles.attachmentPreviewWrapper}>
+      {/* Input Container */}
+      <View style={styles.inputContainer}>
+        <TouchableOpacity
+          style={styles.attachmentButton}
+          onPress={handleAttachment}
+          disabled={disabled || isUploading}
+        >
+          <Ionicons name="add" size={24} color="#666" />
+        </TouchableOpacity>
+
                         <TouchableOpacity 
-                          onPress={() => {
-                            const newFiles = [...selectedFiles];
-                            newFiles.splice(index, 1);
-                            setSelectedFiles(newFiles);
-                          }}
-                          style={styles.attachmentRemoveButton}
-                        >
-                          <Text style={{color: 'white', fontSize: 12}}>X</Text>
+          style={styles.voiceButton}
+          onPress={async () => {
+            const hasPermission = await requestMicrophonePermission();
+            if (hasPermission) {
+              setShowVoiceRecorder(true);
+            } else {
+              Alert.alert(
+                'Permission Required',
+                'Microphone permission is required to record voice messages. Please enable it in app settings.',
+                [{ text: 'OK' }]
+              );
+            }
+          }}
+          disabled={disabled}
+        >
+          <Ionicons name="mic" size={24} color="#666" />
                         </TouchableOpacity>
                         
-                        {fileData.file.type?.startsWith('image/') ? (
-                          <Image 
-                            source={{ uri: fileData.file.uri }} 
-                            style={styles.attachmentImage}
-                            resizeMode="cover"
-                          />
-                        ) : (
-                          <View style={styles.attachmentPreviewInfo}>
-                            <Text 
-                              style={styles.attachmentPreviewName}
-                              numberOfLines={1}
-                              ellipsizeMode="middle">
-                              {fileData.file.name || 'Unknown file'}
-                            </Text>
-                            {fileData.file.size && (
-                              <Text style={styles.attachmentPreviewSize}>
-                                {formatFileSize(fileData.file.size)}
-                              </Text>
-                            )}
-                            <Text style={[
-                              styles.statusText,
-                              fileData.status === 'error' && { color: '#ef4444' },
-                              fileData.status === 'completed' && { color: '#10b981' }
-                            ]}>
-                              {fileData.status === 'uploading' 
-                                ? `Uploading... ${fileData.uploadProgress}%` 
-                                : fileData.status === 'completed' 
-                                  ? 'Ready to send' 
-                                  : fileData.status === 'error' 
-                                    ? 'Upload failed' 
-                                    : 'Ready to send'
-                              }
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                    </View>
-                  );
-                })}
-              </ScrollView>
-            </View>
-          </View>
-        )}
-        
-        <View style={[styles.inputContainer, isFocused && styles.inputContainerFocused]}>
-          <FileUploadHandler
-            onFilesSelected={handleFilesSelected}
-            onVoiceRecord={handleVoiceRecord}
-            uploading={isSending}
-          />
-
+        <View style={styles.textInputContainer}>
           <TextInput
             ref={inputRef}
             style={styles.textInput}
             placeholder="Type a message..."
-            placeholderTextColor="#9ca3af"
-            value={value}
-            onChangeText={onChangeText}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
+            value={message}
+            onChangeText={handleTextChange}
             multiline
-            maxLength={500}
-            returnKeyType="send"
-            onSubmitEditing={handleSend}
-            editable={!isSending}
+            maxLength={1000}
+            editable={!disabled}
           />
+        </View>
 
-          <View style={styles.rightIcons}>
             <TouchableOpacity
-              style={styles.iconButton}
-              onPress={toggleEmojiPicker}
-              disabled={isSending}
-            >
-              <Smile size={20} color={showEmojiPicker ? "#3b82f6" : "#6b7280"} />
+          style={styles.emojiButton}
+          onPress={() => setShowEmojiPicker(!showEmojiPicker)}
+          disabled={disabled}
+        >
+          <Ionicons name="happy-outline" size={24} color="#666" />
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[
                 styles.sendButton, 
-                (!canSend || isSending) && styles.sendButtonDisabled
+            (!message.trim() && attachments.length === 0 && pendingAttachments.length === 0) && styles.sendButtonDisabled
               ]}
               onPress={handleSend}
-              disabled={!canSend || isSending}
+          disabled={disabled || (!message.trim() && attachments.length === 0 && pendingAttachments.length === 0) || isUploading}
             >
-              {isSending ? (
-                <ActivityIndicator size="small" color="#9ca3af" />
+          {isUploading ? (
+            <Ionicons name="hourglass-outline" size={20} color="#fff" />
               ) : (
-                <Send size={20} color={canSend ? '#ffffff' : '#9ca3af'} />
+            <Ionicons name="send" size={20} color="#fff" />
               )}
             </TouchableOpacity>
+      </View>
+
+      {/* Voice Recorder Modal */}
+      <Modal
+        visible={showVoiceRecorder}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowVoiceRecorder(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <VoiceMessageRecorder
+              onSend={handleVoiceMessage}
+              onCancel={() => setShowVoiceRecorder(false)}
+            />
           </View>
         </View>
+      </Modal>
+
+      {/* Attachment Preview Modal */}
+      <Modal
+        visible={showAttachmentPreview}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={handleCancelAttachments}
+      >
+        <View style={styles.modalOverlay}>
+          <AttachmentPreview
+            attachments={pendingAttachments}
+            onRemoveAttachment={removePendingAttachment}
+            onSendAttachments={handleSendAttachments}
+            onCancelAttachments={handleCancelAttachments}
+            isUploading={isUploading}
+          />
+        </View>
+      </Modal>
+
+      {/* File Type Selector Modal */}
+      <FileTypeSelector
+        visible={showFileTypeSelector}
+        onClose={() => setShowFileTypeSelector(false)}
+        onSelectType={handleFileTypeSelect}
+      />
       </View>
-    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  keyboardAvoid: {
-    position: 'relative',
-    width: '100%',
-  },
   container: { 
-    backgroundColor: '#f3f4f6', 
-    padding: 16,
-    paddingBottom: Platform.OS === 'ios' ? 20 : 16,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
   },
-  // Attachment preview styles
-  attachmentsPreviewContainer: {
-    marginBottom: 12,
-  },
-  attachmentsPreview: {
-    backgroundColor: 'white',
-    borderRadius: 12,
+  replyPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    backgroundColor: '#f8f9fa',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
-  voiceMessagesContainer: {
-    marginBottom: 12,
-    backgroundColor: 'white',
-    borderRadius: 12,
+  replyContent: {
+    flex: 1,
+  },
+  replySender: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  replyText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
+  },
+  cancelReply: {
+    padding: 4,
+  },
+  attachmentsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     padding: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    backgroundColor: '#f8f9fa',
   },
-  voiceMessagesTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  attachmentsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  attachmentsScroll: {
-    flexGrow: 0,
-  },
-  attachmentsContent: {
-    paddingHorizontal: 4,
-  },
-  attachmentPreviewItem: {
-    marginRight: 12,
-  },
-  attachmentPreviewWrapper: {
+  attachmentPreview: {
     position: 'relative',
-    width: 120,
-    height: 120,
-    backgroundColor: '#f9fafb',
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  attachmentImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+  },
+  filePreview: {
+    width: 60,
+    height: 60,
+    backgroundColor: '#e0e0e0',
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    overflow: 'hidden',
   },
-  attachmentImage: {
-    width: '100%',
-    height: '100%',
-  },
-  attachmentPreviewInfo: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    padding: 8,
-  },
-  attachmentPreviewName: {
-    fontSize: 12,
-    color: '#374151',
-    marginTop: 8,
-    fontWeight: '500',
+  fileName: {
+    fontSize: 10,
+    marginTop: 4,
     textAlign: 'center',
   },
-  attachmentPreviewSize: {
-    fontSize: 10,
-    color: '#6b7280',
-    marginTop: 4,
-  },
-  statusText: {
-    fontSize: 10,
-    color: '#6b7280',
-    marginTop: 4,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  attachmentRemoveButton: {
+  removeAttachment: {
     position: 'absolute',
-    top: 4,
-    right: 4,
-    backgroundColor: '#ef4444',
-    borderRadius: 12,
+    top: -4,
+    right: -4,
+    backgroundColor: '#ff4444',
+    borderRadius: 10,
     width: 20,
     height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mentionPicker: {
+    maxHeight: 150,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  mentionList: {
+    maxHeight: 150,
+  },
+  mentionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  mentionAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 12,
+  },
+  mentionName: {
+    fontSize: 16,
+    color: '#000',
+  },
+  emojiPicker: {
+    maxHeight: 200,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  emojiList: {
+    maxHeight: 200,
+  },
+  emojiItem: {
+    padding: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 10,
   },
-  // Input styles
+  emojiText: {
+    fontSize: 20,
+  },
   inputContainer: {
     flexDirection: 'row', 
-    alignItems: 'center',
-    backgroundColor: '#f9fafb', 
-    borderRadius: 12, 
-    borderWidth: 1,
-    borderColor: '#e5e7eb', 
-    paddingHorizontal: 12, 
-    paddingVertical: 8,
-    minHeight: 50,
+    alignItems: 'flex-end',
+    padding: 12,
   },
-  inputContainerFocused: { 
-    borderColor: '#9ca3af', 
-    backgroundColor: '#fff' 
+  attachmentButton: {
+    padding: 8,
+    marginRight: 8,
+  },
+  voiceButton: {
+    padding: 8,
+    marginRight: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  textInputContainer: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    maxHeight: 100,
   },
   textInput: { 
-    flex: 1, 
     fontSize: 16, 
-    color: '#374151', 
-    maxHeight: 120, 
-    paddingHorizontal: 8,
-    paddingTop: Platform.OS === 'android' ? 6 : 0,
-    minHeight: 20,
+    lineHeight: 20,
+    padding: 0,
   },
-  rightIcons: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 8 
-  },
-  iconButton: { 
-    padding: 6, 
-    borderRadius: 6 
+  emojiButton: {
+    padding: 8,
+    marginRight: 8,
   },
   sendButton: { 
-    backgroundColor: '#3b82f6', 
-    padding: 8, 
+    backgroundColor: '#007AFF',
     borderRadius: 20,
-    minWidth: 36,
-    minHeight: 36,
-    alignItems: 'center',
+    width: 40,
+    height: 40,
     justifyContent: 'center',
+    alignItems: 'center',
   },
   sendButtonDisabled: { 
-    backgroundColor: '#e5e7eb' 
+    backgroundColor: '#ccc',
   },
 });
 

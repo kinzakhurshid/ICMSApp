@@ -1,4 +1,4 @@
-// src/constant/events.ts
+// Socket Events
 export const CHAT_JOINED = "CHAT_JOINED";
 export const CHAT_LEAVED = "CHAT_LEAVED";
 export const NEW_MESSAGE = "NEW_MESSAGE";
@@ -11,7 +11,23 @@ export const UPDATE_LAST_MESSAGE = "UPDATE_LAST_MESSAGE";
 export const START_TYPING = "START_TYPING";
 export const STOP_TYPING = "STOP_TYPING";
 export const UPDATE_MESSAGE = "UPDATE_MESSAGE";
-// Add these to your constants/events.ts file
+export const READ_INBOX_NOTIFICATIONS = "READ_INBOX_NOTIFICATIONS";
+export const READ_CHAT_NOTIFICATIONS = "READ_CHAT_NOTIFICATIONS";
+
+// Chat Features
+export const PIN_MESSAGE = "PIN_MESSAGE";
+export const UNPIN_MESSAGE = "UNPIN_MESSAGE";
+export const REPLY_TO_MESSAGE = "REPLY_TO_MESSAGE";
+export const ADD_REACTION = "ADD_REACTION";
+export const REMOVE_REACTION = "REMOVE_REACTION";
+export const REFETCH_CHAT_DETAILS = "REFETCH_CHAT_DETAILS";
+
+// Member Management
+export const MEMBER_ADDED = "MEMBER_ADDED";
+export const MEMBER_REMOVED = "MEMBER_REMOVED";
+export const CHAT_UPDATED = "CHAT_UPDATED";
+
+// Call Events (if needed in future)
 export const CALL_INVITE = 'callInvite';
 export const CALL_ACCEPTED = 'callAccepted';
 export const CALL_REJECTED = 'callRejected';

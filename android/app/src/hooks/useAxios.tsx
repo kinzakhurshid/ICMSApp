@@ -8,6 +8,7 @@ const API_BASE_URL = "https://intelgency.com/api";
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 15000, // 15 second timeout
   headers: {
     "Content-Type": "application/json",
   },
