@@ -13,6 +13,8 @@ import { useSelector } from "react-redux";
 import { RootState } from "../states/store";
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import NotificationIcon from './NotificationIcon';
+import { useNotifications } from '../Context/NotificationContext';
 
 // Define navigation types
 type NavigationProp = DrawerNavigationProp<any> | NativeStackNavigationProp<any>;
@@ -31,6 +33,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   onBackPress 
 }) => {
   const { currentUser } = useSelector((state: RootState) => state.user);
+  const { unreadCount } = useNotifications();
   
   // Show alerts with user data (convert objects to strings)
   // Alert.alert('Current User Object', JSON.stringify(currentUser, null, 2));
@@ -86,7 +89,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
           ) : (
             <>
               <Image
-                source={{ uri: displayUser?.avatar ?? 'https://randomuser.me/api/portraits/women/44.jpg' }}
+                source={{ uri: displayUser?.profilePic ?? 'https://randomuser.me/api/portraits/women/44.jpg' }}
                 style={styles.avatar}
               />
               <View style={styles.userInfo}>
@@ -102,10 +105,11 @@ const AppHeader: React.FC<AppHeaderProps> = ({
           {/* <TouchableOpacity style={styles.iconButton}>
             <Ionicons name="chatbubble-ellipses-outline" size={22} color="#FF5722" />
           </TouchableOpacity> */}
-          <TouchableOpacity style={[styles.iconButton, { marginLeft: 12 }]}>
-            <Ionicons name="notifications-outline" size={22} color="#FF5722" />
-            <View style={styles.notificationBadge} />
-          </TouchableOpacity>
+          <NotificationIcon 
+            unreadCount={unreadCount}
+            size={22}
+            color="#FF5722"
+          />
         </View>
       </View>
     </View>
@@ -174,15 +178,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: 2,
-    right: 2,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FF5722',
   },
 });
 

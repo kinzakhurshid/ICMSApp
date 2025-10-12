@@ -12,6 +12,9 @@ import {
   ScrollView,
   Dimensions
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { DrawerNavigationProp } from "@react-navigation/drawer";
+import { DrawerParamList } from "../navigation/DrawerNavigator";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import AntDesign from "react-native-vector-icons/AntDesign";
 import useAxios from "../hooks/useAxios";
@@ -45,7 +48,10 @@ interface SprintStats {
   completedSprints: number;
 }
 
+type SprintNavigationProp = DrawerNavigationProp<DrawerParamList, 'SprintBoard'>;
+
 const SprintBoard = () => {
+  const navigation = useNavigation<SprintNavigationProp>();
   const [searchText, setSearchText] = useState<string>("");
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [stats, setStats] = useState<SprintStats | null>(null);
@@ -118,7 +124,10 @@ const SprintBoard = () => {
   );
 
   const renderSprint = ({ item, index }: { item: Sprint; index: number }) => (
-    <View style={styles.row}>
+    <TouchableOpacity 
+      style={styles.row} 
+      onPress={() => navigation.navigate('SprintDetail', { sprintId: item._id })}
+    >
       <Text style={[styles.cell, styles.srCell]} numberOfLines={1}>
         {index + 1}
       </Text>
@@ -137,7 +146,7 @@ const SprintBoard = () => {
       <Text style={[styles.cell, styles.dateCell]}>
         {item.endDate ? new Date(item.endDate).toLocaleDateString() : "N/A"}
       </Text>
-    </View>
+    </TouchableOpacity>
   );
 
   if (loading) {

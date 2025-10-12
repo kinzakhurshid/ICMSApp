@@ -7,6 +7,7 @@ import {
   Alert,
   Image,
   Dimensions,
+  Keyboard,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Message, User, Reaction } from '../types/chattypes';
@@ -54,7 +55,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const [selectedReaction, setSelectedReaction] = useState<Reaction | null>(null);
   const [menuPosition, setMenuPosition] = useState<'top' | 'bottom'>('top');
   const [showActions, setShowActions] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const menuRef = useRef<View>(null);
   const bubbleRef = useRef<View>(null);
   const { socket } = useSocket();
@@ -131,6 +131,19 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     setShowReactionPicker(!showReactionPicker);
   };
 
+  // New functions to handle edit and reply
+  const handleEdit = (message: Message) => {
+    if (onEdit) {
+      onEdit(message);
+    }
+    setShowMenu(false);
+  };
+
+  const handleReply = (message: Message) => {
+    onReply(message);
+    setShowMenu(false);
+  };
+
   // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = () => {
@@ -143,27 +156,27 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     return handleClickOutside;
   }, []);
 
-  // Close other menus when one opens (but not if modal is open)
+  // Close other menus when one opens
   useEffect(() => {
-    if (showReactionPicker && !isModalOpen) {
+    if (showReactionPicker) {
       setShowMenu(false);
       setShowReactionDetails(false);
     }
-  }, [showReactionPicker, isModalOpen]);
+  }, [showReactionPicker]);
 
   useEffect(() => {
-    if (showMenu && !isModalOpen) {
+    if (showMenu) {
       setShowReactionPicker(false);
       setShowReactionDetails(false);
     }
-  }, [showMenu, isModalOpen]);
+  }, [showMenu]);
 
   useEffect(() => {
-    if (showReactionDetails && !isModalOpen) {
+    if (showReactionDetails) {
       setShowReactionPicker(false);
       setShowMenu(false);
     }
-  }, [showReactionDetails, isModalOpen]);
+  }, [showReactionDetails]);
 
   // Group reactions by emoji
   const groupedReactions =
@@ -393,10 +406,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           onClose={() => setShowMenu(false)}
           position={isCurrentUser ? 'right' : 'left'}
           alignment={menuPosition}
-          onReply={onReply}
-          onEdit={onEdit}
-          isModalOpen={isModalOpen}
-          setIsModalOpen={setIsModalOpen}
+          onReply={handleReply} // Use the new handler
+          onEdit={handleEdit} // Use the new handler
         />
       )}
     </View>

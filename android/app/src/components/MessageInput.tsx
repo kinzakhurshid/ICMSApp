@@ -288,7 +288,7 @@ const MessageInput: React.FC<{
         console.log('Voice attachment added:', voiceAttachment);
         setShowVoiceRecorder(false);
         onCancelReply?.();
-      };
+  };
 
   const handleEmojiSelect = (emoji: string) => {
     setMessage(prev => prev + emoji);
@@ -373,7 +373,7 @@ const MessageInput: React.FC<{
       if (DocumentPicker.isCancel(error)) {
         // User cancelled the picker
         console.log('Document picker cancelled');
-      } else {
+        } else {
         console.error('Document picker error:', error);
         Alert.alert('Error', 'Failed to select document');
       }

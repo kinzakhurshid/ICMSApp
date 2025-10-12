@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Chat, User, ChatMember } from "../types/chattypes";
+import NotificationBadge from "./NotificationBadge";
 
 interface Props {
   chat: Chat & { unreadCount?: number; lastUpdated?: number };
@@ -123,11 +124,15 @@ const ChatListItem: React.FC<Props> = ({ chat, currentUser, isSelected, onSelect
 
   const getUnreadCount = (): string => {
     try {
+      console.log('🔢 ChatListItem getUnreadCount for chat:', chat?.name, 'unreadCount:', chat?.unreadCount);
       if (!chat?.unreadCount || typeof chat.unreadCount !== 'number' || chat.unreadCount <= 0) {
         return '';
       }
-      return chat.unreadCount > 99 ? "99+" : chat.unreadCount.toString();
+      const count = chat.unreadCount > 99 ? "99+" : chat.unreadCount.toString();
+      console.log('🔢 Returning unread count:', count);
+      return count;
     } catch (error) {
+      console.error('🔢 Error in getUnreadCount:', error);
       return '';
     }
   };
@@ -266,11 +271,11 @@ const ChatListItem: React.FC<Props> = ({ chat, currentUser, isSelected, onSelect
               {timeText}
             </Text>
             {unreadCount && (
-              <View style={styles.unreadBadge}>
-                <Text style={styles.unreadText}>
-                  {unreadCount}
-                </Text>
-              </View>
+              <NotificationBadge
+                count={unreadCount}
+                size="medium"
+                color="#FF6B35"
+              />
             )}
           </View>
         </View>

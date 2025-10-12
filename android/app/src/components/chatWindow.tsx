@@ -67,6 +67,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../states/store';
 import {
   NEW_MESSAGE,
+  NEW_MESSAGE_ALERT,
   NEW_REACTION,
   ADD_REACTION,
   REMOVE_REACTION,
@@ -168,6 +169,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
+
+      // Log message received for debugging
+      console.log('Message received in ChatWindow:', {
+        messageId: data.message._id,
+        senderId: data.message.sender._id,
+        currentUserId: currentUser._id,
+        isFromCurrentUser: data.message.sender._id === currentUser._id
+      });
+
+      // Note: NEW_MESSAGE_ALERT should be emitted by the backend when a message is sent
+      // This frontend code just receives and displays the message
     };
 
     const handleNewReaction = (data: any) => {
@@ -750,7 +762,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               flatListRef.current.scrollToIndex({ index: messageIndex, animated: true });
             }
           }}
-          currentUser={actualUser}
+            currentUser={actualUser}
         />
       )}
 

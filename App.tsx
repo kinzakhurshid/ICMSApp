@@ -3,12 +3,18 @@ import { NavigationContainer } from '@react-navigation/native';
 import { Provider } from 'react-redux';
 import { store } from './android/app/src/states/store';
 import RootNavigator from './android/app/src/navigation/AppNavigator';
+import { NotificationProvider } from './android/app/src/Context/NotificationContext';
+import NotificationManager from './android/app/src/components/NotificationManager';
 
 const App = () => {
   return (
     <Provider store={store}>
       <NavigationContainer>
-        <RootNavigator />
+        <NotificationProvider>
+          <NotificationManager>
+            <RootNavigator />
+          </NotificationManager>
+        </NotificationProvider>
       </NavigationContainer>
     </Provider>
   );

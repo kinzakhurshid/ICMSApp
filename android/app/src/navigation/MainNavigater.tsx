@@ -10,7 +10,7 @@ import SettingsScreen from '../Screens/SettingScreen';
 import RoleWebViewScreen from '../Screens/RoleWebView';
 import ProjectScreen from '../Screens/ProjectScreen';
 import TaskScreen from '../Screens/TasksScreen';
-import ProjectOverview from '../Screens/ProjectDetail';
+import ProjectDetailScreen from '../Screens/ProjectDetailScreen';
 import AppHeader from '../components/AppHeader';
 
 // Define parameter lists
@@ -80,7 +80,7 @@ function ProjectStackScreen() {
       })}
     >
       <ProjectStack.Screen name="ProjectList" component={ProjectScreen} />
-      <ProjectStack.Screen name="ProjectDetail" component={ProjectOverview} />
+      <ProjectStack.Screen name="ProjectDetail" component={ProjectDetailScreen} />
     </ProjectStack.Navigator>
   );
 }

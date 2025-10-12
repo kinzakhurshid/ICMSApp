@@ -7,16 +7,20 @@ import CustomDrawerContent from '../components/CustomDrawerContent';
 import MainTabNavigator from './MainNavigater';
 import SettingsScreen from '../Screens/SettingScreen';
 import SprintScreen from '../Screens/SprintScreen';
+import SprintDetailScreen from '../Screens/SprintDetailScreen';
 import MeetingDashboard from '../Screens/MeetingScreen';
 import AppHeader from '../components/AppHeader';
 import HomeScreen from '../Screens/HomeScreen';
+import NotificationsScreen from '../Screens/NotificationsScreen';
 
 export type DrawerParamList = {
   MainTabs: undefined;
   SprintBoard: undefined;
+  SprintDetail: { sprintId: string };
   Meeting: undefined;
   AppSettings: undefined;
   DeveloperTools: undefined;
+  NotificationsScreen: undefined;
 };
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
@@ -55,6 +59,12 @@ const DrawerNavigator: React.FC = () => {
       />
 
       <Drawer.Screen
+        name="SprintDetail"
+        component={SprintDetailScreen}
+        options={{ title: 'Sprint Details' }}
+      />
+
+      <Drawer.Screen
         name="Meeting"
         component={MeetingDashboard}
         options={{ title: 'Meeting' }}
@@ -73,6 +83,15 @@ const DrawerNavigator: React.FC = () => {
           options={{ title: 'Developer Tools' }}
         />
       {/* )} */}
+      
+      <Drawer.Screen
+        name="NotificationsScreen"
+        component={NotificationsScreen}
+        options={{ 
+          title: 'Notifications',
+          headerShown: false,
+        }}
+      />
     </Drawer.Navigator>
   );
 };
