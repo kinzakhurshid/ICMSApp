@@ -69,7 +69,6 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ currentUser }) => {
   };
 
   const handleChatSelect = (chat: Chat) => {
-    Alert.alert('Parent Component', `Chat selected: ${chat._id}`);
     setUnreadCounts((prev) => ({
       ...prev,
       [chat._id]: 0,

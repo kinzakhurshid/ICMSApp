@@ -64,10 +64,7 @@ const MeetingScreen: React.FC = () => {
     try {
       const response = await callApi({
         method: 'GET',
-        url: '/meetings/stats',
-        params: {
-          organizationId: currentUser?.organization,
-        },
+        url: '/meetings/stats/me',
       });
       setStats(response.data || response);
     } catch (error) {
@@ -79,10 +76,7 @@ const MeetingScreen: React.FC = () => {
     try {
       const response = await callApi({
         method: 'GET',
-        url: '/meetings/week',
-        params: {
-          organizationId: currentUser?.organization,
-        },
+        url: '/meetings/week/me',
       });
       setUpcomingMeetings(response.data || response);
     } catch (error) {
@@ -94,9 +88,9 @@ const MeetingScreen: React.FC = () => {
     try {
       const response = await callApi({
         method: 'GET',
-        url: '/meetings',
+        url: '/meetings/me',
         params: {
-          organizationId: currentUser?.organization,
+          page: 1,
           limit: 50,
         },
       });
@@ -116,7 +110,7 @@ const MeetingScreen: React.FC = () => {
       if (meetingsData && Array.isArray(meetingsData)) {
         const meetingsWithStatus = meetingsData.map((m: any) => ({
           ...m,
-          status: m.status || "Scheduled",
+          status: m.status || m.isCompleted ? "Completed" : "Scheduled",
         }));
         setMeetings(meetingsWithStatus);
       } else {

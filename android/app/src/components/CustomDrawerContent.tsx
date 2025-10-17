@@ -25,8 +25,12 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
   // Use currentUser if available, otherwise fall back to user
   const displayUser = currentUser || user;
 
-  // Updated drawer items to match the new navigation structure
-  const drawerItems = [
+  // Check if user is PM (Project Manager)
+  const isPM = displayUser?.role === 'PM' || displayUser?.role === 'pm';
+
+  // Role-based drawer items
+  const drawerItems = isPM ? [
+    // PM (Project Manager) menu items
     { 
       label: 'Dashboard', 
       icon: <MaterialIcons name="dashboard" size={22} color="#FF5722" />,
@@ -55,6 +59,47 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
       label: 'Sprint Board', 
       icon: <MaterialCommunityIcons name="presentation" size={22} color="#FF5722" />,
       route: 'SprintBoard',
+    },
+    { 
+      label: 'Meeting', 
+      icon: <MaterialIcons name="video-call" size={22} color="#FF5722" />,
+      route: 'Meeting',
+    },
+    { 
+      label: 'Settings', 
+      icon: <Ionicons name="settings-outline" size={22} color="#FF5722" />,
+      route: 'AppSettings',
+    },
+  ] : [
+    // Employee menu items
+    { 
+      label: 'Dashboard', 
+      icon: <MaterialIcons name="dashboard" size={22} color="#FF5722" />,
+      route: 'MainTabs',
+      screen: 'EmployeeHomeTab'
+    },
+    { 
+      label: 'Tasks', 
+      icon: <MaterialIcons name="task" size={22} color="#FF5722" />,
+      route: 'MainTabs',
+      screen: 'EmployeeTaskTab'
+    },
+    { 
+      label: 'Inbox', 
+      icon: <MaterialIcons name="inbox" size={22} color="#FF5722" />,
+      route: 'MainTabs',
+      screen: 'EmployeeInboxTab'
+    },
+    { 
+      label: 'Leaves', 
+      icon: <MaterialIcons name="event-busy" size={22} color="#FF5722" />,
+      route: 'MainTabs',
+      screen: 'EmployeeLeaveTab'
+    },
+    { 
+      label: 'Profile', 
+      icon: <MaterialIcons name="person" size={22} color="#FF5722" />,
+      route: 'EmployeeProfile'
     },
     { 
       label: 'Meeting', 

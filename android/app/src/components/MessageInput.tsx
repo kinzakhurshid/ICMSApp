@@ -177,9 +177,26 @@ const MessageInput: React.FC<{
     };
   }, []);
 
+  // Debug: Log all members
+  useEffect(() => {
+    if (members.length > 0) {
+      console.log('All members:', members.filter(m => m).map(m => ({ id: m?._id, name: m?.name, email: m?.email })));
+    }
+  }, [members]);
+
   const filteredMembers = members.filter(member =>
-    member.name.toLowerCase().includes(mentionQuery.toLowerCase())
+    member && member.name && member.name.toLowerCase().includes(mentionQuery.toLowerCase())
   );
+  
+  // Debug log
+  if (showMentionPicker) {
+    console.log('Mention picker visible, filtered members:', filteredMembers.length);
+    console.log('Mention query:', mentionQuery);
+    console.log('Total members available:', members.length);
+    if (filteredMembers.length === 0 && members.length > 0) {
+      console.log('Sample member structure:', members[0]);
+    }
+  }
 
   const handleTextChange = (text: string) => {
     setMessage(text);
@@ -187,6 +204,8 @@ const MessageInput: React.FC<{
     // Handle mentions
     const mentionMatch = text.match(/@(\w*)$/);
     if (mentionMatch) {
+      console.log('Mention detected:', mentionMatch[1]);
+      console.log('Available members:', members.length);
       setMentionQuery(mentionMatch[1]);
       setShowMentionPicker(true);
     } else {
@@ -484,18 +503,22 @@ const MessageInput: React.FC<{
     </View>
   );
 
-  const renderMentionItem = ({ item }: { item: User }) => (
-    <TouchableOpacity
-      style={styles.mentionItem}
-      onPress={() => handleMentionSelect(item)}
-    >
-      <Image
-        source={{ uri: item.avatar || item.profilePic }}
-        style={styles.mentionAvatar}
-      />
-      <Text style={styles.mentionName}>{item.name}</Text>
-    </TouchableOpacity>
-  );
+  const renderMentionItem = ({ item }: { item: User }) => {
+    if (!item || !item.name) return null;
+    
+    return (
+      <TouchableOpacity
+        style={styles.mentionItem}
+        onPress={() => handleMentionSelect(item)}
+      >
+        <Image
+          source={{ uri: item.avatar || item.profilePic || 'https://via.placeholder.com/32' }}
+          style={styles.mentionAvatar}
+        />
+        <Text style={styles.mentionName}>{item.name}</Text>
+      </TouchableOpacity>
+    );
+  };
 
   const renderEmojiItem = ({ item }: { item: string }) => (
     <TouchableOpacity
@@ -853,6 +876,7 @@ const styles = StyleSheet.create({
     fontSize: 16, 
     lineHeight: 20,
     padding: 0,
+    color: '#000000',
   },
   emojiButton: {
     padding: 8,

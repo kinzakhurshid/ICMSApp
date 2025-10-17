@@ -11,3 +11,4 @@ export const useNotificationBadge = () => {
 };
 
 export default useNotificationBadge;
+

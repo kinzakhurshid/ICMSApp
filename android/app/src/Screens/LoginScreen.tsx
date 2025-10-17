@@ -41,6 +41,7 @@ const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({email: '', password: ''});
   const dispatch = useAppDispatch();
   const {callApi, loading} = useAxios();
@@ -185,11 +186,21 @@ const handleLogin = async () => {
           <TextInput
             placeholder="Password"
             placeholderTextColor="#aaa"
-            secureTextEntry
+            secureTextEntry={!showPassword}
             style={styles.input}
             value={password}
             onChangeText={setPassword}
           />
+          <TouchableOpacity
+            onPress={() => setShowPassword(!showPassword)}
+            style={styles.eyeIcon}
+          >
+            <Icon 
+              name={showPassword ? "eye-slash" : "eye"} 
+              size={16} 
+              color="#F09819" 
+            />
+          </TouchableOpacity>
         </View>
         {errors.password ? (
           <Text style={styles.errorText}>{errors.password}</Text>
@@ -294,6 +305,10 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#333',
     fontSize: 16,
+  },
+  eyeIcon: {
+    padding: 5,
+    marginLeft: 10,
   },
   button: {
     borderRadius: 8,

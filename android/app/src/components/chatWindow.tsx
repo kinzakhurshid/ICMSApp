@@ -12,6 +12,7 @@ import {
   Modal,
   Keyboard,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 
 // Utility functions from website
 const getDateGroupKey = (date: Date): string => {
@@ -82,13 +83,15 @@ import {
 } from '../constants/events';
 
 // Import components
-import ChatHeader from './ChatHeader';
+import ChatHeaderNew from './ChatHeaderNew';
 import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
 import PinnedMessages from './PinnedMessages';
 import PinnedMessagesHeader from './PinnedMessagesHeader';
+import PinnedMessagesScreen from './PinnedMessagesScreen';
 import TypingIndicator from './TypingIndicator';
 import MessageSearch from './MessageSearch';
+import ChatSearch from './ChatSearch';
 
 interface ChatWindowProps {
   chat: Chat;
@@ -103,6 +106,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   onMarkAsRead,
   onBack,
 }) => {
+  const navigation = useNavigation();
   const [chatState, setChatState] = useState<ChatState>({
     messages: [],
     groupedMessages: {},
@@ -409,22 +413,53 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   const loadMembers = async () => {
-    if (!token) return;
+    console.log('🔄 Loading members for chat:', chat._id);
+    console.log('🔄 Token available:', !!token);
+    console.log('🔄 Chat members from props:', chat.members);
+    
+    if (!token) {
+      console.log('❌ No token available');
+      return;
+    }
     
     try {
       const response = await getChatMembers(chat._id, token);
-      const memberUsers = response.members?.map((m: any) => m.user) || [];
+      console.log('✅ Members API response:', JSON.stringify(response, null, 2));
+      
+      // Filter out undefined/null members and ensure they have required properties
+      const memberUsers = (response.members || [])
+        .map((m: any) => m?.user || m)
+        .filter((user: any) => user && user._id && user.name)
+        .map((user: any) => ({
+          _id: user._id || user.id,
+          name: user.name || user.fullName || '',
+          email: user.email || '',
+          profilePic: user.profilePic || user.avatar || '',
+          avatar: user.profilePic || user.avatar || ''
+        }));
+      
+      console.log('✅ Processed members:', memberUsers);
       setMembers(memberUsers);
     } catch (error) {
-      console.log('Members API not available, using chat members');
+      console.log('⚠️ Members API error:', error);
+      console.log('⚠️ Using fallback - chat members from props');
+      
       // Fallback to chat members from props - convert to User format
-      const memberUsers = chat.members?.map(m => ({
-        _id: m.user._id || m.user.id || '',
-        name: m.user.name || '',
-        email: m.user.email || '',
-        profilePic: m.user.profilePic || '',
-        avatar: m.user.profilePic || ''
-      })) || [];
+      const memberUsers = (chat.members || [])
+        .filter((m: any) => m && (m.user || m._id))
+        .map((m: any) => {
+          const user = m.user || m;
+          return {
+            _id: user._id || user.id || '',
+            name: user.name || user.fullName || '',
+            email: user.email || '',
+            profilePic: user.profilePic || user.avatar || '',
+            avatar: user.profilePic || user.avatar || ''
+          };
+        })
+        .filter((user: any) => user._id && user.name);
+      
+      console.log('✅ Fallback members:', memberUsers);
       setMembers(memberUsers);
     }
   };
@@ -667,6 +702,62 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     setShowSearch(false);
   };
 
+  // Get other member for call functionality
+  const getOtherMember = useCallback(() => {
+    if (chat.isGroup) return null;
+    if (!chat.members || chat.members.length === 0) return null;
+
+    const processedMembers = chat.members.map(member => {
+      if (typeof member === 'string') {
+        return { _id: member, name: 'Unknown User', avatar: '' };
+      }
+
+      const memberId = member.id || member.user?.id;
+      if (!memberId) return null;
+
+      return {
+        _id: memberId,
+        name: member.name || member.user?.name || 'Unknown User',
+        avatar: member.profilePic || member.user?.profilePic || '',
+      };
+    }).filter(member => member !== null);
+
+    if (processedMembers.length === 0) return null;
+
+    const otherMember = processedMembers.find(member => member._id !== actualUser._id);
+    return otherMember || processedMembers[0];
+  }, [chat.members, chat.isGroup, actualUser._id]);
+
+  const handleStartVoiceCall = () => {
+    const otherMember = getOtherMember();
+    if (otherMember) {
+      // Navigate using the parent navigation (InboxStack)
+      (navigation as any).navigate('CallScreen', {
+        userName: otherMember.name,
+        userAvatar: otherMember.avatar,
+        isVideoCall: false,
+        isIncoming: false,
+      });
+    }
+  };
+
+  const handleStartVideoCall = () => {
+    const otherMember = getOtherMember();
+    if (otherMember) {
+      // Navigate using the parent navigation (InboxStack)
+      (navigation as any).navigate('CallScreen', {
+        userName: otherMember.name,
+        userAvatar: otherMember.avatar,
+        isVideoCall: true,
+        isIncoming: false,
+      });
+    }
+  };
+
+  const handleSearchPress = () => {
+    setShowSearch(true);
+  };
+
   const handleReply = (message: Message) => {
     setReplyTo(message);
   };
@@ -738,17 +829,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 20}
       enabled={true}
     >
-      <ChatHeader
+      <ChatHeaderNew
         chat={chat}
         currentUser={actualUser}
         onlineUsers={chatState.onlineUsers}
         onBack={onBack}
         onTogglePinned={() => setShowPinnedMessages(true)}
-        onSearch={() => setShowSearch(true)}
-        onSearchResults={(results) => setChatState(prev => ({ ...prev, searchResults: results }))}
-        onClearSearch={handleClearSearch}
-        isSearching={chatState.isSearching}
-        searchResults={chatState.searchResults}
+        onSearch={handleSearchPress}
+        onStartVoiceCall={handleStartVoiceCall}
+        onStartVideoCall={handleStartVideoCall}
+        showCallButtons={true}
+        pinnedMessagesCount={chatState.pinnedMessages.length}
       />
       
       {chatState.pinnedMessages.length > 0 && (
@@ -791,13 +882,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       />
 
       {showPinnedMessages && (
-        <PinnedMessages
+        <PinnedMessagesScreen
           chatId={chat._id}
           currentUser={actualUser}
           onClose={() => setShowPinnedMessages(false)}
-          onReply={handleReply}
-          onEdit={handleEdit}
-          onDelete={handleDeleteMessage}
+          onMessagePress={(message) => {
+            // Scroll to the message in the chat
+            const messageIndex = chatState.messages.findIndex(msg => msg._id === message._id);
+            if (messageIndex !== -1 && flatListRef.current) {
+              flatListRef.current.scrollToIndex({ index: messageIndex, animated: true });
+            }
+          }}
+          token={token || ''}
         />
       )}
 
@@ -807,7 +903,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         animationType="slide"
         onRequestClose={() => setShowSearch(false)}
       >
-        <MessageSearch
+        <ChatSearch
           chatId={chat._id}
           onClose={() => setShowSearch(false)}
           onSelectMessage={handleSearchMessage}

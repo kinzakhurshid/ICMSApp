@@ -11,6 +11,7 @@ import RoleWebViewScreen from '../Screens/RoleWebView';
 import ProjectScreen from '../Screens/ProjectScreen';
 import TaskScreen from '../Screens/TasksScreen';
 import ProjectDetailScreen from '../Screens/ProjectDetailScreen';
+import CallScreen from '../Screens/CallScreen';
 import AppHeader from '../components/AppHeader';
 
 // Define parameter lists
@@ -31,6 +32,12 @@ export type TaskStackParamList = {
 
 export type InboxStackParamList = {
   InboxMain: undefined;
+  CallScreen: {
+    userName: string;
+    userAvatar: string;
+    isVideoCall?: boolean;
+    isIncoming?: boolean;
+  };
 };
 
 export type SettingsStackParamList = {
@@ -110,6 +117,11 @@ function InboxStackScreen() {
         name="InboxMain" 
         component={InboxWrapper} // Use the wrapper instead of InboxScreen directly
         options={{ headerShown: false }} // Hide header since InboxScreen has its own
+      />
+      <InboxStack.Screen 
+        name="CallScreen" 
+        component={CallScreen}
+        options={{ headerShown: false }} // Hide header for full-screen call experience
       />
     </InboxStack.Navigator>
   );
