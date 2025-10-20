@@ -18,8 +18,8 @@ android {
         applicationId "com.icmsapp"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion  // Use rootProject value
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "1.1"
         
         multiDexEnabled true
         vectorDrawables.useSupportLibrary = true

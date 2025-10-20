@@ -1,32 +1,73 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useSelector } from 'react-redux';
+import { RootState } from '../states/store';
 import useAxios from '../hooks/useAxios';
 
+// User interface for notifications
+export interface NotificationUser {
+  _id: string;
+  username: string;
+  profilePicture?: string;
+  name?: string;
+}
+
+// Chat interface for notifications
+export interface NotificationChat {
+  _id: string;
+  name?: string;
+  type?: string;
+}
+
+// Message interface for notifications
+export interface NotificationMessage {
+  _id: string;
+  content: string;
+  messageType?: string;
+}
+
+// Main notification interface
 export interface InboxNotification {
   _id: string;
+  receiver: string;
+  sender: NotificationUser;
+  type: "message" | "reaction" | "mention" | "system" | "group_invite";
+  chat?: NotificationChat;
+  relatedMessage?: NotificationMessage;
   title: string;
-  message: string;
-  type: string;
-  senderId: string;
-  senderName: string;
-  senderAvatar?: string;
-  chatId?: string;
-  projectId?: string;
-  taskId?: string;
-  isRead: boolean;
+  body: string;
+  metadata: Record<string, any>;
+  read: boolean;
+  delivered: boolean;
   createdAt: string;
   updatedAt: string;
 }
+
+// API Response interfaces
+export interface NotificationsResponse {
+  notifications: InboxNotification[];
+  totalPages: number;
+  currentPage: number;
+  total: number;
+}
+
+export interface UnreadCountResponse {
+  count: number;
+}
+
+// Notification tab types
+export type NotificationTab = "inbox" | "general";
 
 interface NotificationContextType {
   notifications: InboxNotification[];
   unreadCount: number;
   loading: boolean;
-  fetchNotifications: () => Promise<void>;
+  notificationsLoading: boolean;
+  fetchNotifications: (page?: number, limit?: number) => Promise<void>;
   fetchUnreadCount: () => Promise<void>;
   markAsRead: (notificationId: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
+  clearAllNotifications: () => Promise<void>;
   addNotification: (notification: InboxNotification) => void;
-  clearNotifications: () => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -47,37 +88,71 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const [notifications, setNotifications] = useState<InboxNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
+  const [notificationsLoading, setNotificationsLoading] = useState<boolean>(false);
   const { callApi } = useAxios();
+  
+  // Get current user from Redux store
+  const { currentUser } = useSelector((state: RootState) => state.user);
 
-  const fetchNotifications = async (): Promise<void> => {
+  // Get current user ID from Redux store
+  const getCurrentUserId = (): string => {
+    return currentUser?._id || currentUser?.id || '';
+  };
+
+  const fetchNotifications = async (page = 1, limit = 20): Promise<void> => {
     try {
-      setLoading(true);
-      // Using local state for now - replace with actual API call when ready
-      console.log('Fetching notifications...');
-      setNotifications([]);
+      setNotificationsLoading(true);
+      const userId = getCurrentUserId();
+      if (!userId) return;
+
+      const response = await callApi({
+        method: 'GET',
+        url: `/inbox-notifications/user/${userId}`,
+        params: { page, limit }
+      });
+
+      if (response && response.notifications) {
+        setNotifications(response.notifications);
+      }
     } catch (error) {
       console.error('Error fetching notifications:', error);
     } finally {
-      setLoading(false);
+      setNotificationsLoading(false);
     }
   };
 
   const fetchUnreadCount = async (): Promise<void> => {
     try {
-      // Using local state for now - replace with actual API call when ready
-      console.log('Fetching unread count...');
-      setUnreadCount(0);
+      setLoading(true);
+      const userId = getCurrentUserId();
+      if (!userId) return;
+
+      const response = await callApi({
+        method: 'GET',
+        url: `/inbox-notifications/user/${userId}/count`
+      });
+
+      if (response && response.count !== undefined) {
+        setUnreadCount(response.count);
+      }
     } catch (error) {
       console.error('Error fetching unread count:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const markAsRead = async (notificationId: string): Promise<void> => {
     try {
+      await callApi({
+        method: 'PUT',
+        url: `/inbox-notifications/${notificationId}/read`
+      });
+
       setNotifications(prev => 
         prev.map(notification => 
           notification._id === notificationId 
-            ? { ...notification, isRead: true }
+            ? { ...notification, read: true }
             : notification
         )
       );
@@ -89,8 +164,16 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
   const markAllAsRead = async (): Promise<void> => {
     try {
+      const userId = getCurrentUserId();
+      if (!userId) return;
+
+      await callApi({
+        method: 'POST',
+        url: `/inbox-notifications/user/${userId}/read-all`
+      });
+
       setNotifications(prev => 
-        prev.map(notification => ({ ...notification, isRead: true }))
+        prev.map(notification => ({ ...notification, read: true }))
       );
       setUnreadCount(0);
     } catch (error) {
@@ -98,28 +181,41 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     }
   };
 
-  const addNotification = (notification: InboxNotification): void => {
-    setNotifications(prev => [notification, ...prev]);
-    if (!notification.isRead) {
-      setUnreadCount(prev => prev + 1);
+  const clearAllNotifications = async (): Promise<void> => {
+    try {
+      const userId = getCurrentUserId();
+      if (!userId) return;
+
+      await callApi({
+        method: 'DELETE',
+        url: `/inbox-notifications/user/${userId}/clear-all`
+      });
+
+      setNotifications([]);
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Error clearing all notifications:', error);
     }
   };
 
-  const clearNotifications = (): void => {
-    setNotifications([]);
-    setUnreadCount(0);
+  const addNotification = (notification: InboxNotification): void => {
+    setNotifications(prev => [notification, ...prev]);
+    if (!notification.read) {
+      setUnreadCount(prev => prev + 1);
+    }
   };
 
   const contextValue: NotificationContextType = {
     notifications,
     unreadCount,
     loading,
+    notificationsLoading,
     fetchNotifications,
     fetchUnreadCount,
     markAsRead,
     markAllAsRead,
+    clearAllNotifications,
     addNotification,
-    clearNotifications,
   };
 
   return (

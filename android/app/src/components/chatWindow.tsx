@@ -174,13 +174,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
 
-      // Log message received for debugging
-      console.log('Message received in ChatWindow:', {
-        messageId: data.message._id,
-        senderId: data.message.sender._id,
-        currentUserId: currentUser._id,
-        isFromCurrentUser: data.message.sender._id === currentUser._id
-      });
 
       // Note: NEW_MESSAGE_ALERT should be emitted by the backend when a message is sent
       // This frontend code just receives and displays the message
@@ -355,7 +348,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     
     try {
       const response = await getChatMessages(chat._id, 1, 50, token);
-      console.log('Messages response:', response);
       
       const messages = response.messages || response || [];
       const sortedMessages = Array.isArray(messages) ? messages
@@ -367,7 +359,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         }))
         .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) : [];
       
-      console.log('Sorted messages:', sortedMessages);
       
       setChatState(prev => ({
         ...prev,
@@ -375,7 +366,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         isLoadingMessages: false
       }));
     } catch (error) {
-      console.log('Chat API not available, using empty messages list:', error);
       // If API is not available, start with empty messages
       setChatState(prev => ({
         ...prev,
@@ -392,7 +382,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     
     try {
       const response = await getPinnedMessages(chat._id, token);
-      console.log('Pinned messages response:', response);
       
       // Handle different response formats
       const pinnedMessages = response.pinnedMessages || response.messages || response || [];
@@ -403,7 +392,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         isLoadingPinned: false
       }));
     } catch (error) {
-      console.log('Pinned messages API not available:', error);
       setChatState(prev => ({
         ...prev,
         pinnedMessages: [],
@@ -413,18 +401,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   const loadMembers = async () => {
-    console.log('🔄 Loading members for chat:', chat._id);
-    console.log('🔄 Token available:', !!token);
-    console.log('🔄 Chat members from props:', chat.members);
     
     if (!token) {
-      console.log('❌ No token available');
       return;
     }
     
     try {
       const response = await getChatMembers(chat._id, token);
-      console.log('✅ Members API response:', JSON.stringify(response, null, 2));
       
       // Filter out undefined/null members and ensure they have required properties
       const memberUsers = (response.members || [])
@@ -438,11 +421,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           avatar: user.profilePic || user.avatar || ''
         }));
       
-      console.log('✅ Processed members:', memberUsers);
       setMembers(memberUsers);
     } catch (error) {
-      console.log('⚠️ Members API error:', error);
-      console.log('⚠️ Using fallback - chat members from props');
       
       // Fallback to chat members from props - convert to User format
       const memberUsers = (chat.members || [])
@@ -459,7 +439,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         })
         .filter((user: any) => user._id && user.name);
       
-      console.log('✅ Fallback members:', memberUsers);
       setMembers(memberUsers);
     }
   };
@@ -585,7 +564,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     
     try {
       await deleteMessage(messageId, token);
-      console.log('Message deleted successfully');
       
       // Emit socket event
       socket?.emit(DELETE_MESSAGE, {
@@ -599,7 +577,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       if (error.message?.includes('Resource not found') || 
           error.message?.includes('Message not found') ||
           error.message?.includes('Message not found or deleted')) {
-        console.log('Message was already deleted, removed from local state');
         // Message was already removed from local state, so this is fine
       } else {
         Alert.alert('Error', 'Failed to delete message');

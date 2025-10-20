@@ -1,33 +1,18 @@
-// navigation/MainNavigator.tsx (FIXED)
+// navigation/MainNavigator.tsx (Simplified for HR role)
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import HomeScreen from '../Screens/HomeScreen';
-import InboxWrapper from '../Screens/InboxWrapper'; // Use the wrapper
-import ProfileScreen from '../Screens/ProfileScreen';
-import SettingsScreen from '../Screens/SettingScreen';
-import RoleWebViewScreen from '../Screens/RoleWebView';
-import ProjectScreen from '../Screens/ProjectScreen';
-import TaskScreen from '../Screens/TasksScreen';
-import ProjectDetailScreen from '../Screens/ProjectDetailScreen';
+import InboxWrapper from '../Screens/InboxWrapper';
+import AttendanceScreen from '../Screens/AttendanceScreen';
+import HiringScreen from '../Screens/HiringScreen';
 import CallScreen from '../Screens/CallScreen';
 import AppHeader from '../components/AppHeader';
 
-// Define parameter lists
+// Define parameter lists for HR role
 export type HomeStackParamList = {
   HomeMain: undefined;
-  RoleWebView: { role: string };
-};
-
-export type ProjectStackParamList = {
-  ProjectList: undefined;
-  ProjectDetail: { projectId: string };
-  CreateProject: undefined;
-};
-
-export type TaskStackParamList = {
-  TaskList: undefined;
 };
 
 export type InboxStackParamList = {
@@ -40,25 +25,16 @@ export type InboxStackParamList = {
   };
 };
 
-export type SettingsStackParamList = {
-  SettingsMain: undefined;
-  Profile: undefined;
-};
-
 export type TabParamList = {
   HomeTab: undefined;
-  ProjectsTab: undefined;
-  TasksTab: undefined;
+  AttendanceTab: undefined;
+  HiringTab: undefined;
   InboxTab: undefined;
-  ProfileTab: undefined;
 };
 
 const Tab = createBottomTabNavigator<TabParamList>();
 const HomeStack = createNativeStackNavigator<HomeStackParamList>();
-const ProjectStack = createNativeStackNavigator<ProjectStackParamList>();
-const TaskStack = createNativeStackNavigator<TaskStackParamList>();
 const InboxStack = createNativeStackNavigator<InboxStackParamList>();
-const SettingsStack = createNativeStackNavigator<SettingsStackParamList>();
 
 // Home Stack
 function HomeStackScreen() {
@@ -69,39 +45,7 @@ function HomeStackScreen() {
       })}
     >
       <HomeStack.Screen name="HomeMain" component={HomeScreen} />
-      <HomeStack.Screen 
-        name="RoleWebView" 
-        component={RoleWebViewScreen}
-        options={{ headerShown: false }}
-      />
     </HomeStack.Navigator>
-  );
-}
-
-// Project Stack
-function ProjectStackScreen() {
-  return (
-    <ProjectStack.Navigator
-      screenOptions={({ navigation }) => ({
-        header: () => <AppHeader navigation={navigation} />,
-      })}
-    >
-      <ProjectStack.Screen name="ProjectList" component={ProjectScreen} />
-      <ProjectStack.Screen name="ProjectDetail" component={ProjectDetailScreen} />
-    </ProjectStack.Navigator>
-  );
-}
-
-// Task Stack
-function TaskStackScreen() {
-  return (
-    <TaskStack.Navigator
-      screenOptions={({ navigation }) => ({
-        header: () => <AppHeader navigation={navigation} />,
-      })}
-    >
-      <TaskStack.Screen name="TaskList" component={TaskScreen} />
-    </TaskStack.Navigator>
   );
 }
 
@@ -115,62 +59,37 @@ function InboxStackScreen() {
     >
       <InboxStack.Screen 
         name="InboxMain" 
-        component={InboxWrapper} // Use the wrapper instead of InboxScreen directly
-        options={{ headerShown: false }} // Hide header since InboxScreen has its own
+        component={InboxWrapper}
+        options={{ headerShown: false }}
       />
       <InboxStack.Screen 
         name="CallScreen" 
         component={CallScreen}
-        options={{ headerShown: false }} // Hide header for full-screen call experience
+        options={{ headerShown: false }}
       />
     </InboxStack.Navigator>
   );
 }
 
-// Profile Stack
-function ProfileStackScreen() {
-  return (
-    <SettingsStack.Navigator
-      screenOptions={({ navigation }) => ({
-        header: () => <AppHeader navigation={navigation} />,
-      })}
-    >
-      <SettingsStack.Screen name="Profile" component={ProfileScreen} />
-    </SettingsStack.Navigator>
-  );
-}
-
-// Settings Stack
-function SettingsStackScreen() {
-  return (
-    <SettingsStack.Navigator
-      screenOptions={({ navigation }) => ({
-        header: () => <AppHeader navigation={navigation} />,
-      })}
-    >
-      <SettingsStack.Screen name="SettingsMain" component={SettingsScreen} />
-    </SettingsStack.Navigator>
-  );
-}
-
-// Main Tab Navigator
+// Main Tab Navigator - Simplified for HR role only
 const MainTabNavigator: React.FC = () => {
+  console.log('🔍 MainTabNavigator component created for HR role');
+  
   return (
     <Tab.Navigator
+      initialRouteName="HomeTab"
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName = '';
 
           if (route.name === 'HomeTab') {
             iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'ProjectsTab') {
-            iconName = focused ? 'folder' : 'folder-outline';
-          } else if (route.name === 'TasksTab') {
-            iconName = focused ? 'list' : 'list-outline';
+          } else if (route.name === 'AttendanceTab') {
+            iconName = focused ? 'calendar' : 'calendar-outline';
+          } else if (route.name === 'HiringTab') {
+            iconName = focused ? 'person-add' : 'person-add-outline';
           } else if (route.name === 'InboxTab') {
             iconName = focused ? 'mail' : 'mail-outline';
-          } else if (route.name === 'ProfileTab') {
-            iconName = focused ? 'person' : 'person-outline';
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -190,14 +109,14 @@ const MainTabNavigator: React.FC = () => {
         options={{ title: 'Home' }}
       />
       <Tab.Screen 
-        name="ProjectsTab" 
-        component={ProjectStackScreen} 
-        options={{ title: 'Projects' }}
+        name="AttendanceTab" 
+        component={AttendanceScreen} 
+        options={{ title: 'Attendance' }}
       />
       <Tab.Screen 
-        name="TasksTab" 
-        component={TaskStackScreen} 
-        options={{ title: 'Tasks' }}
+        name="HiringTab" 
+        component={HiringScreen} 
+        options={{ title: 'Hiring' }}
       />
       <Tab.Screen 
         name="InboxTab" 

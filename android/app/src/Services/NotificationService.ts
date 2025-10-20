@@ -173,10 +173,13 @@ class NotificationService {
 
   // Get notification title
   private getNotificationTitle = (notification: InboxNotification): string => {
-    const senderName = notification.sender.name;
+    const senderName = notification.metadata?.senderName?.trim() ||
+                      notification.sender?.name?.trim() || 
+                      notification.sender?.username?.trim() ||
+                      'Unknown User';
     
-    if (notification.chat.type === 'group') {
-      return `${senderName} in ${notification.chat.name}`;
+    if (notification.chat && notification.chat.type === 'group') {
+      return `${senderName} in ${notification.chat.name || 'Group'}`;
     }
     
     return senderName;
@@ -184,22 +187,24 @@ class NotificationService {
 
   // Get notification body
   private getNotificationBody = (notification: InboxNotification): string => {
-    const message = notification.message;
-    
-    switch (message.messageType) {
-      case 'text':
-        return message.content;
-      case 'image':
-        return '📷 Photo';
-      case 'video':
-        return '🎥 Video';
-      case 'audio':
-        return '🎵 Voice message';
-      case 'document':
-        return '📄 Document';
-      default:
-        return message.content || 'New message';
+    if (notification.relatedMessage) {
+      const message = notification.relatedMessage;
+      switch (message.messageType) {
+        case 'text':
+          return message.content;
+        case 'image':
+          return '📷 Photo';
+        case 'video':
+          return '🎥 Video';
+        case 'audio':
+          return '🎵 Voice message';
+        case 'document':
+          return '📄 Document';
+        default:
+          return message.content || 'New message';
+      }
     }
+    return notification.body || 'New notification';
   };
 
   // Clear notification queue
@@ -216,4 +221,7 @@ class NotificationService {
 
 // Export singleton instance
 export default new NotificationService();
+
+
+
 

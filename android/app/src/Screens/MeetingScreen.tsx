@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  Linking,
 } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
@@ -21,12 +22,18 @@ const { width } = Dimensions.get('window');
 interface Meeting {
   _id: string;
   title: string;
+  name?: string; // Alternative title field
   description: string;
   type: string;
   status: string;
   startDate: string;
   endDate: string;
+  date?: string; // Alternative date field
   meetingUrl?: string;
+  meetingLink?: string; // Alternative meeting URL field
+  isCompleted?: boolean; // Boolean field for completion status
+  isCancelled?: boolean; // Boolean field for cancellation status
+  cancelled?: boolean; // Alternative boolean field for cancellation
   participants: Array<{
     _id: string;
     fullName: string;
@@ -59,12 +66,21 @@ const MeetingScreen: React.FC = () => {
 
   const { callApi } = useAxios();
   const { currentUser } = useSelector((state: RootState) => state.user);
+  
+  // Use currentUser as displayUser
+  const displayUser = currentUser;
+  
+  // Determine user role
+  const isPM = (displayUser as any)?.role === 'PM' || (displayUser as any)?.role === 'pm';
+  const isDeveloper = (displayUser as any)?.role === 'Developer' || (displayUser as any)?.role === 'developer';
 
   const fetchMeetingStats = async () => {
     try {
+      // Use different endpoints based on user role
+      const endpoint = isPM ? '/meetings/stats' : '/meetings/stats/me';
       const response = await callApi({
         method: 'GET',
-        url: '/meetings/stats/me',
+        url: endpoint,
       });
       setStats(response.data || response);
     } catch (error) {
@@ -74,9 +90,11 @@ const MeetingScreen: React.FC = () => {
 
   const fetchUpcomingMeetings = async () => {
     try {
+      // Use different endpoints based on user role
+      const endpoint = isPM ? '/meetings/week' : '/meetings/week/me';
       const response = await callApi({
         method: 'GET',
-        url: '/meetings/week/me',
+        url: endpoint,
       });
       setUpcomingMeetings(response.data || response);
     } catch (error) {
@@ -86,16 +104,18 @@ const MeetingScreen: React.FC = () => {
 
   const fetchAllMeetings = async () => {
     try {
+      // Use different endpoints based on user role
+      const endpoint = isPM ? '/meetings' : '/meetings/me';
       const response = await callApi({
         method: 'GET',
-        url: '/meetings/me',
+        url: endpoint,
         params: {
           page: 1,
           limit: 50,
         },
       });
 
-      let meetingsData = null;
+      let meetingsData: any[] = [];
 
       if (Array.isArray(response)) {
         meetingsData = response;
@@ -108,10 +128,41 @@ const MeetingScreen: React.FC = () => {
       }
 
       if (meetingsData && Array.isArray(meetingsData)) {
-        const meetingsWithStatus = meetingsData.map((m: any) => ({
-          ...m,
-          status: m.status || m.isCompleted ? "Completed" : "Scheduled",
-        }));
+        console.log('🔍 Raw meeting data from API:', meetingsData);
+        
+        const meetingsWithStatus = meetingsData.map((m: any, index: number) => {
+          // Log each meeting's raw data for debugging
+          console.log(`🔍 Meeting ${index + 1} raw data:`, {
+            title: m.title || m.name,
+            status: m.status,
+            isCompleted: m.isCompleted,
+            isCancelled: m.isCancelled,
+            cancelled: m.cancelled
+          });
+          
+          // Preserve the original status if it exists, otherwise determine from other fields
+          let status = m.status;
+          
+          // If no status field, try to determine from other fields
+          if (!status) {
+            if (m.isCompleted === true) {
+              status = "Completed";
+            } else if (m.isCancelled === true || m.cancelled === true) {
+              status = "Cancelled";
+            } else {
+              status = "Scheduled";
+            }
+          }
+          
+          console.log(`🔍 Meeting ${index + 1} final status:`, status);
+          
+          return {
+            ...m,
+            status: status,
+          };
+        });
+        
+        console.log('🔍 Final processed meetings:', meetingsWithStatus);
         setMeetings(meetingsWithStatus);
       } else {
         console.log('Invalid meeting data received from server');
@@ -221,7 +272,12 @@ const MeetingScreen: React.FC = () => {
   };
 
   const handleCreateMeeting = () => {
-    Linking.openURL('https://intelgency.com/PM/meeting/create').catch((err) => {
+    // Use different URLs based on user role
+    const createUrl = isPM 
+      ? 'https://intelgency.com/PM/meeting/create' 
+      : 'https://intelgency.com/meeting/create';
+    
+    Linking.openURL(createUrl).catch((err) => {
       console.error('Failed to open URL:', err);
       Alert.alert('Error', 'Could not open the meeting creation page.');
     });
@@ -248,6 +304,13 @@ const MeetingScreen: React.FC = () => {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Reload data when user role changes
+  useEffect(() => {
+    if (displayUser) {
+      loadData();
+    }
+  }, [isPM, isDeveloper]);
 
   // Prepare pie chart data using actual meeting data
   const getPieChartData = () => {
@@ -315,7 +378,7 @@ const MeetingScreen: React.FC = () => {
         <Text style={styles.headerTitle}>Meeting Management</Text>
         <TouchableOpacity style={styles.createButton} onPress={handleCreateMeeting}>
           <Ionicons name="add" size={20} color="#FFFFFF" />
-          <Text style={styles.createButtonText}>Create Meeting</Text>
+          <Text style={styles.createButtonText}>Create</Text>
         </TouchableOpacity>
         </View>
 

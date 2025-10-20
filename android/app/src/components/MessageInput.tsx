@@ -177,26 +177,11 @@ const MessageInput: React.FC<{
     };
   }, []);
 
-  // Debug: Log all members
-  useEffect(() => {
-    if (members.length > 0) {
-      console.log('All members:', members.filter(m => m).map(m => ({ id: m?._id, name: m?.name, email: m?.email })));
-    }
-  }, [members]);
 
   const filteredMembers = members.filter(member =>
     member && member.name && member.name.toLowerCase().includes(mentionQuery.toLowerCase())
   );
   
-  // Debug log
-  if (showMentionPicker) {
-    console.log('Mention picker visible, filtered members:', filteredMembers.length);
-    console.log('Mention query:', mentionQuery);
-    console.log('Total members available:', members.length);
-    if (filteredMembers.length === 0 && members.length > 0) {
-      console.log('Sample member structure:', members[0]);
-    }
-  }
 
   const handleTextChange = (text: string) => {
     setMessage(text);
@@ -204,8 +189,6 @@ const MessageInput: React.FC<{
     // Handle mentions
     const mentionMatch = text.match(/@(\w*)$/);
     if (mentionMatch) {
-      console.log('Mention detected:', mentionMatch[1]);
-      console.log('Available members:', members.length);
       setMentionQuery(mentionMatch[1]);
       setShowMentionPicker(true);
     } else {
@@ -304,8 +287,7 @@ const MessageInput: React.FC<{
 
         setPendingAttachments(prev => [...prev, voiceAttachment]);
         setShowAttachmentPreview(true);
-        console.log('Voice attachment added:', voiceAttachment);
-        setShowVoiceRecorder(false);
+    setShowVoiceRecorder(false);
         onCancelReply?.();
   };
 
@@ -348,7 +330,7 @@ const MessageInput: React.FC<{
     ImagePicker.openCamera({
       mediaType: 'photo',
       quality: 0.8,
-    }).then(handleImageResponse).catch(console.log);
+    }).then(handleImageResponse).catch(() => {});
   };
 
   const openGallery = () => {
@@ -357,7 +339,7 @@ const MessageInput: React.FC<{
       quality: 0.8,
       multiple: true,
       maxFiles: 5,
-    }).then(handleImageResponse).catch(console.log);
+    }).then(handleImageResponse).catch(() => {});
   };
 
   const openVideoPicker = () => {
@@ -366,7 +348,7 @@ const MessageInput: React.FC<{
       quality: 0.8,
       multiple: true,
       maxFiles: 3,
-    }).then(handleImageResponse).catch(console.log);
+    }).then(handleImageResponse).catch(() => {});
   };
 
   const openDocumentPicker = async () => {
@@ -391,7 +373,6 @@ const MessageInput: React.FC<{
     } catch (error) {
       if (DocumentPicker.isCancel(error)) {
         // User cancelled the picker
-        console.log('Document picker cancelled');
         } else {
         console.error('Document picker error:', error);
         Alert.alert('Error', 'Failed to select document');
@@ -433,7 +414,6 @@ const MessageInput: React.FC<{
     });
 
     // Add to pending attachments and show preview
-    console.log('Adding files to pending attachments:', fileDataArray);
     setPendingAttachments(prev => [...prev, ...fileDataArray]);
     setShowAttachmentPreview(true);
   };
@@ -456,7 +436,6 @@ const MessageInput: React.FC<{
     try {
       const uploadedFiles = await Promise.all(
         pendingAttachments.map(async (fileData: any) => {
-          console.log('Uploading attachment:', fileData);
           const uploadResponse = await uploadAttachment(chatId, fileData, token!);
           return uploadResponse;
         })

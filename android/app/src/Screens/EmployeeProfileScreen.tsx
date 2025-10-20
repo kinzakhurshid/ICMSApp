@@ -222,7 +222,7 @@ export default function EmployeeProfileScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
@@ -316,14 +316,14 @@ export default function EmployeeProfileScreen() {
       </View>
 
       {/* Tab Content */}
-      <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={true}>
+      <View style={styles.contentContainer}>
         {renderTabContent()}
+      </View>
     </ScrollView>
-    </View>
   );
 }
 
-function InfoCard({ title, titleColor = '#1E293B', titleIcon = null, cardColor = '#FFFFFF', children }) {
+function InfoCard({ title, titleColor = '#1E293B', titleIcon = null, cardColor = '#FFFFFF', children }: { title: string; titleColor?: string; titleIcon?: string | null; cardColor?: string; children: React.ReactNode }) {
   return (
     <View style={[styles.infoCard, { backgroundColor: cardColor }]}>
       <View style={styles.cardHeader}>

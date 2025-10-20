@@ -73,6 +73,27 @@ interface Employee {
   state: string;
   education: Education;
 }
+export interface Leave {
+  _id: string;
+  type: string;
+  startDate: string;
+  endDate: string;
+  duration: number;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  reason: string;
+  isHalfDay: boolean;
+  halfDayType?: 'first' | 'second';
+  createdAt: string;
+}
+
+export interface AttendanceRecord {
+  _id: string;
+  date: string;
+  status: 'Present' | 'Absent' | 'Half-day' | 'Leave';
+  checkIn?: string;
+  checkOut?: string;
+  arrivalStatus?: 'Late' | 'On Time' | 'Early';
+}
 
  interface EmployeeFormData extends Omit<FrontendEmployee, '_id' | 'createdAt' | 'updatedAt' | '__v'> {
   password?: string;

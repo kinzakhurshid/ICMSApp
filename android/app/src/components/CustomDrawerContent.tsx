@@ -9,6 +9,7 @@ import {
   Alert 
 } from 'react-native';
 import { DrawerContentScrollView, DrawerContentComponentProps } from '@react-navigation/drawer';
+import { CommonActions } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -16,6 +17,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import { RootState } from '../states/store';
 import { logout } from '../states/userSlice';
+import { navigateToTab } from '../Services/NavigationService';
 
 const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
   const dispatch = useDispatch();
@@ -25,12 +27,60 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
   // Use currentUser if available, otherwise fall back to user
   const displayUser = currentUser || user;
 
-  // Check if user is PM (Project Manager)
-  const isPM = displayUser?.role === 'PM' || displayUser?.role === 'pm';
+  // Check user role
+  const isPM = (displayUser as any)?.role === 'PM' || (displayUser as any)?.role === 'pm';
+  const isHR = (displayUser as any)?.role === 'HR' || (displayUser as any)?.role === 'hr';
+
 
   // Role-based drawer items
-  const drawerItems = isPM ? [
-    // PM (Project Manager) menu items
+  const drawerItems = isHR ? [
+    // HR menu items - using MainNavigater tab names
+    { 
+      label: 'Dashboard', 
+      icon: <MaterialIcons name="dashboard" size={22} color="#FF5722" />,
+      route: 'MainTabs',
+      screen: 'HomeTab'
+    },
+    { 
+      label: 'Attendance', 
+      icon: <MaterialIcons name="event-available" size={22} color="#FF5722" />,
+      route: 'MainTabs',
+      screen: 'AttendanceTab'
+    },
+    { 
+      label: 'Hiring', 
+      icon: <MaterialIcons name="person-add" size={22} color="#FF5722" />,
+      route: 'MainTabs',
+      screen: 'HiringTab'
+    },
+    { 
+      label: 'Inbox', 
+      icon: <MaterialIcons name="inbox" size={22} color="#FF5722" />,
+      route: 'MainTabs',
+      screen: 'InboxTab'
+    },
+    { 
+      label: 'Payroll', 
+      icon: <MaterialIcons name="account-balance-wallet" size={22} color="#FF5722" />,
+      route: 'Payroll',
+    },
+    { 
+      label: 'Leaves', 
+      icon: <MaterialIcons name="event-busy" size={22} color="#FF5722" />,
+      route: 'Leaves',
+    },
+    { 
+      label: 'Accessories', 
+      icon: <MaterialIcons name="settings" size={22} color="#FF5722" />,
+      route: 'Accessories',
+    },
+    { 
+      label: 'Resignation', 
+      icon: <MaterialIcons name="person-remove" size={22} color="#FF5722" />,
+      route: 'Resignation',
+    },
+  ] : isPM ? [
+    // PM (Project Manager) menu items - using PMTabNavigator tab names
     { 
       label: 'Dashboard', 
       icon: <MaterialIcons name="dashboard" size={22} color="#FF5722" />,
@@ -71,7 +121,7 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
       route: 'AppSettings',
     },
   ] : [
-    // Employee menu items
+    // Employee menu items - using EmployeeTabNavigator tab names
     { 
       label: 'Dashboard', 
       icon: <MaterialIcons name="dashboard" size={22} color="#FF5722" />,
@@ -85,16 +135,16 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
       screen: 'EmployeeTaskTab'
     },
     { 
-      label: 'Inbox', 
-      icon: <MaterialIcons name="inbox" size={22} color="#FF5722" />,
-      route: 'MainTabs',
-      screen: 'EmployeeInboxTab'
-    },
-    { 
       label: 'Leaves', 
       icon: <MaterialIcons name="event-busy" size={22} color="#FF5722" />,
       route: 'MainTabs',
       screen: 'EmployeeLeaveTab'
+    },
+    { 
+      label: 'Inbox', 
+      icon: <MaterialIcons name="inbox" size={22} color="#FF5722" />,
+      route: 'MainTabs',
+      screen: 'EmployeeInboxTab'
     },
     { 
       label: 'Profile', 
@@ -113,19 +163,30 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
     },
   ];
 
-  const handleNavigation = (item: any) => {
-    try {
-      if (item.screen) {
-        // Navigate to a specific tab within MainTabs
-        props.navigation.navigate(item.route as any, { screen: item.screen });
-      } else {
-        // Navigate to a regular screen
-        props.navigation.navigate(item.route as any);
-      }
-    } catch (error) {
-      Alert.alert('Navigation Error', `Could not navigate to ${item.route}`);
-    }
-  };
+        const handleNavigation = (item: any) => {
+          try {
+            console.log('🔍 Drawer Navigation:', { route: item.route, screen: item.screen });
+            
+            // Close the drawer first
+            props.navigation.closeDrawer();
+            
+            if (item.screen) {
+              // Navigate to MainTabs with the specific screen parameter
+              console.log('🔍 Navigating to MainTabs with screen:', item.screen);
+              props.navigation.navigate('MainTabs' as any, { 
+                screen: item.screen 
+              });
+              console.log('🔍 Navigated to MainTabs with screen parameter');
+              
+            } else {
+              // Navigate to a regular screen
+              props.navigation.navigate(item.route as any);
+            }
+          } catch (error) {
+            console.log('🔍 Navigation Error:', error);
+            Alert.alert('Navigation Error', `Could not navigate to ${item.route}`);
+          }
+        };
 
   const handleLogout = () => {
     dispatch(logout());

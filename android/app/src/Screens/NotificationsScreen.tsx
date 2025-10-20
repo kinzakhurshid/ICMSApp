@@ -13,7 +13,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../states/store';
-import { ArrowLeft, Bell, Check, MoreHorizontal } from 'react-native-feather';
+import { ArrowLeft, Bell, Check, MoreHorizontal, Menu } from 'react-native-feather';
 import NotificationBadge from '../components/NotificationBadge';
 import { useNotifications, InboxNotification } from '../Context/NotificationContext';
 
@@ -22,14 +22,22 @@ const { width } = Dimensions.get('window');
 const NotificationsScreen: React.FC = () => {
   const navigation = useNavigation();
   const currentUser = useSelector((state: RootState) => state.user.currentUser);
+  
+  // Debug navigation - only log once when component mounts
+  React.useEffect(() => {
+    console.log('🔍 NotificationsScreen navigation:', navigation);
+    console.log('🔍 Navigation can go back:', navigation.canGoBack?.());
+    console.log('🔍 Navigation methods:', Object.keys(navigation));
+  }, []);
   const {
     notifications,
     unreadCount,
-    isLoading,
+    loading,
+    notificationsLoading,
     fetchNotifications,
     markAsRead,
     markAllAsRead,
-    refreshNotifications,
+    clearAllNotifications,
   } = useNotifications();
   
   const [refreshing, setRefreshing] = useState(false);
@@ -37,20 +45,22 @@ const NotificationsScreen: React.FC = () => {
 
   useEffect(() => {
     fetchNotifications();
-  }, [fetchNotifications]);
+  }, []); // Remove fetchNotifications dependency to prevent infinite loop
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await refreshNotifications();
+    await fetchNotifications();
     setRefreshing(false);
-  }, [refreshNotifications]);
+  }, [fetchNotifications]);
 
   const handleNotificationPress = async (notification: InboxNotification) => {
     if (!notification.read) {
       await markAsRead(notification._id);
     }
     // Navigate to chat
-    navigation.navigate('ChatWindow', { chatId: notification.chat._id });
+    if (notification.chat?._id) {
+      navigation.navigate('ChatWindow', { chatId: notification.chat._id });
+    }
   };
 
   const formatTime = (dateString: string) => {
@@ -85,63 +95,106 @@ const NotificationsScreen: React.FC = () => {
   });
 
 
-  const renderNotificationItem = ({ item }: { item: InboxNotification }) => (
-    <TouchableOpacity
-      style={[
-        styles.notificationItem,
-        !item.read && styles.unreadNotificationItem,
-      ]}
-      onPress={() => handleNotificationPress(item)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.notificationContent}>
-        <View style={styles.avatarContainer}>
-          <Image
-            source={{ uri: item.sender.avatar || item.sender.profilePic }}
-            style={styles.avatar}
-          />
-          <View style={styles.messageIconContainer}>
-            <Text style={styles.messageIcon}>
-              {getMessageIcon(item.message.messageType)}
+  // Function to extract sender name from message content
+  const extractSenderNameFromMessage = (message: string): string => {
+    // Look for patterns like "You have a new message from [Name]"
+    const fromMatch = message.match(/from\s+([^,\n]+)/i);
+    if (fromMatch && fromMatch[1]) {
+      return fromMatch[1].trim();
+    }
+    
+    // Look for other patterns
+    const nameMatch = message.match(/(?:message|notification)\s+from\s+([^,\n]+)/i);
+    if (nameMatch && nameMatch[1]) {
+      return nameMatch[1].trim();
+    }
+    
+    return null;
+  };
+
+  const renderNotificationItem = ({ item }: { item: InboxNotification }) => {
+    // Debug logging to understand the data structure
+    console.log('🔍 Notification item data:', JSON.stringify(item, null, 2));
+    console.log('🔍 Sender data:', item.sender);
+    console.log('🔍 Related message:', item.relatedMessage);
+    console.log('🔍 Body:', item.body);
+    
+    // Extract sender name from various sources
+    const senderName = item.sender?.name || 
+                      item.sender?.username || 
+                      item.metadata?.senderName ||
+                      extractSenderNameFromMessage(item.body || '') ||
+                      extractSenderNameFromMessage(item.relatedMessage?.content || '') ||
+                      'Unknown User';
+    
+    console.log('🔍 Extracted sender name:', senderName);
+    
+    return (
+      <TouchableOpacity
+        style={[
+          styles.notificationItem,
+          !item.read && styles.unreadNotificationItem,
+        ]}
+        onPress={() => handleNotificationPress(item)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.notificationContent}>
+          <View style={styles.avatarContainer}>
+            <Image
+              source={{ uri: item.sender?.profilePicture || 'https://via.placeholder.com/40' }}
+              style={styles.avatar}
+            />
+            <View style={styles.messageIconContainer}>
+              <Text style={styles.messageIcon}>
+                💬
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.notificationText}>
+            <View style={styles.notificationHeader}>
+              <Text style={styles.senderName} numberOfLines={1}>
+                {senderName}
+              </Text>
+              <Text style={styles.timeText}>{formatTime(item.createdAt)}</Text>
+            </View>
+            
+            <Text style={styles.chatName} numberOfLines={1}>
+              {item.chat?.name ? `in ${item.chat.name}` : 'in Chat'}
+            </Text>
+            
+            <Text
+              style={[
+                styles.messageContent,
+                !item.read && styles.unreadMessageContent,
+              ]}
+              numberOfLines={2}
+            >
+              {(() => {
+                // Use the same logic as NotificationPopup for consistency
+                const messageContent = item.body || item.relatedMessage?.content || 'New message';
+                console.log('🔍 NotificationsScreen message content:', messageContent);
+                console.log('🔍 NotificationsScreen item body:', item.body);
+                console.log('🔍 NotificationsScreen relatedMessage content:', item.relatedMessage?.content);
+                console.log('🔍 NotificationsScreen relatedMessage:', JSON.stringify(item.relatedMessage, null, 2));
+                return messageContent;
+              })()}
             </Text>
           </View>
-        </View>
 
-        <View style={styles.notificationText}>
-          <View style={styles.notificationHeader}>
-            <Text style={styles.senderName} numberOfLines={1}>
-              {item.sender.name}
-            </Text>
-            <Text style={styles.timeText}>{formatTime(item.createdAt)}</Text>
+          <View style={styles.notificationActions}>
+            {!item.read && <View style={styles.unreadDot} />}
+            <TouchableOpacity
+              style={styles.moreButton}
+              onPress={() => markAsRead(item._id)}
+            >
+              <Check size={16} color="#6B7280" />
+            </TouchableOpacity>
           </View>
-          
-          <Text style={styles.chatName} numberOfLines={1}>
-            in {item.chat.name || 'Chat'}
-          </Text>
-          
-          <Text
-            style={[
-              styles.messageContent,
-              !item.read && styles.unreadMessageContent,
-            ]}
-            numberOfLines={2}
-          >
-            {item.message.content}
-          </Text>
         </View>
-
-        <View style={styles.notificationActions}>
-          {!item.read && <View style={styles.unreadDot} />}
-          <TouchableOpacity
-            style={styles.moreButton}
-            onPress={() => markAsRead(item._id)}
-          >
-            <Check size={16} color="#6B7280" />
-          </TouchableOpacity>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
@@ -155,34 +208,6 @@ const NotificationsScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <ArrowLeft size={24} color="#1F2937" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Notifications</Text>
-          {unreadCount > 0 && (
-            <NotificationBadge
-              count={unreadCount}
-              size="small"
-              color="#FF6B35"
-            />
-          )}
-        </View>
-        
-        {unreadCount > 0 && (
-          <TouchableOpacity
-            style={styles.markAllButton}
-            onPress={markAllAsRead}
-          >
-            <Text style={styles.markAllButtonText}>Mark all read</Text>
-          </TouchableOpacity>
-        )}
-      </View>
 
       {/* Filter Tabs */}
       <View style={styles.filterContainer}>
@@ -201,18 +226,23 @@ const NotificationsScreen: React.FC = () => {
           <Text style={[styles.filterTabText, filter === 'unread' && styles.activeFilterTabText]}>
             Unread
           </Text>
-          {unreadCount > 0 && (
-            <NotificationBadge
-              count={unreadCount}
-              size="small"
-              color="#FF6B35"
-            />
-          )}
         </TouchableOpacity>
       </View>
 
+      {/* Mark All Read Button */}
+      {unreadCount > 0 && (
+        <View style={styles.markAllContainer}>
+          <TouchableOpacity
+            style={styles.markAllButton}
+            onPress={markAllAsRead}
+          >
+            <Text style={styles.markAllButtonText}>Mark all read</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Notifications List */}
-      {isLoading ? (
+      {notificationsLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#FF6B35" />
         </View>
@@ -268,16 +298,24 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     marginRight: 8,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   markAllButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
     backgroundColor: '#F3F4F6',
+    marginRight: 12,
   },
   markAllButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#FF6B35',
+  },
+  menuButton: {
+    padding: 4,
   },
   filterContainer: {
     flexDirection: 'row',
@@ -410,6 +448,11 @@ const styles = StyleSheet.create({
   },
   moreButton: {
     padding: 4,
+  },
+  markAllContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    alignItems: 'flex-end',
   },
   loadingContainer: {
     flex: 1,

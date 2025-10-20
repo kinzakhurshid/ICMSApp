@@ -89,7 +89,7 @@ const DrawerNavigator: React.FC = () => {
         component={NotificationsScreen}
         options={{ 
           title: 'Notifications',
-          headerShown: false,
+          headerShown: true,
         }}
       />
     </Drawer.Navigator>
