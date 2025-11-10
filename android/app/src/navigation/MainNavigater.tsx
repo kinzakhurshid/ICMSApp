@@ -6,9 +6,14 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import HomeScreen from '../Screens/HomeScreen';
 import InboxWrapper from '../Screens/InboxWrapper';
 import AttendanceScreen from '../Screens/AttendanceScreen';
+import HRAttendanceScreen from '../Screens/HRAttendanceScreen';
 import HiringScreen from '../Screens/HiringScreen';
 import CallScreen from '../Screens/CallScreen';
+import HRDashboardScreen from '../Screens/HRDashboardScreen';
+import OrgAdminDashboardScreen from '../Screens/OrgAdminDashboardScreen';
 import AppHeader from '../components/AppHeader';
+import { useSelector } from 'react-redux';
+import { RootState } from '../states/store';
 
 // Define parameter lists for HR role
 export type HomeStackParamList = {
@@ -38,13 +43,29 @@ const InboxStack = createNativeStackNavigator<InboxStackParamList>();
 
 // Home Stack
 function HomeStackScreen() {
+  const user = useSelector((state: RootState) => state.user);
+  const currentUser = useSelector((state: RootState) => state.user.currentUser);
+  
+  // Use currentUser if available, otherwise fall back to user
+  const displayUser = currentUser || user;
+  
+  // Check if user is HR
+  const isHR = (displayUser as any)?.role === 'HR' || (displayUser as any)?.role === 'hr';
+  const isOrgAdmin = ['ORG_ADMIN','OrgAdmin','org_admin','Org Admin','ORGADMIN','orgadmin','ORG'].includes(((displayUser as any)?.role || '').toString());
+  
+  console.log('🔍 HomeStackScreen - displayUser:', displayUser);
+  console.log('🔍 HomeStackScreen - isHR:', isHR);
+
   return (
     <HomeStack.Navigator
       screenOptions={({ navigation }) => ({
         header: () => <AppHeader navigation={navigation} />,
       })}
     >
-      <HomeStack.Screen name="HomeMain" component={HomeScreen} />
+      <HomeStack.Screen 
+        name="HomeMain" 
+        component={isHR ? HRDashboardScreen : isOrgAdmin ? OrgAdminDashboardScreen : HomeScreen} 
+      />
     </HomeStack.Navigator>
   );
 }
@@ -70,6 +91,22 @@ function InboxStackScreen() {
     </InboxStack.Navigator>
   );
 }
+
+// Attendance Screen Wrapper - conditionally shows HR or regular attendance
+const AttendanceScreenWrapper = () => {
+  const user = useSelector((state: RootState) => state.user);
+  const currentUser = useSelector((state: RootState) => state.user.currentUser);
+  
+  // Use currentUser if available, otherwise fall back to user
+  const displayUser = currentUser || user;
+  
+  // Check if user is HR
+  const isHR = (displayUser as any)?.role === 'HR' || (displayUser as any)?.role === 'hr';
+  
+  console.log('🔍 AttendanceScreenWrapper - isHR:', isHR);
+  
+  return isHR ? <HRAttendanceScreen /> : <AttendanceScreen />;
+};
 
 // Main Tab Navigator - Simplified for HR role only
 const MainTabNavigator: React.FC = () => {
@@ -110,7 +147,7 @@ const MainTabNavigator: React.FC = () => {
       />
       <Tab.Screen 
         name="AttendanceTab" 
-        component={AttendanceScreen} 
+        component={AttendanceScreenWrapper} 
         options={{ title: 'Attendance' }}
       />
       <Tab.Screen 

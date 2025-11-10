@@ -13,7 +13,7 @@ import {
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useSelector } from 'react-redux';
-import { useAxios } from '../hooks/useAxios';
+import useAxios from '../hooks/useAxios';
 
 interface AttendanceRecord {
   _id: string;
@@ -49,17 +49,12 @@ const AttendanceScreen: React.FC = () => {
     try {
       setLoading(true);
       
-      const response = await callApi({ 
-        method: "GET", 
-        url: `/HR/attendance?date=${selectedDate}` 
-      });
-
-      if (response.success) {
-        setAttendanceRecords(response.data.records || []);
-      }
-
-    } catch (error) {
-      console.error("Error fetching attendance data:", error);
+      // Use mock data for now (API not ready)
+      console.log("🔍 Using mock attendance data for", selectedDate);
+      
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       // Mock data for demonstration
       setAttendanceRecords([
         {

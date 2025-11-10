@@ -1,0 +1,2085 @@
+2025-10-27 07:39:10 +0000 [MT] Initial pipeline context: <IDEDistributionProcessingPipelineContext: 0x7ff275e19300; archive(resolved)="<IDEArchive: 0x7ff274ea8780>", distributionTask(resolved)="2", distributionDestination(resolved)="1", distributionMethod(resolved)="<IDEDistributionMethodiOSAppStoreDistribution: 0x7ff27540e510>", team(resolved)="<IDEProvisioningBasicTeam: 0x7ff2752880d0; teamID='K5W9R92RTR', teamName='(null)'>">
+	Chain (16, self inclusive):
+	<IDEDistributionProcessingPipelineContext: 0x7ff275e19300; archive = "<IDEArchive: 0x7ff274ea8780>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x7ff27540e510>", team="<IDEProvisioningBasicTeam: 0x7ff2752880d0; teamID='K5W9R92RTR', teamName='(null)'>">
+	<IDEDistributionProcessingPipelineContext: 0x7ff2761162d0; archive = "<IDEArchive: 0x7ff274ea8780>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x7ff27540e510>", team="<IDEProvisioningBasicTeam: 0x7ff2752880d0; teamID='K5W9R92RTR', teamName='(null)'>">
+	<IDEDistributionContext: 0x7ff2753d00b0; archive = "<IDEArchive: 0x7ff274ea8780>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x7ff27540e510>", team="<IDEProvisioningBasicTeam: 0x7ff2752880d0; teamID='K5W9R92RTR', teamName='(null)'>">
+	<IDEDistributionContext: 0x7ff2752b2890; archive = "<IDEArchive: 0x7ff274ea8780>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x7ff27540e510>", team="<IDEProvisioningBasicTeam: 0x7ff2752880d0; teamID='K5W9R92RTR', teamName='(null)'>">
+	<IDEDistributionContext: 0x7ff2752674f0; archive = "<IDEArchive: 0x7ff274ea8780>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x7ff27540e510>", team="<IDEProvisioningBasicTeam: 0x7ff2752880d0; teamID='K5W9R92RTR', teamName='(null)'>">
+	<IDEDistributionContext: 0x7ff275361c50; archive = "<IDEArchive: 0x7ff274ea8780>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x7ff27540e510>", team="<IDEProvisioningBasicTeam: 0x7ff2752880d0; teamID='K5W9R92RTR', teamName='(null)'>">
+	<IDEDistributionContext: 0x7ff2752ae7f0; archive = "<IDEArchive: 0x7ff274ea8780>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x7ff27540e510>", team="<IDEProvisioningBasicTeam: 0x7ff2752880d0; teamID='K5W9R92RTR', teamName='(null)'>">
+	<IDEDistributionContext: 0x7ff275361a20; archive = "<IDEArchive: 0x7ff274ea8780>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x7ff27540e510>", team="<IDEProvisioningBasicTeam: 0x7ff2752880d0; teamID='K5W9R92RTR', teamName='(null)'>">
+	<IDEDistributionContext: 0x7ff275362310; archive = "<IDEArchive: 0x7ff274ea8780>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x7ff27540e510>", team="<IDEProvisioningBasicTeam: 0x7ff2752880d0; teamID='K5W9R92RTR', teamName='(null)'>">
+	<IDEDistributionContext: 0x7ff2752a71c0; archive = "<IDEArchive: 0x7ff274ea8780>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x7ff27540e510>", team="<IDEProvisioningBasicTeam: 0x7ff2752880d0; teamID='K5W9R92RTR', teamName='(null)'>">
+	<IDEDistributionContext: 0x7ff27527f9d0; archive = "<IDEArchive: 0x7ff274ea8780>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x7ff27540e510>", team="<IDEProvisioningBasicTeam: 0x7ff2752880d0; teamID='K5W9R92RTR', teamName='(null)'>">
+	<IDEDistributionContext: 0x7ff275276520; archive = "<IDEArchive: 0x7ff274ea8780>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x7ff27540e510>", team="<IDEProvisioningBasicTeam: 0x7ff2752880d0; teamID='K5W9R92RTR', teamName='(null)'>">
+	<IDEDistributionContext: 0x7ff275265110; archive = "<IDEArchive: 0x7ff274ea8780>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x7ff27540e510>", team="<IDEProvisioningBasicTeam: 0x7ff2752880d0; teamID='K5W9R92RTR', teamName='(null)'>">
+	<IDEDistributionContext: 0x7ff275264c70; archive = "<IDEArchive: 0x7ff274ea8780>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x7ff27540e510>", team="(null)">
+	<IDEDistributionContext: 0x7ff27521e4f0; archive = "<IDEArchive: 0x7ff274ea8780>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x7ff27540e510>", team="(null)">
+	<IDEDistributionContext: 0x7ff274ea4c90; archive = "<IDEArchive: 0x7ff274ea8780>", distributionMethod="(null)", team="(null)">
+</IDEDistributionProcessingPipelineContext: 0x7ff275e19300>
+2025-10-27 07:39:10 +0000 [MT] Processing step: IDEDistributionCreateDestRootStep
+2025-10-27 07:39:10 +0000 [MT] Processing step: IDEDistributionCopyItemStep
+2025-10-27 07:39:10 +0000 [MT] Running /usr/bin/ditto '-V' '/Users/kinzakhurshid/Desktop/ICMSApp/ios/ICMSApp-LatestXcode.xcarchive/Products/Applications/ICMSApp.app' '/var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/XcodeDistPipeline.~~~I9eR1p/Root/Payload/ICMSApp.app'
+2025-10-27 07:39:10 +0000  >>> Copying /Users/kinzakhurshid/Desktop/ICMSApp/ios/ICMSApp-LatestXcode.xcarchive/Products/Applications/ICMSApp.app 
+2025-10-27 07:39:10 +0000  copying file ./_CodeSignature/CodeResources ... 
+2025-10-27 07:39:10 +0000  38079 bytes for ./_CodeSignature/CodeResources
+2025-10-27 07:39:10 +0000  copying file ./Fontisto.ttf ... 
+2025-10-27 07:39:10 +0000  313528 bytes for ./Fontisto.ttf
+2025-10-27 07:39:10 +0000  copying file ./Octicons.ttf ... 
+2025-10-27 07:39:10 +0000  49404 bytes for ./Octicons.ttf
+2025-10-27 07:39:10 +0000  copying file ./Feather.ttf ... 
+2025-10-27 07:39:10 +0000  56228 bytes for ./Feather.ttf
+2025-10-27 07:39:10 +0000  copying file ./FontAwesome6_Regular.ttf ... 
+2025-10-27 07:39:10 +0000  67976 bytes for ./FontAwesome6_Regular.ttf
+2025-10-27 07:39:10 +0000  copying file ./Entypo.ttf ... 
+2025-10-27 07:39:10 +0000  66200 bytes for ./Entypo.ttf
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/de.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:10 +0000  1131 bytes for ./QBImagePicker.bundle/de.lproj/QBImagePicker.strings
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/zh-Hans.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:10 +0000  1119 bytes for ./QBImagePicker.bundle/zh-Hans.lproj/QBImagePicker.strings
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/ja.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:10 +0000  1214 bytes for ./QBImagePicker.bundle/ja.lproj/QBImagePicker.strings
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/en.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:10 +0000  1064 bytes for ./QBImagePicker.bundle/en.lproj/QBImagePicker.strings
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/uk.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:10 +0000  1398 bytes for ./QBImagePicker.bundle/uk.lproj/QBImagePicker.strings
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/QBImagePicker.storyboardc/QiH-NZ-ZGN-view-sD2-zK-ryo.nib ... 
+2025-10-27 07:39:10 +0000  10292 bytes for ./QBImagePicker.bundle/QBImagePicker.storyboardc/QiH-NZ-ZGN-view-sD2-zK-ryo.nib
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/QBImagePicker.storyboardc/QBAlbumsViewController.nib ... 
+2025-10-27 07:39:10 +0000  1800 bytes for ./QBImagePicker.bundle/QBImagePicker.storyboardc/QBAlbumsViewController.nib
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/QBImagePicker.storyboardc/QBAssetsViewController.nib ... 
+2025-10-27 07:39:10 +0000  1393 bytes for ./QBImagePicker.bundle/QBImagePicker.storyboardc/QBAssetsViewController.nib
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/QBImagePicker.storyboardc/QL5-wR-LYt-view-66K-TS-Yoc.nib ... 
+2025-10-27 07:39:10 +0000  7037 bytes for ./QBImagePicker.bundle/QBImagePicker.storyboardc/QL5-wR-LYt-view-66K-TS-Yoc.nib
+copying file ./QBImagePicker.bundle/QBImagePicker.storyboardc/QBAlbumsNavigationController.nib ... 
+2025-10-27 07:39:10 +0000  2631 bytes for ./QBImagePicker.bundle/QBImagePicker.storyboardc/QBAlbumsNavigationController.nib
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/QBImagePicker.storyboardc/Info.plist ... 
+2025-10-27 07:39:10 +0000  289 bytes for ./QBImagePicker.bundle/QBImagePicker.storyboardc/Info.plist
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/nb.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:10 +0000  1076 bytes for ./QBImagePicker.bundle/nb.lproj/QBImagePicker.strings
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/es.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:10 +0000  1113 bytes for ./QBImagePicker.bundle/es.lproj/QBImagePicker.strings
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/da.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:10 +0000  1015 bytes for ./QBImagePicker.bundle/da.lproj/QBImagePicker.strings
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/it.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:10 +0000  1088 bytes for ./QBImagePicker.bundle/it.lproj/QBImagePicker.strings
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/sv.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:10 +0000  1082 bytes for ./QBImagePicker.bundle/sv.lproj/QBImagePicker.strings
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/ko.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:10 +0000  1139 bytes for ./QBImagePicker.bundle/ko.lproj/QBImagePicker.strings
+copying file ./QBImagePicker.bundle/zh-Hant.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:10 +0000  1119 bytes for ./QBImagePicker.bundle/zh-Hant.lproj/QBImagePicker.strings
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/tr.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:10 +0000  1104 bytes for ./QBImagePicker.bundle/tr.lproj/QBImagePicker.strings
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/pl.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:10 +0000  1119 bytes for ./QBImagePicker.bundle/pl.lproj/QBImagePicker.strings
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/vi.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:10 +0000  1143 bytes for ./QBImagePicker.bundle/vi.lproj/QBImagePicker.strings
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/ru.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:10 +0000  1433 bytes for ./QBImagePicker.bundle/ru.lproj/QBImagePicker.strings
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/fr.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:10 +0000  1153 bytes for ./QBImagePicker.bundle/fr.lproj/QBImagePicker.strings
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/fi.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:10 +0000  1002 bytes for ./QBImagePicker.bundle/fi.lproj/QBImagePicker.strings
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/nl.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:10 +0000  1017 bytes for ./QBImagePicker.bundle/nl.lproj/QBImagePicker.strings
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/pt.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:10 +0000  1112 bytes for ./QBImagePicker.bundle/pt.lproj/QBImagePicker.strings
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/ro.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:10 +0000  1127 bytes for ./QBImagePicker.bundle/ro.lproj/QBImagePicker.strings
+2025-10-27 07:39:10 +0000  copying file ./QBImagePicker.bundle/Info.plist ... 
+2025-10-27 07:39:10 +0000  773 bytes for ./QBImagePicker.bundle/Info.plist
+2025-10-27 07:39:10 +0000  copying file ./FontAwesome5_Brands.ttf ... 
+2025-10-27 07:39:10 +0000  134040 bytes for ./FontAwesome5_Brands.ttf
+2025-10-27 07:39:10 +0000  copying file ./MaterialCommunityIcons.ttf ... 
+2025-10-27 07:39:10 +0000  1147844 bytes for ./MaterialCommunityIcons.ttf
+2025-10-27 07:39:10 +0000  copying file ./AppIcon60x60@2x.png ... 
+2025-10-27 07:39:10 +0000  7940 bytes for ./AppIcon60x60@2x.png
+2025-10-27 07:39:10 +0000  copying file ./AntDesign.ttf ... 
+2025-10-27 07:39:10 +0000  70344 bytes for ./AntDesign.ttf
+2025-10-27 07:39:10 +0000  copying file ./Foundation.ttf ... 
+2025-10-27 07:39:10 +0000  56976 bytes for ./Foundation.ttf
+2025-10-27 07:39:10 +0000  copying file ./Ionicons.ttf ... 
+2025-10-27 07:39:10 +0000  442604 bytes for ./Ionicons.ttf
+2025-10-27 07:39:10 +0000  copying file ./FontAwesome5_Solid.ttf ... 
+2025-10-27 07:39:10 +0000  202744 bytes for ./FontAwesome5_Solid.ttf
+2025-10-27 07:39:10 +0000  copying file ./FontAwesome5_Regular.ttf ... 
+2025-10-27 07:39:10 +0000  33736 bytes for ./FontAwesome5_Regular.ttf
+2025-10-27 07:39:10 +0000  copying file ./AccessibilityResources.bundle/en.lproj/Localizable.strings ... 
+2025-10-27 07:39:10 +0000  518 bytes for ./AccessibilityResources.bundle/en.lproj/Localizable.strings
+2025-10-27 07:39:10 +0000  copying file ./AccessibilityResources.bundle/Info.plist ... 
+2025-10-27 07:39:10 +0000  794 bytes for ./AccessibilityResources.bundle/Info.plist
+2025-10-27 07:39:10 +0000  copying file ./ICMSApp ... 
+2025-10-27 07:39:10 +0000  3586272 bytes for ./ICMSApp
+2025-10-27 07:39:10 +0000  copying file ./FontAwesome.ttf ... 
+2025-10-27 07:39:10 +0000  165548 bytes for ./FontAwesome.ttf
+2025-10-27 07:39:10 +0000  copying file ./RNImageCropPickerPrivacyInfo.bundle/PrivacyInfo.xcprivacy ... 
+2025-10-27 07:39:10 +0000  905 bytes for ./RNImageCropPickerPrivacyInfo.bundle/PrivacyInfo.xcprivacy
+2025-10-27 07:39:10 +0000  copying file ./RNImageCropPickerPrivacyInfo.bundle/Info.plist ... 
+2025-10-27 07:39:10 +0000  805 bytes for ./RNImageCropPickerPrivacyInfo.bundle/Info.plist
+copying file ./Zocial.ttf ... 
+2025-10-27 07:39:10 +0000  25788 bytes for ./Zocial.ttf
+2025-10-27 07:39:10 +0000  copying file ./RNPermissionsPrivacyInfo.bundle/PrivacyInfo.xcprivacy ... 
+2025-10-27 07:39:10 +0000  598 bytes for ./RNPermissionsPrivacyInfo.bundle/PrivacyInfo.xcprivacy
+2025-10-27 07:39:10 +0000  copying file ./RNPermissionsPrivacyInfo.bundle/Info.plist ... 
+2025-10-27 07:39:10 +0000  796 bytes for ./RNPermissionsPrivacyInfo.bundle/Info.plist
+2025-10-27 07:39:10 +0000  copying file ./Assets.car ... 
+2025-10-27 07:39:10 +0000  222952 bytes for ./Assets.car
+2025-10-27 07:39:10 +0000  copying file ./EvilIcons.ttf ... 
+2025-10-27 07:39:10 +0000  13456 bytes for ./EvilIcons.ttf
+2025-10-27 07:39:10 +0000  copying file ./main.jsbundle ... 
+2025-10-27 07:39:10 +0000  5394883 bytes for ./main.jsbundle
+2025-10-27 07:39:10 +0000  copying file ./FontAwesome6_Solid.ttf ... 
+2025-10-27 07:39:10 +0000  423676 bytes for ./FontAwesome6_Solid.ttf
+2025-10-27 07:39:10 +0000  copying file ./LaunchScreen.storyboardc/01J-lp-oVM-view-Ze5-6b-2t3.nib ... 
+2025-10-27 07:39:10 +0000  3815 bytes for ./LaunchScreen.storyboardc/01J-lp-oVM-view-Ze5-6b-2t3.nib
+2025-10-27 07:39:10 +0000  copying file ./LaunchScreen.storyboardc/UIViewController-01J-lp-oVM.nib ... 
+2025-10-27 07:39:10 +0000  924 bytes for ./LaunchScreen.storyboardc/UIViewController-01J-lp-oVM.nib
+2025-10-27 07:39:10 +0000  copying file ./LaunchScreen.storyboardc/Info.plist ... 
+2025-10-27 07:39:10 +0000  258 bytes for ./LaunchScreen.storyboardc/Info.plist
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/de.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  189 bytes for ./TOCropViewControllerBundle.bundle/de.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/ar.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  207 bytes for ./TOCropViewControllerBundle.bundle/ar.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/zh-Hans.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  172 bytes for ./TOCropViewControllerBundle.bundle/zh-Hans.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/ja.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  210 bytes for ./TOCropViewControllerBundle.bundle/ja.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/fa.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  210 bytes for ./TOCropViewControllerBundle.bundle/fa.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/en.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  168 bytes for ./TOCropViewControllerBundle.bundle/en.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/uk.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  231 bytes for ./TOCropViewControllerBundle.bundle/uk.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/es.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  179 bytes for ./TOCropViewControllerBundle.bundle/es.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/it.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  181 bytes for ./TOCropViewControllerBundle.bundle/it.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/sk.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  176 bytes for ./TOCropViewControllerBundle.bundle/sk.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/ms.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  173 bytes for ./TOCropViewControllerBundle.bundle/ms.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/cs.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  173 bytes for ./TOCropViewControllerBundle.bundle/cs.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/ko.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  187 bytes for ./TOCropViewControllerBundle.bundle/ko.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/Base.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  168 bytes for ./TOCropViewControllerBundle.bundle/Base.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/zh-Hant.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  175 bytes for ./TOCropViewControllerBundle.bundle/zh-Hant.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/fa-IR.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  210 bytes for ./TOCropViewControllerBundle.bundle/fa-IR.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/hu.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  194 bytes for ./TOCropViewControllerBundle.bundle/hu.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/da-DK.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  174 bytes for ./TOCropViewControllerBundle.bundle/da-DK.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/tr.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  183 bytes for ./TOCropViewControllerBundle.bundle/tr.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/pl.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  171 bytes for ./TOCropViewControllerBundle.bundle/pl.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/pt-BR.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  181 bytes for ./TOCropViewControllerBundle.bundle/pt-BR.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/vi.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  178 bytes for ./TOCropViewControllerBundle.bundle/vi.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/PrivacyInfo.xcprivacy ... 
+2025-10-27 07:39:10 +0000  373 bytes for ./TOCropViewControllerBundle.bundle/PrivacyInfo.xcprivacy
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/ru.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  237 bytes for ./TOCropViewControllerBundle.bundle/ru.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/fr.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  193 bytes for ./TOCropViewControllerBundle.bundle/fr.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/fi.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  179 bytes for ./TOCropViewControllerBundle.bundle/fi.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/id.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  178 bytes for ./TOCropViewControllerBundle.bundle/id.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/nl.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  178 bytes for ./TOCropViewControllerBundle.bundle/nl.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/pt.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  181 bytes for ./TOCropViewControllerBundle.bundle/pt.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/ro.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  181 bytes for ./TOCropViewControllerBundle.bundle/ro.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/Info.plist ... 
+2025-10-27 07:39:10 +0000  800 bytes for ./TOCropViewControllerBundle.bundle/Info.plist
+2025-10-27 07:39:10 +0000  copying file ./TOCropViewControllerBundle.bundle/ca.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:10 +0000  177 bytes for ./TOCropViewControllerBundle.bundle/ca.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000  copying file ./SimpleLineIcons.ttf ... 
+2025-10-27 07:39:10 +0000  54056 bytes for ./SimpleLineIcons.ttf
+2025-10-27 07:39:10 +0000  copying file ./FontAwesome6_Brands.ttf ... 
+2025-10-27 07:39:10 +0000  209376 bytes for ./FontAwesome6_Brands.ttf
+2025-10-27 07:39:10 +0000  copying file ./embedded.mobileprovision ... 
+2025-10-27 07:39:10 +0000  17587 bytes for ./embedded.mobileprovision
+2025-10-27 07:39:10 +0000  copying file ./assets/node_modules/@react-navigation/drawer/src/views/assets/toggle-drawer-icon@3x.png ... 
+2025-10-27 07:39:10 +0000  212 bytes for ./assets/node_modules/@react-navigation/drawer/src/views/assets/toggle-drawer-icon@3x.png
+2025-10-27 07:39:10 +0000  copying file ./assets/node_modules/@react-navigation/drawer/src/views/assets/toggle-drawer-icon@2x.png ... 
+2025-10-27 07:39:10 +0000  163 bytes for ./assets/node_modules/@react-navigation/drawer/src/views/assets/toggle-drawer-icon@2x.png
+2025-10-27 07:39:10 +0000  copying file ./assets/node_modules/@react-navigation/drawer/src/views/assets/toggle-drawer-icon.png ... 
+2025-10-27 07:39:10 +0000  108 bytes for ./assets/node_modules/@react-navigation/drawer/src/views/assets/toggle-drawer-icon.png
+2025-10-27 07:39:10 +0000  copying file ./assets/node_modules/@react-navigation/elements/src/assets/back-icon@3x.png ... 
+2025-10-27 07:39:10 +0000  761 bytes for ./assets/node_modules/@react-navigation/elements/src/assets/back-icon@3x.png
+2025-10-27 07:39:10 +0000  copying file ./assets/node_modules/@react-navigation/elements/src/assets/back-icon@2x.png ... 
+2025-10-27 07:39:10 +0000  405 bytes for ./assets/node_modules/@react-navigation/elements/src/assets/back-icon@2x.png
+2025-10-27 07:39:10 +0000  copying file ./assets/node_modules/@react-navigation/elements/src/assets/back-icon.png ... 
+290 bytes for ./assets/node_modules/@react-navigation/elements/src/assets/back-icon.png
+copying file ./assets/node_modules/@react-navigation/elements/src/assets/back-icon-mask.png ... 
+2025-10-27 07:39:10 +0000  913 bytes for ./assets/node_modules/@react-navigation/elements/src/assets/back-icon-mask.png
+2025-10-27 07:39:10 +0000  copying file ./assets/android/app/assets/images/BG3.png ... 
+2025-10-27 07:39:10 +0000  15052 bytes for ./assets/android/app/assets/images/BG3.png
+2025-10-27 07:39:10 +0000  copying file ./assets/android/app/assets/images/BG2.png ... 
+2025-10-27 07:39:10 +0000  26715 bytes for ./assets/android/app/assets/images/BG2.png
+2025-10-27 07:39:10 +0000  copying file ./Info.plist ... 
+2025-10-27 07:39:10 +0000  2260 bytes for ./Info.plist
+2025-10-27 07:39:10 +0000  copying file ./RNCAsyncStorage_resources.bundle/PrivacyInfo.xcprivacy ... 
+2025-10-27 07:39:10 +0000  512 bytes for ./RNCAsyncStorage_resources.bundle/PrivacyInfo.xcprivacy
+2025-10-27 07:39:10 +0000  copying file ./RNCAsyncStorage_resources.bundle/Info.plist ... 
+2025-10-27 07:39:10 +0000  798 bytes for ./RNCAsyncStorage_resources.bundle/Info.plist
+2025-10-27 07:39:10 +0000  copying file ./PkgInfo ... 
+2025-10-27 07:39:10 +0000  8 bytes for ./PkgInfo
+2025-10-27 07:39:10 +0000  copying file ./MaterialIcons.ttf ... 
+2025-10-27 07:39:10 +0000  356840 bytes for ./MaterialIcons.ttf
+2025-10-27 07:39:10 +0000 [MT] /usr/bin/ditto exited with 0
+2025-10-27 07:39:10 +0000 [MT] Processing step: IDEDistributionEmbedProfileStep
+2025-10-27 07:39:10 +0000 [MT] Processing step: IDEDistributionInfoPlistStep
+2025-10-27 07:39:10 +0000 [MT] Skipping setting DTXcodeBuildDistribution because toolsBuildVersionName was nil.
+2025-10-27 07:39:10 +0000 [MT] Processing step: IDEDistributionItemRemovalStep
+2025-10-27 07:39:10 +0000 [MT] Processing step: IDEDistributionAppThinningPlistStep
+2025-10-27 07:39:10 +0000 [MT] Skipping step: IDEDistributionAppThinningPlistStep because it said so
+2025-10-27 07:39:10 +0000 [MT] Processing step: IDEDistributionCompileBitcodeStep
+2025-10-27 07:39:10 +0000 [MT] Skipping step: IDEDistributionCompileBitcodeStep because it said so
+2025-10-27 07:39:10 +0000 [MT] Processing step: IDEDistributionCodeSlimmingStep
+2025-10-27 07:39:10 +0000 [MT] Processing step: IDEDistributionCopyBCSymbolMapsStep
+2025-10-27 07:39:10 +0000 [MT] Processing step: IDEDistributionSymbolsStep
+2025-10-27 07:39:10 +0000 [MT] Processing symbols for ICMSApp.app
+2025-10-27 07:39:10 +0000 [MT] Running /usr/bin/rsync '-8aPhhE' '/var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/XcodeDistPipeline.~~~I9eR1p/Root/Payload/ICMSApp.app' '--link-dest' '/var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/XcodeDistPipeline.~~~I9eR1p/Root/Payload' '/var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/XcodeDistPipeline.~~~I9eR1p'
+2025-10-27 07:39:10 +0000  building file list ... 
+2025-10-27 07:39:10 +0000   0 files...2025-10-27 07:39:10 +0000   100 files...2025-10-27 07:39:10 +0000   200 files...2025-10-27 07:39:10 +0000   300 files...2025-10-27 07:39:10 +0000  368 files to consider
+2025-10-27 07:39:10 +0000  ICMSApp.app/
+2025-10-27 07:39:10 +0000  ._ICMSApp.app
+2025-10-27 07:39:10 +0000           163 100%    0.00kB/s    0:00:00         163 100%    0.00kB/s    0:00:00 (xfer#1, to-check=367/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/AccessibilityResources.bundle/
+2025-10-27 07:39:10 +0000  ICMSApp.app/._AccessibilityResources.bundle
+2025-10-27 07:39:10 +0000           163 100%    1.68kB/s    0:00:00         163 100%    1.68kB/s    0:00:00 (xfer#2, to-check=365/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._AntDesign.ttf
+2025-10-27 07:39:10 +0000           163 100%    1.66kB/s    0:00:00         163 100%    1.66kB/s    0:00:00 (xfer#3, to-check=364/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._AppIcon60x60@2x.png
+2025-10-27 07:39:10 +0000           163 100%    1.62kB/s    0:00:00         163 100%    1.62kB/s    0:00:00 (xfer#4, to-check=363/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._Assets.car
+2025-10-27 07:39:10 +0000           163 100%    1.61kB/s    0:00:00         163 100%    1.61kB/s    0:00:00 (xfer#5, to-check=362/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._Entypo.ttf
+2025-10-27 07:39:10 +0000           163 100%    1.56kB/s    0:00:00         163 100%    1.56kB/s    0:00:00 (xfer#6, to-check=361/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._EvilIcons.ttf
+2025-10-27 07:39:10 +0000           163 100%    1.53kB/s    0:00:00         163 100%    1.53kB/s    0:00:00 (xfer#7, to-check=360/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._Feather.ttf
+2025-10-27 07:39:10 +0000           163 100%    1.50kB/s    0:00:00         163 100%    1.50kB/s    0:00:00 (xfer#8, to-check=359/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._FontAwesome.ttf
+         163 100%    1.46kB/s    0:00:00         163 100%    1.46kB/s    0:00:00 (xfer#9, to-check=358/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._FontAwesome5_Brands.ttf
+         163 100%    1.43kB/s    0:00:00         163 100%    1.43kB/s    0:00:00 (xfer#10, to-check=357/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._FontAwesome5_Regular.ttf
+2025-10-27 07:39:10 +0000           163 100%    1.40kB/s    0:00:00         163 100%    1.40kB/s    0:00:00 (xfer#11, to-check=356/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._FontAwesome5_Solid.ttf
+2025-10-27 07:39:10 +0000           163 100%    1.38kB/s    0:00:002025-10-27 07:39:10 +0000           163 100%    1.38kB/s    0:00:00 (xfer#12, to-check=355/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._FontAwesome6_Brands.ttf
+2025-10-27 07:39:10 +0000           163 100%    1.36kB/s    0:00:00         163 100%    1.36kB/s    0:00:00 (xfer#13, to-check=354/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._FontAwesome6_Regular.ttf
+2025-10-27 07:39:10 +0000           163 100%    1.35kB/s    0:00:00         163 100%    1.35kB/s    0:00:00 (xfer#14, to-check=353/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._FontAwesome6_Solid.ttf
+2025-10-27 07:39:10 +0000           163 100%    1.32kB/s    0:00:002025-10-27 07:39:10 +0000           163 100%    1.32kB/s    0:00:00 (xfer#15, to-check=352/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._Fontisto.ttf
+2025-10-27 07:39:10 +0000           163 100%    1.30kB/s    0:00:00         163 100%    1.30kB/s    0:00:00 (xfer#16, to-check=351/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._Foundation.ttf
+2025-10-27 07:39:10 +0000           163 100%    1.28kB/s    0:00:00         163 100%    1.28kB/s    0:00:00 (xfer#17, to-check=350/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/Frameworks/
+2025-10-27 07:39:10 +0000  ICMSApp.app/._Frameworks
+2025-10-27 07:39:10 +0000           163 100%    1.27kB/s    0:00:00         163 100%    1.27kB/s    0:00:00 (xfer#18, to-check=349/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._ICMSApp
+2025-10-27 07:39:10 +0000           163 100%    1.25kB/s    0:00:00         163 100%    1.25kB/s    0:00:00 (xfer#19, to-check=348/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._Info.plist
+2025-10-27 07:39:10 +0000           163 100%    1.24kB/s    0:00:00         163 100%    1.23kB/s    0:00:00 (xfer#20, to-check=347/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._Ionicons.ttf
+2025-10-27 07:39:10 +0000           163 100%    1.22kB/s    0:00:00         163 100%    1.22kB/s    0:00:00 (xfer#21, to-check=346/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/LaunchScreen.storyboardc/
+2025-10-27 07:39:10 +0000  ICMSApp.app/._LaunchScreen.storyboardc
+2025-10-27 07:39:10 +0000           163 100%    1.21kB/s    0:00:00         163 100%    1.21kB/s    0:00:00 (xfer#22, to-check=345/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._MaterialCommunityIcons.ttf
+2025-10-27 07:39:10 +0000           163 100%    1.20kB/s    0:00:00         163 100%    1.20kB/s    0:00:00 (xfer#23, to-check=344/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._MaterialIcons.ttf
+2025-10-27 07:39:10 +0000           163 100%    1.18kB/s    0:00:00         163 100%    1.18kB/s    0:00:00 (xfer#24, to-check=343/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._Octicons.ttf
+2025-10-27 07:39:10 +0000           163 100%    1.15kB/s    0:00:002025-10-27 07:39:10 +0000           163 100%    1.15kB/s    0:00:00 (xfer#25, to-check=342/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._PkgInfo
+2025-10-27 07:39:10 +0000           163 100%    1.14kB/s    0:00:00         163 100%    1.14kB/s    0:00:00 (xfer#26, to-check=341/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/
+2025-10-27 07:39:10 +0000  ICMSApp.app/._QBImagePicker.bundle
+2025-10-27 07:39:10 +0000           163 100%    1.13kB/s    0:00:00         163 100%    1.13kB/s    0:00:00 (xfer#27, to-check=340/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/RNCAsyncStorage_resources.bundle/
+2025-10-27 07:39:10 +0000  ICMSApp.app/._RNCAsyncStorage_resources.bundle
+2025-10-27 07:39:10 +0000           163 100%    1.11kB/s    0:00:00         163 100%    1.11kB/s    0:00:00 (xfer#28, to-check=339/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/RNImageCropPickerPrivacyInfo.bundle/
+2025-10-27 07:39:10 +0000  ICMSApp.app/._RNImageCropPickerPrivacyInfo.bundle
+2025-10-27 07:39:10 +0000           163 100%    1.11kB/s    0:00:00         163 100%    1.11kB/s    0:00:00 (xfer#29, to-check=338/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/RNPermissionsPrivacyInfo.bundle/
+2025-10-27 07:39:10 +0000  ICMSApp.app/._RNPermissionsPrivacyInfo.bundle
+2025-10-27 07:39:10 +0000           163 100%    1.09kB/s    0:00:00         163 100%    1.09kB/s    0:00:00 (xfer#30, to-check=337/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._SimpleLineIcons.ttf
+2025-10-27 07:39:10 +0000           163 100%    1.08kB/s    0:00:00         163 100%    1.08kB/s    0:00:00 (xfer#31, to-check=336/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/
+2025-10-27 07:39:10 +0000  ICMSApp.app/._TOCropViewControllerBundle.bundle
+2025-10-27 07:39:10 +0000           163 100%    1.07kB/s    0:00:00         163 100%    1.07kB/s    0:00:00 (xfer#32, to-check=335/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._Zocial.ttf
+2025-10-27 07:39:10 +0000           163 100%    1.06kB/s    0:00:00         163 100%    1.06kB/s    0:00:00 (xfer#33, to-check=334/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/_CodeSignature/
+2025-10-27 07:39:10 +0000  ICMSApp.app/.__CodeSignature
+2025-10-27 07:39:10 +0000           163 100%    1.05kB/s    0:00:00         163 100%    1.05kB/s    0:00:00 (xfer#34, to-check=333/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/
+2025-10-27 07:39:10 +0000  ICMSApp.app/._assets
+2025-10-27 07:39:10 +0000           163 100%    1.03kB/s    0:00:00         163 100%    1.03kB/s    0:00:00 (xfer#35, to-check=332/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._embedded.mobileprovision
+2025-10-27 07:39:10 +0000           163 100%    1.01kB/s    0:00:00         163 100%    1.01kB/s    0:00:00 (xfer#36, to-check=331/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/._main.jsbundle
+2025-10-27 07:39:10 +0000           163 100%    1.01kB/s    0:00:00         163 100%    1.01kB/s    0:00:00 (xfer#37, to-check=330/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/AccessibilityResources.bundle/._Info.plist
+         163 100%    0.99kB/s    0:00:00         163 100%    0.99kB/s    0:00:00 (xfer#38, to-check=302/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/AccessibilityResources.bundle/en.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/AccessibilityResources.bundle/._en.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.98kB/s    0:00:002025-10-27 07:39:10 +0000           163 100%    0.98kB/s    0:00:00 (xfer#39, to-check=301/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/AccessibilityResources.bundle/en.lproj/._Localizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.98kB/s    0:00:00         163 100%    0.98kB/s    0:00:00 (xfer#40, to-check=298/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/LaunchScreen.storyboardc/._01J-lp-oVM-view-Ze5-6b-2t3.nib
+2025-10-27 07:39:10 +0000           163 100%    0.96kB/s    0:00:002025-10-27 07:39:10 +0000           163 100%    0.96kB/s    0:00:00 (xfer#41, to-check=294/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/LaunchScreen.storyboardc/._Info.plist
+2025-10-27 07:39:10 +0000           163 100%    0.95kB/s    0:00:00         163 100%    0.95kB/s    0:00:00 (xfer#42, to-check=293/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/LaunchScreen.storyboardc/._UIViewController-01J-lp-oVM.nib
+2025-10-27 07:39:10 +0000           163 100%    0.94kB/s    0:00:00         163 100%    0.94kB/s    0:00:00 (xfer#43, to-check=292/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/._Info.plist
+2025-10-27 07:39:10 +0000           163 100%    0.93kB/s    0:00:00         163 100%    0.93kB/s    0:00:00 (xfer#44, to-check=287/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/QBImagePicker.storyboardc/
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/._QBImagePicker.storyboardc
+2025-10-27 07:39:10 +0000           163 100%    0.92kB/s    0:00:002025-10-27 07:39:10 +0000           163 100%    0.92kB/s    0:00:00 (xfer#45, to-check=286/368)
+ICMSApp.app/QBImagePicker.bundle/da.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/._da.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.91kB/s    0:00:002025-10-27 07:39:10 +0000           163 100%    0.91kB/s    0:00:00 (xfer#46, to-check=285/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/de.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/._de.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.90kB/s    0:00:00         163 100%    0.90kB/s    0:00:00 (xfer#47, to-check=284/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/en.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/._en.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.88kB/s    0:00:00         163 100%    0.88kB/s    0:00:00 (xfer#48, to-check=283/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/es.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/._es.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.87kB/s    0:00:00         163 100%    0.87kB/s    0:00:00 (xfer#49, to-check=282/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/fi.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/._fi.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.87kB/s    0:00:00         163 100%    0.86kB/s    0:00:00 (xfer#50, to-check=281/368)
+ICMSApp.app/QBImagePicker.bundle/fr.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/._fr.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.86kB/s    0:00:00         163 100%    0.86kB/s    0:00:00 (xfer#51, to-check=280/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/it.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/._it.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.84kB/s    0:00:00         163 100%    0.84kB/s    0:00:00 (xfer#52, to-check=279/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/ja.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/._ja.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.84kB/s    0:00:00         163 100%    0.84kB/s    0:00:00 (xfer#53, to-check=278/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/ko.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/._ko.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.83kB/s    0:00:00         163 100%    0.83kB/s    0:00:00 (xfer#54, to-check=277/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/nb.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/._nb.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.82kB/s    0:00:002025-10-27 07:39:10 +0000           163 100%    0.82kB/s    0:00:00 (xfer#55, to-check=276/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/nl.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/._nl.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.81kB/s    0:00:002025-10-27 07:39:10 +0000           163 100%    0.81kB/s    0:00:00 (xfer#56, to-check=275/368)
+ICMSApp.app/QBImagePicker.bundle/pl.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/._pl.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.80kB/s    0:00:002025-10-27 07:39:10 +0000           163 100%    0.80kB/s    0:00:00 (xfer#57, to-check=274/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/pt.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/._pt.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.80kB/s    0:00:002025-10-27 07:39:10 +0000           163 100%    0.80kB/s    0:00:00 (xfer#58, to-check=273/368)
+ICMSApp.app/QBImagePicker.bundle/ro.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/._ro.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.79kB/s    0:00:00         163 100%    0.79kB/s    0:00:00 (xfer#59, to-check=272/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/ru.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/._ru.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.79kB/s    0:00:00         163 100%    0.79kB/s    0:00:00 (xfer#60, to-check=271/368)
+ICMSApp.app/QBImagePicker.bundle/sv.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/._sv.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.78kB/s    0:00:002025-10-27 07:39:10 +0000           163 100%    0.78kB/s    0:00:00 (xfer#61, to-check=270/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/tr.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/._tr.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.77kB/s    0:00:00         163 100%    0.77kB/s    0:00:00 (xfer#62, to-check=269/368)
+ICMSApp.app/QBImagePicker.bundle/uk.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/._uk.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.77kB/s    0:00:00         163 100%    0.77kB/s    0:00:00 (xfer#63, to-check=268/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/vi.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/._vi.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.76kB/s    0:00:00         163 100%    0.76kB/s    0:00:00 (xfer#64, to-check=267/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/zh-Hans.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/._zh-Hans.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.75kB/s    0:00:00         163 100%    0.75kB/s    0:00:00 (xfer#65, to-check=266/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/zh-Hant.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/._zh-Hant.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.75kB/s    0:00:00         163 100%    0.75kB/s    0:00:00 (xfer#66, to-check=265/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/QBImagePicker.storyboardc/._Info.plist
+2025-10-27 07:39:10 +0000           163 100%    0.74kB/s    0:00:002025-10-27 07:39:10 +0000           163 100%    0.74kB/s    0:00:00 (xfer#67, to-check=262/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/QBImagePicker.storyboardc/._QBAlbumsNavigationController.nib
+2025-10-27 07:39:10 +0000           163 100%    0.73kB/s    0:00:00         163 100%    0.73kB/s    0:00:00 (xfer#68, to-check=261/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/QBImagePicker.storyboardc/._QBAlbumsViewController.nib
+2025-10-27 07:39:10 +0000           163 100%    0.73kB/s    0:00:00         163 100%    0.73kB/s    0:00:00 (xfer#69, to-check=260/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/QBImagePicker.storyboardc/._QBAssetsViewController.nib
+2025-10-27 07:39:10 +0000           163 100%    0.72kB/s    0:00:00         163 100%    0.72kB/s    0:00:00 (xfer#70, to-check=259/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/QBImagePicker.storyboardc/._QL5-wR-LYt-view-66K-TS-Yoc.nib
+2025-10-27 07:39:10 +0000           163 100%    0.71kB/s    0:00:00         163 100%    0.71kB/s    0:00:00 (xfer#71, to-check=258/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/QBImagePicker.storyboardc/._QiH-NZ-ZGN-view-sD2-zK-ryo.nib
+2025-10-27 07:39:10 +0000           163 100%    0.71kB/s    0:00:00         163 100%    0.71kB/s    0:00:00 (xfer#72, to-check=257/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/da.lproj/._QBImagePicker.strings
+2025-10-27 07:39:10 +0000           163 100%    0.70kB/s    0:00:002025-10-27 07:39:10 +0000           163 100%    0.70kB/s    0:00:00 (xfer#73, to-check=249/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/de.lproj/._QBImagePicker.strings
+2025-10-27 07:39:10 +0000           163 100%    0.70kB/s    0:00:00         163 100%    0.70kB/s    0:00:00 (xfer#74, to-check=246/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/en.lproj/._QBImagePicker.strings
+2025-10-27 07:39:10 +0000           163 100%    0.69kB/s    0:00:00         163 100%    0.69kB/s    0:00:00 (xfer#75, to-check=243/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/es.lproj/._QBImagePicker.strings
+2025-10-27 07:39:10 +0000           163 100%    0.69kB/s    0:00:00         163 100%    0.69kB/s    0:00:00 (xfer#76, to-check=240/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/fi.lproj/._QBImagePicker.strings
+2025-10-27 07:39:10 +0000           163 100%    0.68kB/s    0:00:00         163 100%    0.68kB/s    0:00:00 (xfer#77, to-check=237/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/fr.lproj/._QBImagePicker.strings
+2025-10-27 07:39:10 +0000           163 100%    0.68kB/s    0:00:00         163 100%    0.68kB/s    0:00:00 (xfer#78, to-check=234/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/it.lproj/._QBImagePicker.strings
+2025-10-27 07:39:10 +0000           163 100%    0.67kB/s    0:00:00         163 100%    0.67kB/s    0:00:00 (xfer#79, to-check=231/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/ja.lproj/._QBImagePicker.strings
+2025-10-27 07:39:10 +0000           163 100%    0.66kB/s    0:00:00         163 100%    0.66kB/s    0:00:00 (xfer#80, to-check=228/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/ko.lproj/._QBImagePicker.strings
+2025-10-27 07:39:10 +0000           163 100%    0.66kB/s    0:00:00         163 100%    0.66kB/s    0:00:00 (xfer#81, to-check=225/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/nb.lproj/._QBImagePicker.strings
+2025-10-27 07:39:10 +0000           163 100%    0.65kB/s    0:00:002025-10-27 07:39:10 +0000           163 100%    0.65kB/s    0:00:00 (xfer#82, to-check=222/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/nl.lproj/._QBImagePicker.strings
+2025-10-27 07:39:10 +0000           163 100%    0.64kB/s    0:00:00         163 100%    0.64kB/s    0:00:00 (xfer#83, to-check=219/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/pl.lproj/._QBImagePicker.strings
+2025-10-27 07:39:10 +0000           163 100%    0.64kB/s    0:00:00         163 100%    0.64kB/s    0:00:00 (xfer#84, to-check=216/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/pt.lproj/._QBImagePicker.strings
+2025-10-27 07:39:10 +0000           163 100%    0.63kB/s    0:00:00         163 100%    0.63kB/s    0:00:00 (xfer#85, to-check=213/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/ro.lproj/._QBImagePicker.strings
+2025-10-27 07:39:10 +0000           163 100%    0.62kB/s    0:00:00         163 100%    0.62kB/s    0:00:00 (xfer#86, to-check=210/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/ru.lproj/._QBImagePicker.strings
+2025-10-27 07:39:10 +0000           163 100%    0.62kB/s    0:00:00         163 100%    0.62kB/s    0:00:00 (xfer#87, to-check=207/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/sv.lproj/._QBImagePicker.strings
+2025-10-27 07:39:10 +0000           163 100%    0.62kB/s    0:00:00         163 100%    0.62kB/s    0:00:00 (xfer#88, to-check=204/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/tr.lproj/._QBImagePicker.strings
+2025-10-27 07:39:10 +0000           163 100%    0.61kB/s    0:00:00         163 100%    0.61kB/s    0:00:00 (xfer#89, to-check=201/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/uk.lproj/._QBImagePicker.strings
+2025-10-27 07:39:10 +0000           163 100%    0.61kB/s    0:00:00         163 100%    0.61kB/s    0:00:00 (xfer#90, to-check=198/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/vi.lproj/._QBImagePicker.strings
+2025-10-27 07:39:10 +0000           163 100%    0.61kB/s    0:00:00         163 100%    0.61kB/s    0:00:00 (xfer#91, to-check=195/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/zh-Hans.lproj/._QBImagePicker.strings
+2025-10-27 07:39:10 +0000           163 100%    0.60kB/s    0:00:00         163 100%    0.60kB/s    0:00:00 (xfer#92, to-check=192/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/QBImagePicker.bundle/zh-Hant.lproj/._QBImagePicker.strings
+2025-10-27 07:39:10 +0000           163 100%    0.60kB/s    0:00:00         163 100%    0.60kB/s    0:00:00 (xfer#93, to-check=189/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/RNCAsyncStorage_resources.bundle/._Info.plist
+2025-10-27 07:39:10 +0000           163 100%    0.60kB/s    0:00:00         163 100%    0.60kB/s    0:00:00 (xfer#94, to-check=186/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/RNCAsyncStorage_resources.bundle/._PrivacyInfo.xcprivacy
+2025-10-27 07:39:10 +0000           163 100%    0.59kB/s    0:00:00         163 100%    0.59kB/s    0:00:00 (xfer#95, to-check=185/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/RNImageCropPickerPrivacyInfo.bundle/._Info.plist
+2025-10-27 07:39:10 +0000           163 100%    0.59kB/s    0:00:00         163 100%    0.59kB/s    0:00:00 (xfer#96, to-check=181/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/RNImageCropPickerPrivacyInfo.bundle/._PrivacyInfo.xcprivacy
+2025-10-27 07:39:10 +0000           163 100%    0.58kB/s    0:00:00         163 100%    0.58kB/s    0:00:00 (xfer#97, to-check=180/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/RNPermissionsPrivacyInfo.bundle/._Info.plist
+2025-10-27 07:39:10 +0000           163 100%    0.58kB/s    0:00:00         163 100%    0.58kB/s    0:00:00 (xfer#98, to-check=176/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/RNPermissionsPrivacyInfo.bundle/._PrivacyInfo.xcprivacy
+2025-10-27 07:39:10 +0000           163 100%    0.57kB/s    0:00:00         163 100%    0.57kB/s    0:00:00 (xfer#99, to-check=175/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/Base.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._Base.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.57kB/s    0:00:00         163 100%    0.57kB/s    0:00:00 (xfer#100, to-check=171/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._Info.plist
+2025-10-27 07:39:10 +0000           163 100%    0.57kB/s    0:00:00         163 100%    0.57kB/s    0:00:00 (xfer#101, to-check=170/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._PrivacyInfo.xcprivacy
+2025-10-27 07:39:10 +0000           163 100%    0.57kB/s    0:00:00         163 100%    0.57kB/s    0:00:00 (xfer#102, to-check=169/368)
+ICMSApp.app/TOCropViewControllerBundle.bundle/ar.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._ar.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.56kB/s    0:00:00         163 100%    0.56kB/s    0:00:00 (xfer#103, to-check=168/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/ca.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._ca.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.56kB/s    0:00:00         163 100%    0.56kB/s    0:00:00 (xfer#104, to-check=167/368)
+ICMSApp.app/TOCropViewControllerBundle.bundle/cs.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._cs.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.56kB/s    0:00:00         163 100%    0.56kB/s    0:00:00 (xfer#105, to-check=166/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/da-DK.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._da-DK.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.55kB/s    0:00:00         163 100%    0.55kB/s    0:00:00 (xfer#106, to-check=165/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/de.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._de.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.55kB/s    0:00:00         163 100%    0.55kB/s    0:00:00 (xfer#107, to-check=164/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/en.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._en.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.55kB/s    0:00:00         163 100%    0.55kB/s    0:00:00 (xfer#108, to-check=163/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/es.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._es.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.54kB/s    0:00:00         163 100%    0.54kB/s    0:00:00 (xfer#109, to-check=162/368)
+ICMSApp.app/TOCropViewControllerBundle.bundle/fa-IR.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._fa-IR.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.54kB/s    0:00:00         163 100%    0.54kB/s    0:00:00 (xfer#110, to-check=161/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/fa.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._fa.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.54kB/s    0:00:00         163 100%    0.54kB/s    0:00:00 (xfer#111, to-check=160/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/fi.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._fi.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.54kB/s    0:00:00         163 100%    0.54kB/s    0:00:00 (xfer#112, to-check=159/368)
+ICMSApp.app/TOCropViewControllerBundle.bundle/fr.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._fr.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.53kB/s    0:00:00         163 100%    0.53kB/s    0:00:00 (xfer#113, to-check=158/368)
+ICMSApp.app/TOCropViewControllerBundle.bundle/hu.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._hu.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.49kB/s    0:00:00         163 100%    0.49kB/s    0:00:00 (xfer#114, to-check=157/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/id.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._id.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.49kB/s    0:00:00         163 100%    0.49kB/s    0:00:00 (xfer#115, to-check=156/368)
+ICMSApp.app/TOCropViewControllerBundle.bundle/it.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._it.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.49kB/s    0:00:00         163 100%    0.49kB/s    0:00:00 (xfer#116, to-check=155/368)
+ICMSApp.app/TOCropViewControllerBundle.bundle/ja.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._ja.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.49kB/s    0:00:00         163 100%    0.49kB/s    0:00:00 (xfer#117, to-check=154/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/ko.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._ko.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.48kB/s    0:00:00         163 100%    0.48kB/s    0:00:00 (xfer#118, to-check=153/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/ms.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._ms.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.48kB/s    0:00:00         163 100%    0.48kB/s    0:00:00 (xfer#119, to-check=152/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/nl.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._nl.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.48kB/s    0:00:00         163 100%    0.48kB/s    0:00:00 (xfer#120, to-check=151/368)
+ICMSApp.app/TOCropViewControllerBundle.bundle/pl.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._pl.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.48kB/s    0:00:00         163 100%    0.48kB/s    0:00:00 (xfer#121, to-check=150/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/pt-BR.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._pt-BR.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.48kB/s    0:00:00         163 100%    0.48kB/s    0:00:00 (xfer#122, to-check=149/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/pt.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._pt.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.47kB/s    0:00:00         163 100%    0.47kB/s    0:00:00 (xfer#123, to-check=148/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/ro.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._ro.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.47kB/s    0:00:00         163 100%    0.47kB/s    0:00:00 (xfer#124, to-check=147/368)
+ICMSApp.app/TOCropViewControllerBundle.bundle/ru.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._ru.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.47kB/s    0:00:00         163 100%    0.47kB/s    0:00:00 (xfer#125, to-check=146/368)
+ICMSApp.app/TOCropViewControllerBundle.bundle/sk.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._sk.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.47kB/s    0:00:00         163 100%    0.47kB/s    0:00:00 (xfer#126, to-check=145/368)
+ICMSApp.app/TOCropViewControllerBundle.bundle/tr.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._tr.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.47kB/s    0:00:00         163 100%    0.47kB/s    0:00:00 (xfer#127, to-check=144/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/uk.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._uk.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.47kB/s    0:00:00         163 100%    0.46kB/s    0:00:00 (xfer#128, to-check=143/368)
+ICMSApp.app/TOCropViewControllerBundle.bundle/vi.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._vi.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.46kB/s    0:00:00         163 100%    0.46kB/s    0:00:00 (xfer#129, to-check=142/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/zh-Hans.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._zh-Hans.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.46kB/s    0:00:00         163 100%    0.46kB/s    0:00:00 (xfer#130, to-check=141/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/zh-Hant.lproj/
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/._zh-Hant.lproj
+2025-10-27 07:39:10 +0000           163 100%    0.46kB/s    0:00:00         163 100%    0.46kB/s    0:00:00 (xfer#131, to-check=140/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/Base.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.46kB/s    0:00:00         163 100%    0.46kB/s    0:00:00 (xfer#132, to-check=136/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/ar.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.45kB/s    0:00:00         163 100%    0.45kB/s    0:00:00 (xfer#133, to-check=133/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/ca.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.45kB/s    0:00:00         163 100%    0.45kB/s    0:00:00 (xfer#134, to-check=130/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/cs.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.45kB/s    0:00:00         163 100%    0.45kB/s    0:00:00 (xfer#135, to-check=127/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/da-DK.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.45kB/s    0:00:00         163 100%    0.45kB/s    0:00:00 (xfer#136, to-check=124/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/de.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.44kB/s    0:00:00         163 100%    0.44kB/s    0:00:00 (xfer#137, to-check=121/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/en.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.44kB/s    0:00:00         163 100%    0.44kB/s    0:00:00 (xfer#138, to-check=118/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/es.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.44kB/s    0:00:00         163 100%    0.44kB/s    0:00:00 (xfer#139, to-check=115/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/fa-IR.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.44kB/s    0:00:002025-10-27 07:39:10 +0000           163 100%    0.44kB/s    0:00:00 (xfer#140, to-check=112/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/fa.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.44kB/s    0:00:00         163 100%    0.44kB/s    0:00:00 (xfer#141, to-check=109/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/fi.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.43kB/s    0:00:00         163 100%    0.43kB/s    0:00:00 (xfer#142, to-check=106/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/fr.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.42kB/s    0:00:00         163 100%    0.42kB/s    0:00:00 (xfer#143, to-check=103/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/hu.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.42kB/s    0:00:00         163 100%    0.42kB/s    0:00:00 (xfer#144, to-check=100/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/id.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.42kB/s    0:00:00         163 100%    0.42kB/s    0:00:00 (xfer#145, to-check=97/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/it.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.42kB/s    0:00:00         163 100%    0.42kB/s    0:00:00 (xfer#146, to-check=94/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/ja.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.41kB/s    0:00:00         163 100%    0.41kB/s    0:00:00 (xfer#147, to-check=91/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/ko.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.41kB/s    0:00:00         163 100%    0.41kB/s    0:00:00 (xfer#148, to-check=88/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/ms.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.41kB/s    0:00:00         163 100%    0.41kB/s    0:00:00 (xfer#149, to-check=85/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/nl.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.41kB/s    0:00:00         163 100%    0.41kB/s    0:00:00 (xfer#150, to-check=82/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/pl.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.41kB/s    0:00:00         163 100%    0.41kB/s    0:00:00 (xfer#151, to-check=79/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/pt-BR.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.40kB/s    0:00:00         163 100%    0.40kB/s    0:00:00 (xfer#152, to-check=76/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/pt.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.40kB/s    0:00:00         163 100%    0.40kB/s    0:00:00 (xfer#153, to-check=73/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/ro.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.40kB/s    0:00:00         163 100%    0.40kB/s    0:00:00 (xfer#154, to-check=70/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/ru.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.40kB/s    0:00:00         163 100%    0.40kB/s    0:00:00 (xfer#155, to-check=67/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/sk.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.40kB/s    0:00:00         163 100%    0.40kB/s    0:00:00 (xfer#156, to-check=64/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/tr.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.39kB/s    0:00:002025-10-27 07:39:10 +0000           163 100%    0.39kB/s    0:00:00 (xfer#157, to-check=61/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/uk.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.39kB/s    0:00:00         163 100%    0.39kB/s    0:00:00 (xfer#158, to-check=58/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/vi.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.38kB/s    0:00:00         163 100%    0.38kB/s    0:00:00 (xfer#159, to-check=55/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/zh-Hans.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.38kB/s    0:00:00         163 100%    0.38kB/s    0:00:00 (xfer#160, to-check=52/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/TOCropViewControllerBundle.bundle/zh-Hant.lproj/._TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:10 +0000           163 100%    0.38kB/s    0:00:00         163 100%    0.38kB/s    0:00:00 (xfer#161, to-check=49/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/_CodeSignature/._CodeResources
+2025-10-27 07:39:10 +0000           163 100%    0.38kB/s    0:00:00         163 100%    0.38kB/s    0:00:00 (xfer#162, to-check=46/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/android/
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/._android
+2025-10-27 07:39:10 +0000           163 100%    0.38kB/s    0:00:002025-10-27 07:39:10 +0000           163 100%    0.38kB/s    0:00:00 (xfer#163, to-check=43/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/node_modules/
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/._node_modules
+2025-10-27 07:39:10 +0000           163 100%    0.38kB/s    0:00:002025-10-27 07:39:10 +0000           163 100%    0.38kB/s    0:00:00 (xfer#164, to-check=42/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/android/app/
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/android/._app
+2025-10-27 07:39:10 +0000           163 100%    0.37kB/s    0:00:00         163 100%    0.37kB/s    0:00:00 (xfer#165, to-check=40/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/android/app/assets/
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/android/app/._assets
+2025-10-27 07:39:10 +0000           163 100%    0.37kB/s    0:00:00         163 100%    0.37kB/s    0:00:00 (xfer#166, to-check=38/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/android/app/assets/images/
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/android/app/assets/._images
+2025-10-27 07:39:10 +0000           163 100%    0.37kB/s    0:00:00         163 100%    0.37kB/s    0:00:00 (xfer#167, to-check=36/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/android/app/assets/images/._BG2.png
+2025-10-27 07:39:10 +0000           163 100%    0.37kB/s    0:00:00         163 100%    0.37kB/s    0:00:00 (xfer#168, to-check=34/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/android/app/assets/images/._BG3.png
+2025-10-27 07:39:10 +0000           163 100%    0.37kB/s    0:00:00         163 100%    0.37kB/s    0:00:00 (xfer#169, to-check=33/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/node_modules/@react-navigation/
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/node_modules/._@react-navigation
+2025-10-27 07:39:10 +0000           163 100%    0.37kB/s    0:00:002025-10-27 07:39:10 +0000           163 100%    0.37kB/s    0:00:00 (xfer#170, to-check=29/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/node_modules/@react-navigation/drawer/
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/node_modules/@react-navigation/._drawer
+2025-10-27 07:39:10 +0000           163 100%    0.37kB/s    0:00:00         163 100%    0.37kB/s    0:00:00 (xfer#171, to-check=27/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/node_modules/@react-navigation/elements/
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/node_modules/@react-navigation/._elements
+2025-10-27 07:39:10 +0000           163 100%    0.32kB/s    0:00:00         163 100%    0.32kB/s    0:00:00 (xfer#172, to-check=26/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/node_modules/@react-navigation/drawer/src/
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/node_modules/@react-navigation/drawer/._src
+2025-10-27 07:39:10 +0000           163 100%    0.32kB/s    0:00:00         163 100%    0.32kB/s    0:00:00 (xfer#173, to-check=24/368)
+ICMSApp.app/assets/node_modules/@react-navigation/drawer/src/views/
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/node_modules/@react-navigation/drawer/src/._views
+2025-10-27 07:39:10 +0000           163 100%    0.32kB/s    0:00:00         163 100%    0.32kB/s    0:00:00 (xfer#174, to-check=22/368)
+ICMSApp.app/assets/node_modules/@react-navigation/drawer/src/views/assets/
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/node_modules/@react-navigation/drawer/src/views/._assets
+2025-10-27 07:39:10 +0000           163 100%    0.32kB/s    0:00:00         163 100%    0.32kB/s    0:00:00 (xfer#175, to-check=20/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/node_modules/@react-navigation/drawer/src/views/assets/._toggle-drawer-icon.png
+2025-10-27 07:39:10 +0000           163 100%    0.32kB/s    0:00:00         163 100%    0.32kB/s    0:00:00 (xfer#176, to-check=18/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/node_modules/@react-navigation/drawer/src/views/assets/._toggle-drawer-icon@2x.png
+2025-10-27 07:39:10 +0000           163 100%    0.32kB/s    0:00:00         163 100%    0.32kB/s    0:00:00 (xfer#177, to-check=17/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/node_modules/@react-navigation/drawer/src/views/assets/._toggle-drawer-icon@3x.png
+2025-10-27 07:39:10 +0000           163 100%    0.32kB/s    0:00:00         163 100%    0.32kB/s    0:00:00 (xfer#178, to-check=16/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/node_modules/@react-navigation/elements/src/
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/node_modules/@react-navigation/elements/._src
+2025-10-27 07:39:10 +0000           163 100%    0.32kB/s    0:00:00         163 100%    0.32kB/s    0:00:00 (xfer#179, to-check=11/368)
+ICMSApp.app/assets/node_modules/@react-navigation/elements/src/assets/
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/node_modules/@react-navigation/elements/src/._assets
+2025-10-27 07:39:10 +0000           163 100%    0.32kB/s    0:00:00         163 100%    0.32kB/s    0:00:00 (xfer#180, to-check=9/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/node_modules/@react-navigation/elements/src/assets/._back-icon-mask.png
+2025-10-27 07:39:10 +0000           163 100%    0.32kB/s    0:00:00         163 100%    0.32kB/s    0:00:00 (xfer#181, to-check=7/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/node_modules/@react-navigation/elements/src/assets/._back-icon.png
+2025-10-27 07:39:10 +0000           163 100%    0.31kB/s    0:00:00         163 100%    0.31kB/s    0:00:00 (xfer#182, to-check=6/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/node_modules/@react-navigation/elements/src/assets/._back-icon@2x.png
+2025-10-27 07:39:10 +0000           163 100%    0.31kB/s    0:00:00         163 100%    0.31kB/s    0:00:00 (xfer#183, to-check=5/368)
+2025-10-27 07:39:10 +0000  ICMSApp.app/assets/node_modules/@react-navigation/elements/src/assets/._back-icon@3x.png
+2025-10-27 07:39:10 +0000           163 100%    0.31kB/s    0:00:00         163 100%    0.31kB/s    0:00:00 (xfer#184, to-check=4/368)
+2025-10-27 07:39:10 +0000  
+sent 50.38K bytes  received 4.42K bytes  109.62K bytes/sec
+total size is 12.65M  speedup is 236.39
+2025-10-27 07:39:10 +0000 [MT] /usr/bin/rsync exited with 0
+2025-10-27 07:39:10 +0000 [MT] Running /usr/bin/rsync '-8aPhhE' '/Users/kinzakhurshid/Desktop/ICMSApp/ios/ICMSApp-LatestXcode.xcarchive/dSYMs/' '--link-dest' '/Users/kinzakhurshid/Desktop/ICMSApp/ios/ICMSApp-LatestXcode.xcarchive/dSYMs/' '/var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/XcodeDistPipeline.~~~I9eR1p'
+2025-10-27 07:39:10 +0000  building file list ... 
+2025-10-27 07:39:10 +0000   0 files...2025-10-27 07:39:10 +0000  20 files to consider
+2025-10-27 07:39:10 +0000  ./
+2025-10-27 07:39:10 +0000  ._.
+2025-10-27 07:39:10 +0000           163 100%    0.00kB/s    0:00:00         163 100%    0.00kB/s    0:00:00 (xfer#1, to-check=18/20)
+ICMSApp.app.dSYM/
+2025-10-27 07:39:10 +0000  ._ICMSApp.app.dSYM
+2025-10-27 07:39:10 +0000           163 100%  159.18kB/s    0:00:00         163 100%  159.18kB/s    0:00:00 (xfer#2, to-check=17/20)
+ICMSApp.app.dSYM/Contents/
+2025-10-27 07:39:10 +0000  ICMSApp.app.dSYM/._Contents
+2025-10-27 07:39:10 +0000           163 100%   53.06kB/s    0:00:00         163 100%   53.06kB/s    0:00:00 (xfer#3, to-check=15/20)
+2025-10-27 07:39:10 +0000  ICMSApp.app.dSYM/Contents/._Info.plist
+2025-10-27 07:39:10 +0000           163 100%   31.84kB/s    0:00:00         163 100%   31.84kB/s    0:00:00 (xfer#4, to-check=13/20)
+ICMSApp.app.dSYM/Contents/Resources/
+2025-10-27 07:39:10 +0000  ICMSApp.app.dSYM/Contents/._Resources
+2025-10-27 07:39:10 +0000           163 100%   26.53kB/s    0:00:00         163 100%   22.74kB/s    0:00:00 (xfer#5, to-check=12/20)
+2025-10-27 07:39:10 +0000  ICMSApp.app.dSYM/Contents/Resources/DWARF/
+2025-10-27 07:39:10 +0000  ICMSApp.app.dSYM/Contents/Resources/._DWARF
+2025-10-27 07:39:10 +0000           163 100%   19.90kB/s    0:00:00         163 100%   19.90kB/s    0:00:00 (xfer#6, to-check=9/20)
+ICMSApp.app.dSYM/Contents/Resources/Relocations/
+2025-10-27 07:39:10 +0000  ICMSApp.app.dSYM/Contents/Resources/._Relocations
+2025-10-27 07:39:10 +0000           163 100%   17.69kB/s    0:00:00         163 100%   17.69kB/s    0:00:00 (xfer#7, to-check=8/20)
+2025-10-27 07:39:10 +0000  ICMSApp.app.dSYM/Contents/Resources/DWARF/._ICMSApp
+2025-10-27 07:39:10 +0000           163 100%   14.47kB/s    0:00:00         163 100%   14.47kB/s    0:00:00 (xfer#8, to-check=6/20)
+ICMSApp.app.dSYM/Contents/Resources/Relocations/aarch64/
+2025-10-27 07:39:11 +0000  ICMSApp.app.dSYM/Contents/Resources/Relocations/._aarch64
+         163 100%   12.24kB/s    0:00:00         163 100%   12.24kB/s    0:00:00 (xfer#9, to-check=3/20)
+2025-10-27 07:39:11 +0000  ICMSApp.app.dSYM/Contents/Resources/Relocations/aarch64/._ICMSApp.yml
+2025-10-27 07:39:11 +0000           163 100%    9.95kB/s    0:00:00         163 100%    9.95kB/s    0:00:00 (xfer#10, to-check=1/20)
+2025-10-27 07:39:11 +0000  
+sent 2.65K bytes  received 282 bytes  1.95K bytes/sec
+total size is 39.19M  speedup is 13707.28
+2025-10-27 07:39:11 +0000 [MT] /usr/bin/rsync exited with 0
+2025-10-27 07:39:12 +0000 [MT] Writing /var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/XcodeDistPipeline.~~~I9eR1p/Symbols/8B048AFB-227F-375C-BFB1-7FD5B443627A.symbols
+2025-10-27 07:39:12 +0000 [MT] Processing step: IDEDistributionCopyAppleProvidedContentStep
+2025-10-27 07:39:12 +0000 [MT] Processing step: IDEDistributionAppThinningStep
+2025-10-27 07:39:12 +0000 [MT] Skipping step: IDEDistributionAppThinningStep because it said so
+2025-10-27 07:39:12 +0000 [MT] Processing step: IDEDistributionArchThinningStep
+2025-10-27 07:39:12 +0000 [MT] Running /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/lipo '/var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/XcodeDistPipeline.~~~I9eR1p/Root/Payload/ICMSApp.app/ICMSApp' '-verify_arch' 'arm64e'
+2025-10-27 07:39:12 +0000 [MT] /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/lipo exited with 1
+2025-10-27 07:39:12 +0000 [MT] Skipping architecture thinning for item "ICMSApp" because arch "arm64e" wasn't found
+2025-10-27 07:39:12 +0000 [MT] Processing step: IDEDistributionODRStep
+2025-10-27 07:39:12 +0000 [MT] Processing step: IDEDistributionStripXattrsStep
+2025-10-27 07:39:12 +0000 [MT] Running /usr/bin/xattr '-crs' '/var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/XcodeDistPipeline.~~~I9eR1p/Root/Payload/ICMSApp.app'
+2025-10-27 07:39:13 +0000 [MT] /usr/bin/xattr exited with 0
+2025-10-27 07:39:13 +0000 [MT] Processing step: IDEDistributionCodesignStep
+2025-10-27 07:39:13 +0000 [MT] Entitlements for <IDEDistributionItem: 0x7ff274eee040; bundleID='com.icmsapp', path='<DVTFilePath:0x7ff274ea69e0:'/Users/kinzakhurshid/Desktop/ICMSApp/ios/ICMSApp-LatestXcode.xcarchive/Products/Applications/ICMSApp.app'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x7ff27537e0e0; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x7ff275464500; name='Apple Development: Hamza Gullistan (P84GLYRHS5)', hash='C4A735F21D247BB59554E277B469F2F3867542EA', serialNumber='478860718BA1FED8EA810A39ED7F9B43', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2025-09-11 07:16:49 +0000''>', entitlements='{
+    "application-identifier" = "K5W9R92RTR.com.icmsapp";
+    "com.apple.developer.team-identifier" = K5W9R92RTR;
+    "get-task-allow" = 1;
+}', teamID='K5W9R92RTR', identifier='com.icmsapp', executablePath='<DVTFilePath:0x7ff275268ad0:'/Users/kinzakhurshid/Desktop/ICMSApp/ios/ICMSApp-LatestXcode.xcarchive/Products/Applications/ICMSApp.app/ICMSApp'>', hardenedRuntime='0'>'>: {
+    "application-identifier" = "K5W9R92RTR.com.icmsapp";
+    "beta-reports-active" = 1;
+    "com.apple.developer.team-identifier" = K5W9R92RTR;
+    "get-task-allow" = 0;
+}
+2025-10-27 07:39:13 +0000 [MT] Associated App Clip Identifiers Filter: Skipping because "com.apple.developer.associated-appclip-app-identifiers" is not present
+2025-10-27 07:39:13 +0000 [MT] Entitlements for <IDEDistributionItem: 0x7ff274eee040; bundleID='com.icmsapp', path='<DVTFilePath:0x7ff274ea69e0:'/Users/kinzakhurshid/Desktop/ICMSApp/ios/ICMSApp-LatestXcode.xcarchive/Products/Applications/ICMSApp.app'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x7ff27537e0e0; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x7ff2752c3ad0; name='Apple Development: Hamza Gullistan (P84GLYRHS5)', hash='C4A735F21D247BB59554E277B469F2F3867542EA', serialNumber='478860718BA1FED8EA810A39ED7F9B43', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2025-09-11 07:16:49 +0000''>', entitlements='{
+    "application-identifier" = "K5W9R92RTR.com.icmsapp";
+    "com.apple.developer.team-identifier" = K5W9R92RTR;
+    "get-task-allow" = 1;
+}', teamID='K5W9R92RTR', identifier='com.icmsapp', executablePath='<DVTFilePath:0x7ff275268ad0:'/Users/kinzakhurshid/Desktop/ICMSApp/ios/ICMSApp-LatestXcode.xcarchive/Products/Applications/ICMSApp.app/ICMSApp'>', hardenedRuntime='0'>'> are: {
+    "application-identifier" = "K5W9R92RTR.com.icmsapp";
+    "beta-reports-active" = 1;
+    "com.apple.developer.team-identifier" = K5W9R92RTR;
+    "get-task-allow" = 0;
+}
+2025-10-27 07:39:13 +0000 [MT] Writing entitlements for <IDEDistributionItem: 0x7ff274eee040; bundleID='com.icmsapp', path='<DVTFilePath:0x7ff274ea69e0:'/Users/kinzakhurshid/Desktop/ICMSApp/ios/ICMSApp-LatestXcode.xcarchive/Products/Applications/ICMSApp.app'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x7ff27537e0e0; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x7ff2753ccec0; name='Apple Development: Hamza Gullistan (P84GLYRHS5)', hash='C4A735F21D247BB59554E277B469F2F3867542EA', serialNumber='478860718BA1FED8EA810A39ED7F9B43', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2025-09-11 07:16:49 +0000''>', entitlements='{
+    "application-identifier" = "K5W9R92RTR.com.icmsapp";
+    "com.apple.developer.team-identifier" = K5W9R92RTR;
+    "get-task-allow" = 1;
+}', teamID='K5W9R92RTR', identifier='com.icmsapp', executablePath='<DVTFilePath:0x7ff275268ad0:'/Users/kinzakhurshid/Desktop/ICMSApp/ios/ICMSApp-LatestXcode.xcarchive/Products/Applications/ICMSApp.app/ICMSApp'>', hardenedRuntime='0'>'> to: /var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/XcodeDistPipeline.~~~I9eR1p/entitlements~~~2w9pXp
+2025-10-27 07:39:13 +0000 [MT] Sending request E72D48B6-2C24-4DC8-BB4B-DEB3BBE1B5D4 to <https://developerservices2.apple.com/services/QH65B2/listTeams.action?clientId=XABBG36SBA> for session <DVTServicesAccountBasedSession: 0x7ff2753ed320; account='<DVTAppleIDBasedDeveloperAccount: 0x7ff275387ca0; username='hamza.gulistan5@gmail.com'>'>.
+Method: POST
+
+Headers:
+{
+    Accept = "text/x-xml-plist";
+    "Accept-Encoding" = "gzip, deflate";
+    "Content-Length" = 368;
+    "Content-Type" = "text/x-xml-plist";
+    "User-Agent" = Xcode;
+    "X-Apple-App-Info" = "com.apple.gs.xcode.auth";
+    "X-Apple-GS-Token" = "AAAABLwIAAAAAGjCeMsRDWdzLnhjb2RlLmF1dGi9AKBhV8HN7/hON8AVm592HwmyuhjWGv8fFbTDr9JMzFby6NkJ6ZI49PaNonow/DlX5Of23y0V9Lc5OPsPUGyQT2QjhWcc715w5LosgW7/fIBkTvHyiiTF6TnRq/2IB1xgRIVeQv2ss9+OWA31LgnacajqCHGX";
+    "X-Apple-I-Identity-Id" = "001113-08-eedbe70f-c1ce-4278-9ee6-e352970a941a";
+    "X-MMe-Client-Info" = "<MacBookPro14,1> <macOS;13.7.8;22H730> <com.apple.AuthKit/1 (com.apple.dt.xcodebuild/22510)>";
+    "X-Mme-Device-Id" = "05572813-EE3E-55D0-A4E1-A55BA2C44399";
+    "X-Xcode-Version" = "15.2 (15C500b)";
+}
+
+Payload:
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>clientId</key>
+	<string>XABBG36SBA</string>
+	<key>protocolVersion</key>
+	<string>QH65B2</string>
+	<key>requestId</key>
+	<string>E72D48B6-2C24-4DC8-BB4B-DEB3BBE1B5D4</string>
+</dict>
+</plist>
+2025-10-27 07:39:13 +0000 [MT] Received response for E72D48B6-2C24-4DC8-BB4B-DEB3BBE1B5D4 @ <https://developerservices2.apple.com/services/QH65B2/listTeams.action?clientId=XABBG36SBA>. Code = 0
+2025-10-27 07:39:13 +0000 [MT] Response payload: {
+    creationTimestamp = "2025-10-27T07:39:13Z";
+    protocolVersion = QH65B2;
+    requestId = "E72D48B6-2C24-4DC8-BB4B-DEB3BBE1B5D4";
+    requestUrl = "https://developerservices2.apple.com:443/services/QH65B2/listTeams.action?clientId=XABBG36SBA";
+    responseId = "ea190add-f001-4e4a-926f-7dbc67585758";
+    resultCode = 0;
+    teams =     (
+                {
+            currentTeamMember =             {
+                developerStatus = active;
+                email = "hamza.gulistan5@gmail.com";
+                firstName = Hamza;
+                lastName = Gullistan;
+                personId = 20135896977;
+                privileges =                 {
+                };
+                roles =                 (
+                    "TEAM_ADMIN",
+                    "MAC_PROGRAM_TEAM_ADMIN"
+                );
+                teamMemberId = UR2HDH26Q3;
+            };
+            dateCreated = "2025-07-25 10:29:04 +0000";
+            extendedTeamAttributes =             {
+            };
+            memberships =             (
+                                {
+                    dateExpire = "2026-07-25 23:59:00 +0000";
+                    dateStart = "2025-07-25 10:29:00 +0000";
+                    deleteDevicesOnExpiry = 0;
+                    inIosDeviceResetWindow = 0;
+                    inRenewalWindow = 0;
+                    membershipId = GX727P3CY3;
+                    membershipProductId = ad19;
+                    name = "Apple Developer Program";
+                    platform = ios;
+                    status = active;
+                },
+                                {
+                    dateExpire = "2026-07-25 23:59:00 +0000";
+                    dateStart = "2025-07-25 10:29:00 +0000";
+                    deleteDevicesOnExpiry = 0;
+                    inIosDeviceResetWindow = 0;
+                    inRenewalWindow = 0;
+                    membershipId = GX727P3CY3;
+                    membershipProductId = ad19;
+                    name = "Apple Developer Program";
+                    platform = mac;
+                    status = active;
+                },
+                                {
+                    dateExpire = "2026-07-25 23:59:00 +0000";
+                    dateStart = "2025-07-25 10:29:00 +0000";
+                    deleteDevicesOnExpiry = 0;
+                    inIosDeviceResetWindow = 0;
+                    inRenewalWindow = 0;
+                    membershipId = GX727P3CY3;
+                    membershipProductId = ad19;
+                    name = "Apple Developer Program";
+                    platform = safari;
+                    status = active;
+                }
+            );
+            name = Valueshift;
+            status = active;
+            teamAgent =             {
+                developerStatus = active;
+                email = "info@valueshift.be";
+                firstName = JONATHAN;
+                lastName = KOVALEVSKIS;
+                personId = 18871628968;
+                teamMemberId = FJS3RB6LQ7;
+            };
+            teamId = Q2P983LR9C;
+            teamProvisioningSettings =             {
+                canDeveloperRoleAddAppIds = 1;
+                canDeveloperRoleRegisterDevices = 1;
+                canDeveloperRoleUpdateAppIds = 1;
+            };
+            type = "Company/Organization";
+            xcodeFreeOnly = 0;
+        },
+                {
+            currentTeamMember =             {
+                developerStatus = active;
+                email = "hamza.gulistan5@gmail.com";
+                firstName = Hamza;
+                lastName = Gullistan;
+                personId = 20135896977;
+                privileges =                 {
+                };
+                roles =                 (
+                    AGENT,
+                    "TEAM_ADMIN",
+                    "MAC_PROGRAM_TEAM_ADMIN",
+                    "XCODE_FREE_USER"
+                );
+                teamMemberId = P84GLYRHS5;
+            };
+            dateCreated = "2021-02-26 16:22:22 +0000";
+            extendedTeamAttributes =             {
+            };
+            memberships =             (
+                                {
+                    dateExpire = "2026-07-18 23:59:00 +0000";
+                    dateStart = "2025-07-18 23:59:00 +0000";
+                    deleteDevicesOnExpiry = 0;
+                    inIosDeviceResetWindow = 1;
+                    inRenewalWindow = 0;
+                    membershipId = NB8UJ4P5GW;
+                    membershipProductId = ad19;
+                    name = "Apple Developer Program";
+                    platform = ios;
+                    status = active;
+                },
+                                {
+                    dateExpire = "2026-07-18 23:59:00 +0000";
+                    dateStart = "2025-07-18 23:59:00 +0000";
+                    deleteDevicesOnExpiry = 0;
+                    inIosDeviceResetWindow = 1;
+                    inRenewalWindow = 0;
+                    membershipId = NB8UJ4P5GW;
+                    membershipProductId = ad19;
+                    name = "Apple Developer Program";
+                    platform = mac;
+                    status = active;
+                },
+                                {
+                    dateExpire = "2026-07-18 23:59:00 +0000";
+                    dateStart = "2025-07-18 23:59:00 +0000";
+                    deleteDevicesOnExpiry = 0;
+                    inIosDeviceResetWindow = 1;
+                    inRenewalWindow = 0;
+                    membershipId = NB8UJ4P5GW;
+                    membershipProductId = ad19;
+                    name = "Apple Developer Program";
+                    platform = safari;
+                    status = active;
+                },
+                                {
+                    dateStart = "2021-03-01 09:24:12 +0000";
+                    deleteDevicesOnExpiry = 0;
+                    inIosDeviceResetWindow = 0;
+                    inRenewalWindow = 0;
+                    membershipId = 22JY5HGJ3A;
+                    membershipProductId = fp22;
+                    name = "Xcode Free Provisioning Program";
+                    platform = ios;
+                    status = activeNeverExpire;
+                }
+            );
+            name = "Hamza Gullistan";
+            status = active;
+            teamAgent =             {
+                developerStatus = active;
+                email = "hamza.gulistan5@gmail.com";
+                firstName = Hamza;
+                lastName = Gullistan;
+                personId = 20135896977;
+                teamMemberId = P84GLYRHS5;
+            };
+            teamId = K5W9R92RTR;
+            teamProvisioningSettings =             {
+                canDeveloperRoleAddAppIds = 1;
+                canDeveloperRoleRegisterDevices = 1;
+                canDeveloperRoleUpdateAppIds = 1;
+            };
+            type = Individual;
+            xcodeFreeOnly = 0;
+        }
+    );
+    userLocale = "en_US";
+}
+
+2025-10-27 07:39:13 +0000 [MT] invoking codesign: <NSConcreteTask: 0x7ff276c14690; launchPath='/usr/bin/codesign', arguments='(
+    "-f",
+    "-s",
+    "-",
+    "--signature-size",
+    16000,
+    "--entitlements",
+    "/var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/XcodeDistPipeline.~~~I9eR1p/entitlements~~~2w9pXp",
+    "--requirements",
+    "=designated => anchor apple generic and identifier \"com.icmsapp\" and certificate leaf[subject.CN] = \"Apple Distribution: Hamza Gullistan (K5W9R92RTR)\" and certificate 1[field.1.2.840.113635.100.6.2.1] /* exists */",
+    "--preserve-metadata=identifier,flags,runtime",
+    "--omit-adhoc-flag",
+    "--team-identifier",
+    K5W9R92RTR,
+    "--generate-entitlement-der",
+    "-vvv",
+    "/var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/XcodeDistPipeline.~~~I9eR1p/Root/Payload/ICMSApp.app"
+)'>
+2025-10-27 07:39:14 +0000 [MT] codesign output: /var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/XcodeDistPipeline.~~~I9eR1p/Root/Payload/ICMSApp.app: replacing existing signature
+/var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/XcodeDistPipeline.~~~I9eR1p/Root/Payload/ICMSApp.app: signed app bundle with Mach-O thin (arm64) [com.icmsapp]
+2025-10-27 07:39:14 +0000 [MT] Remote code signing '/var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/XcodeDistPipeline.~~~I9eR1p/Root/Payload/ICMSApp.app' with signature slices '[<DVTCodeSignatureSlice: 0x7ff2752c2570; architecture='arm64', cmsDigest='<DVTCodeSignatureHash: 0x7ff27604a850; digestAlgorithmDescription='sha256', cdHashHexEncoded='25eee0f75d706cca8b2397b88b0ae437febeab2f5393f36f2f2340621853e124'>', codeSignatureHashes='{(
+    <DVTCodeSignatureHash: 0x7ff2760abcb0; digestAlgorithmDescription='sha256', cdHashHexEncoded='25eee0f75d706cca8b2397b88b0ae437febeab2f5393f36f2f2340621853e124'>
+)}', cmsHexEncoded=''>]' and configuration 'RemoteSigningToolConfiguration(path: <DVTFilePath:0x7ff2753ded20:'/var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/XcodeDistPipeline.~~~I9eR1p/Root/Payload/ICMSApp.app'>, signingCertificate: <DVTSigningCertificate: 0x7ff275e24450; name='Apple Distribution: Hamza Gullistan (K5W9R92RTR)', hash='212450897A489B0003BD720C3F0320B95017D591', serialNumber='16C6D1F12A72D05AA831E4874302C731', certificateKinds='(
+    "1.2.840.113635.100.6.1.7",
+    "1.2.840.113635.100.6.1.4"
+), issueDate='2025-08-25 12:00:22 +0000''>, session: <DVTServicesAccountBasedSession: 0x7ff2753ed320; account='<DVTAppleIDBasedDeveloperAccount: 0x7ff275387ca0; username='hamza.gulistan5@gmail.com'>'>, team: <DVTPortalTeam: 0x7ff275486ac0; name='Hamza Gullistan', teamID='K5W9R92RTR', type='Individual', memberships='(
+    "<DVTPortalMembership: 0x7ff275461420; programs='{(\n    <DVTPortalProgram: 0x7ff27528c940; <DVTPortalProgram: 0x7ff27528c940; identifier='Xcode.Portal.Program.iOS'>>\n)}'>",
+    "<DVTPortalMembership: 0x7ff275494b70; programs='{(\n    <DVTPortalProgram: 0x7ff27528cc70; <DVTPortalProgram: 0x7ff27528cc70; identifier='Xcode.Portal.Program.Mac'>>\n)}'>"
+)'>, codeResourcesDictionary: [AnyHashable("files"): {
+    "AccessibilityResources.bundle/Info.plist" = {length = 20, bytes = 0xb06b25e1e20c46cedbf432e1b240a7a488c1bdb4};
+    "AccessibilityResources.bundle/en.lproj/Localizable.strings" =     {
+        hash = {length = 20, bytes = 0x85af75399c384ce816531b944f905bb22c2a696d};
+        optional = 1;
+    };
+    "AntDesign.ttf" = {length = 20, bytes = 0x4e77868439280fb434d4697c7b911271406c81f3};
+    "AppIcon60x60@2x.png" = {length = 20, bytes = 0xc90e501ce0db45a8a42cc4900532fe790c0a48fb};
+    "Assets.car" = {length = 20, bytes = 0xa409dd7165cf3bd13c99fead1e0e9b397e2219b1};
+    "Entypo.ttf" = {length = 20, bytes = 0x12b5670eb178138f77285d5f2c246d3cc5fa67d6};
+    "EvilIcons.ttf" = {length = 20, bytes = 0x91d377ea3cf47490b256c2ed081704a7dabdae0c};
+    "Feather.ttf" = {length = 20, bytes = 0xe6604258b1ced5efd51360875d782fca65381d47};
+    "FontAwesome.ttf" = {length = 20, bytes = 0x13b1eab65a983c7a73bc7997c479d66943f7c6cb};
+    "FontAwesome5_Brands.ttf" = {length = 20, bytes = 0x3fa2d67cef22da5c3f3eb5730c6afbd6fecf0372};
+    "FontAwesome5_Regular.ttf" = {length = 20, bytes = 0x7d849a3981a716e2ba4a84634bc57d0b8054a6a3};
+    "FontAwesome5_Solid.ttf" = {length = 20, bytes = 0xc1b9fae262f42868c075ac865a8ab34920e20a2c};
+    "FontAwesome6_Brands.ttf" = {length = 20, bytes = 0x7ce89c71d5a51ac65b159c71422783dd86529c66};
+    "FontAwesome6_Regular.ttf" = {length = 20, bytes = 0x775e2ecfc18d22b177274453d4c014ca6be63208};
+    "FontAwesome6_Solid.ttf" = {length = 20, bytes = 0x2b8e11389d98122399667cf64941eb58497dc128};
+    "Fontisto.ttf" = {length = 20, bytes = 0xc090a3ec96a3f1bb9b615c2f3f204ce0dcdcdbc3};
+    "Foundation.ttf" = {length = 20, bytes = 0x4b2bce6c792493a4a5716b6fec2dbefe89492c3f};
+    "Info.plist" = {length = 20, bytes = 0xdd91d22cd88c1c332408927325e61f059ca5a557};
+    "Ionicons.ttf" = {length = 20, bytes = 0x86e07c3d974eb09099e6e5a9b3b8310303cf0feb};
+    "LaunchScreen.storyboardc/01J-lp-oVM-view-Ze5-6b-2t3.nib" = {length = 20, bytes = 0x2b93b0a9094583d6eab4fa4994ceca092f241e07};
+    "LaunchScreen.storyboardc/Info.plist" = {length = 20, bytes = 0x9f6b7c82c0e97c4e979211b7d69ec84094714f15};
+    "LaunchScreen.storyboardc/UIViewController-01J-lp-oVM.nib" = {length = 20, bytes = 0x65580cd7e2b065c667c2181a23417b06dd5b6b67};
+    "MaterialCommunityIcons.ttf" = {length = 20, bytes = 0x4c2a838b00dbb5e8bb1b368fce0de534e8eb241c};
+    "MaterialIcons.ttf" = {length = 20, bytes = 0x7e02c3f005532ff4d24148567c84089756a7848a};
+    "Octicons.ttf" = {length = 20, bytes = 0x56acefc0731f35ee23b195b1c8cb5fa94a0db97b};
+    PkgInfo = {length = 20, bytes = 0x9f9eea0cfe2d65f2c3d6b092e375b40782d08f31};
+    "QBImagePicker.bundle/Info.plist" = {length = 20, bytes = 0x3831a5909685b5280433f0fd89e091558a37793e};
+    "QBImagePicker.bundle/QBImagePicker.storyboardc/Info.plist" = {length = 20, bytes = 0x8b06476c73eede6dc561123e1420cb6c7785b38e};
+    "QBImagePicker.bundle/QBImagePicker.storyboardc/QBAlbumsNavigationController.nib" = {length = 20, bytes = 0x71e18605508de1365a4cf9566697b0ad8e4ada6a};
+    "QBImagePicker.bundle/QBImagePicker.storyboardc/QBAlbumsViewController.nib" = {length = 20, bytes = 0x97963812bdf298956416f4089dac528e20a0d352};
+    "QBImagePicker.bundle/QBImagePicker.storyboardc/QBAssetsViewController.nib" = {length = 20, bytes = 0x8ba186f9416722d38fa409df96d0a9e329b83b33};
+    "QBImagePicker.bundle/QBImagePicker.storyboardc/QL5-wR-LYt-view-66K-TS-Yoc.nib" = {length = 20, bytes = 0xb6abe12f0a86fd5371980992adde75d9c0ddcd3e};
+    "QBImagePicker.bundle/QBImagePicker.storyboardc/QiH-NZ-ZGN-view-sD2-zK-ryo.nib" = {length = 20, bytes = 0xd627d429ac900657c467cb1fd2d25291f7e66bb1};
+    "QBImagePicker.bundle/da.lproj/QBImagePicker.strings" =     {
+        hash = {length = 20, bytes = 0xbcef538d4b553da70c1e146005a449b5bc136c4a};
+        optional = 1;
+    };
+    "QBImagePicker.bundle/de.lproj/QBImagePicker.strings" =     {
+        hash = {length = 20, bytes = 0x5b484880f135160c46a5d941a3b582e05fa7063b};
+        optional = 1;
+    };
+    "QBImagePicker.bundle/en.lproj/QBImagePicker.strings" =     {
+        hash = {length = 20, bytes = 0xf5e57f5945ae50919fa7db029ac6390677e4bb06};
+        optional = 1;
+    };
+    "QBImagePicker.bundle/es.lproj/QBImagePicker.strings" =     {
+        hash = {length = 20, bytes = 0x4ad717ac77350deadc2c8f85a506410cadd528ff};
+        optional = 1;
+    };
+    "QBImagePicker.bundle/fi.lproj/QBImagePicker.strings" =     {
+        hash = {length = 20, bytes = 0x1efce0a511f00c74fe29b8475ed9fc918892fd32};
+        optional = 1;
+    };
+    "QBImagePicker.bundle/fr.lproj/QBImagePicker.strings" =     {
+        hash = {length = 20, bytes = 0x790dcf5e455e5cbe5b4882947794cf214c5348a0};
+        optional = 1;
+    };
+    "QBImagePicker.bundle/it.lproj/QBImagePicker.strings" =     {
+        hash = {length = 20, bytes = 0xdeb91380d548d9c20de4532a8e9e384414364f9d};
+        optional = 1;
+    };
+    "QBImagePicker.bundle/ja.lproj/QBImagePicker.strings" =     {
+        hash = {length = 20, bytes = 0xe3f8761aa64132a50fd0a90da17f586c54dfd682};
+        optional = 1;
+    };
+    "QBImagePicker.bundle/ko.lproj/QBImagePicker.strings" =     {
+        hash = {length = 20, bytes = 0x80ec33e2ce89e298a2bbd57fe3f258680be5e934};
+        optional = 1;
+    };
+    "QBImagePicker.bundle/nb.lproj/QBImagePicker.strings" =     {
+        hash = {length = 20, bytes = 0x0f789ab0522086b3f1a9873b849c473277297cd3};
+        optional = 1;
+    };
+    "QBImagePicker.bundle/nl.lproj/QBImagePicker.strings" =     {
+        hash = {length = 20, bytes = 0x5bfe609d27e0bd784c4c908eb50349044709ea80};
+        optional = 1;
+    };
+    "QBImagePicker.bundle/pl.lproj/QBImagePicker.strings" =     {
+        hash = {length = 20, bytes = 0xe90ea81c773cc31ee9c4f10a172de490fc0c80d5};
+        optional = 1;
+    };
+    "QBImagePicker.bundle/pt.lproj/QBImagePicker.strings" =     {
+        hash = {length = 20, bytes = 0x287da58f9517a462b8113df2ba3081a1112d0824};
+        optional = 1;
+    };
+    "QBImagePicker.bundle/ro.lproj/QBImagePicker.strings" =     {
+        hash = {length = 20, bytes = 0xdcd84cf3c711b1b3e467c64c323b48ac29c94e64};
+        optional = 1;
+    };
+    "QBImagePicker.bundle/ru.lproj/QBImagePicker.strings" =     {
+        hash = {length = 20, bytes = 0xc69df2b2628e0f717331f996eacfaf8bd7eb0989};
+        optional = 1;
+    };
+    "QBImagePicker.bundle/sv.lproj/QBImagePicker.strings" =     {
+        hash = {length = 20, bytes = 0x9e22572fc29284f35bcafd9c2d1c59ea2cdfce83};
+        optional = 1;
+    };
+    "QBImagePicker.bundle/tr.lproj/QBImagePicker.strings" =     {
+        hash = {length = 20, bytes = 0xdd7a30e42bd908e828ef98489f8fb2258bca99ba};
+        optional = 1;
+    };
+    "QBImagePicker.bundle/uk.lproj/QBImagePicker.strings" =     {
+        hash = {length = 20, bytes = 0x80a5f1b25eee4a81a3cb45f7d6de0cbe827a9cb8};
+        optional = 1;
+    };
+    "QBImagePicker.bundle/vi.lproj/QBImagePicker.strings" =     {
+        hash = {length = 20, bytes = 0x646e0bb8dbddd621ada8e9b836e7e719a55e36da};
+        optional = 1;
+    };
+    "QBImagePicker.bundle/zh-Hans.lproj/QBImagePicker.strings" =     {
+        hash = {length = 20, bytes = 0xf9165431da57f6c0adbe44d6b7317467ead3e9a3};
+        optional = 1;
+    };
+    "QBImagePicker.bundle/zh-Hant.lproj/QBImagePicker.strings" =     {
+        hash = {length = 20, bytes = 0x1b0e1e9b65b6c2d8c2577c652cf97fe1389af205};
+        optional = 1;
+    };
+    "RNCAsyncStorage_resources.bundle/Info.plist" = {length = 20, bytes = 0xd19947daa76d95d50882b7b1aad2260f6ea350c2};
+    "RNCAsyncStorage_resources.bundle/PrivacyInfo.xcprivacy" = {length = 20, bytes = 0xb0f0dfc82c17545c123fc70645646c9296e55a03};
+    "RNImageCropPickerPrivacyInfo.bundle/Info.plist" = {length = 20, bytes = 0xb9617cec1e371cebddb59871a14dff613dab5f98};
+    "RNImageCropPickerPrivacyInfo.bundle/PrivacyInfo.xcprivacy" = {length = 20, bytes = 0xea7cf445f965f39f0220371ed1f8ed9c27ff4d8a};
+    "RNPermissionsPrivacyInfo.bundle/Info.plist" = {length = 20, bytes = 0x70f14f8866f9acdf33871515e06861fbcb20d635};
+    "RNPermissionsPrivacyInfo.bundle/PrivacyInfo.xcprivacy" = {length = 20, bytes = 0x1aa780324c1b70d41e1b42b8a90850876bc7847a};
+    "SimpleLineIcons.ttf" = {length = 20, bytes = 0x9ffb81a5a11112e292f2cc323e98486bad597599};
+    "TOCropViewControllerBundle.bundle/Base.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0x57163f2eed2450c6b80f0f45af2c4b49e80300a5};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/Info.plist" = {length = 20, bytes = 0x8ce7ee6de72c2897ffbd79514b2aa536f3d39a5c};
+    "TOCropViewControllerBundle.bundle/PrivacyInfo.xcprivacy" = {length = 20, bytes = 0xb9c83da62b5ad2ff1ddf9df1dcdb867f1c1e4185};
+    "TOCropViewControllerBundle.bundle/ar.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0xf4a75b66b4deb15e50de0a168d3e3b64d8b8021f};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/ca.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0x892f18354405f2151192ae1121e6264e97e696dc};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/cs.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0xb441747244838d4206137cbf168b72f13fe89b0a};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/da-DK.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0xc583815575f664456c7e1034e8253944c863f5c7};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/de.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0xb8858007a8e059dfeb05469a65338e4efaa39ef8};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/en.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0x57163f2eed2450c6b80f0f45af2c4b49e80300a5};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/es.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0x8ba85e4a7affdc12b60730466c3a009ec7409023};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/fa-IR.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0x01c8b0e852b546bc292ad997971b7f6afef730cc};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/fa.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0x01c8b0e852b546bc292ad997971b7f6afef730cc};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/fi.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0x84b3bfda591364d3ee553fb4b6282fbd92a74d85};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/fr.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0xc79f2f8f2bd4ae22f637c94674be279f67e34fc0};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/hu.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0x0596ecedb9a32f024d833790cd054316daf8d462};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/id.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0xeaec6ccfd53a7c6c524dc8cb39cf082c31137553};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/it.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0x2199053151d4bb9bedb8b991937104350783f445};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/ja.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0x2308786fbe2b2b0ebd7376a327a1816c44aa25c6};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/ko.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0xa043884a666ef5619a4760e55f7eae0703b88c0f};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/ms.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0xa4a48ca264b9238aacbe93b3a6138234465d965b};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/nl.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0x58443f913b3807aac2aba28210e6f66dd0cd8921};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/pl.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0xff89e11d4d01f0b6d5974b294461dd1fe7eddbc6};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/pt-BR.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0x3cc15cbf0993028422a813e23974c59730489240};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/pt.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0x3cc15cbf0993028422a813e23974c59730489240};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/ro.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0x1f0ce916c8404791cf3ffedf34eea33ad526a055};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/ru.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0x853178db5994f20c01adc73ffadb42e511f2a983};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/sk.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0x464f95a5a3950b26abc5c55613c2c23b858604bb};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/tr.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0x793ab474d555a0e48492a472a3a210bc1018cf59};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/uk.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0x1c067dfdc1e1031d8c93e67c906af3193f174cd7};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/vi.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0x392c740ae845bfb414ff1d4a1cd15a026773da7f};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/zh-Hans.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0x8d5ee515b00e96caa9d3ad57a1d9133908c8ddff};
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/zh-Hant.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash = {length = 20, bytes = 0x9238525b0c58a4f1653f188e91fea70d5630a7d5};
+        optional = 1;
+    };
+    "Zocial.ttf" = {length = 20, bytes = 0x6a48a962b06cc3acbdfd61df0d9a34744eea5e8d};
+    "assets/android/app/assets/images/BG2.png" = {length = 20, bytes = 0x74d15ee96e1d4d73530c2b7b7e4aa9d205cb1693};
+    "assets/android/app/assets/images/BG3.png" = {length = 20, bytes = 0x88ebe4427c13c3be842e2c065c1a3b1d94a6a51f};
+    "assets/node_modules/@react-navigation/drawer/src/views/assets/toggle-drawer-icon.png" = {length = 20, bytes = 0x6bc9ee8341fd47663ca6912d5c33847e3bad2c48};
+    "assets/node_modules/@react-navigation/drawer/src/views/assets/toggle-drawer-icon@2x.png" = {length = 20, bytes = 0xadc16d98d0fc02f0ef3d456298c664e707ad6617};
+    "assets/node_modules/@react-navigation/drawer/src/views/assets/toggle-drawer-icon@3x.png" = {length = 20, bytes = 0x15b2e888bac28eff94ce39a399d66d903d6a7307};
+    "assets/node_modules/@react-navigation/elements/src/assets/back-icon-mask.png" = {length = 20, bytes = 0xffdc4ed473b2be2806e99d0f680d1d2e9fe00e56};
+    "assets/node_modules/@react-navigation/elements/src/assets/back-icon.png" = {length = 20, bytes = 0x91e2ce8b58a725d5ecd084522a75eaca15b9ec0c};
+    "assets/node_modules/@react-navigation/elements/src/assets/back-icon@2x.png" = {length = 20, bytes = 0xad2bc6f26e2e3cc488b4872c205f8ddad0c90fc5};
+    "assets/node_modules/@react-navigation/elements/src/assets/back-icon@3x.png" = {length = 20, bytes = 0xf24146f15bfb1dfaf0e3255c16b85485b1e27810};
+    "embedded.mobileprovision" = {length = 20, bytes = 0x1f5f15a594415702982df8600c38a8dca98c91a5};
+    "main.jsbundle" = {length = 20, bytes = 0x0a6f9c734645a99d8cff825391c81e5129da3697};
+}, AnyHashable("rules2"): {
+    ".*\\.dSYM($|/)" =     {
+        weight = 11;
+    };
+    "^(.*/)?\\.DS_Store$" =     {
+        omit = 1;
+        weight = 2000;
+    };
+    "^.*" = 1;
+    "^.*\\.lproj/" =     {
+        optional = 1;
+        weight = 1000;
+    };
+    "^.*\\.lproj/locversion.plist$" =     {
+        omit = 1;
+        weight = 1100;
+    };
+    "^Base\\.lproj/" =     {
+        weight = 1010;
+    };
+    "^Info\\.plist$" =     {
+        omit = 1;
+        weight = 20;
+    };
+    "^PkgInfo$" =     {
+        omit = 1;
+        weight = 20;
+    };
+    "^embedded\\.provisionprofile$" =     {
+        weight = 20;
+    };
+    "^version\\.plist$" =     {
+        weight = 20;
+    };
+}, AnyHashable("rules"): {
+    "^.*" = 1;
+    "^.*\\.lproj/" =     {
+        optional = 1;
+        weight = 1000;
+    };
+    "^.*\\.lproj/locversion.plist$" =     {
+        omit = 1;
+        weight = 1100;
+    };
+    "^Base\\.lproj/" =     {
+        weight = 1010;
+    };
+    "^version.plist$" = 1;
+}, AnyHashable("files2"): {
+    "AccessibilityResources.bundle/Info.plist" =     {
+        hash2 = {length = 32, bytes = 0xad4eed87 6be627eb fb78af5e 2a95d548 ... d0bbf7b3 7a657133 };
+    };
+    "AccessibilityResources.bundle/en.lproj/Localizable.strings" =     {
+        hash2 = {length = 32, bytes = 0xacceb36c 18c2c10e 2458ab7b 2af854ab ... 18393174 bb867a41 };
+        optional = 1;
+    };
+    "AntDesign.ttf" =     {
+        hash2 = {length = 32, bytes = 0x7955ca14 127b3041 2c114eb1 3cfd702b ... 695d73ca a824cde1 };
+    };
+    "AppIcon60x60@2x.png" =     {
+        hash2 = {length = 32, bytes = 0x8953259a 76e7cf9b d1bc5679 ea617a8e ... 2a03bd18 3731a84f };
+    };
+    "Assets.car" =     {
+        hash2 = {length = 32, bytes = 0x40e349b7 54c08157 8fa6e727 0449eb93 ... 30711db3 431cebd3 };
+    };
+    "Entypo.ttf" =     {
+        hash2 = {length = 32, bytes = 0x16f92298 587bab2b 469bc13c 0dfc6d5d ... 3ad16bc0 23bf717d };
+    };
+    "EvilIcons.ttf" =     {
+        hash2 = {length = 32, bytes = 0xa5caeb4d 395c5e32 f1d5a30a cb382aeb ... 9907f221 5e4e3e26 };
+    };
+    "Feather.ttf" =     {
+        hash2 = {length = 32, bytes = 0x57599360 fc9b80bc e473b364 f7f255b5 ... 18cb0e0f 838462b4 };
+    };
+    "FontAwesome.ttf" =     {
+        hash2 = {length = 32, bytes = 0xaa58f33f 239a0fb0 2f5c7a6c 45c043d7 ... 94ecd6d4 edc0d6a8 };
+    };
+    "FontAwesome5_Brands.ttf" =     {
+        hash2 = {length = 32, bytes = 0x06f4d009 23ea2469 7df5df0b 92984175 ... 531bb401 e393ec42 };
+    };
+    "FontAwesome5_Regular.ttf" =     {
+        hash2 = {length = 32, bytes = 0xc651b8a6 7d319320 6f622c3c 3b0fbca4 ... 52c1e2a2 e84c9b31 };
+    };
+    "FontAwesome5_Solid.ttf" =     {
+        hash2 = {length = 32, bytes = 0x3d06af1f 31cd83ac e7a265a0 14b8fb5d ... 5555190e 627e03c2 };
+    };
+    "FontAwesome6_Brands.ttf" =     {
+        hash2 = {length = 32, bytes = 0xbc844b5b 02d3f3ad abb514de 4e0c0208 ... 6287fa44 6acee859 };
+    };
+    "FontAwesome6_Regular.ttf" =     {
+        hash2 = {length = 32, bytes = 0x64f9fb62 3681f112 261e9a2f 97826782 ... 57d1e4db 95ba6cfd };
+    };
+    "FontAwesome6_Solid.ttf" =     {
+        hash2 = {length = 32, bytes = 0x31f099c1 3f6e4ba0 5f1b471b f170cb54 ... 2de3ca5c f29e6a1a };
+    };
+    "Fontisto.ttf" =     {
+        hash2 = {length = 32, bytes = 0x94dab9f1 d5b13ea0 769d124a 2da0d024 ... c0446a77 158100c0 };
+    };
+    "Foundation.ttf" =     {
+        hash2 = {length = 32, bytes = 0x7e1dd03d d4ce90b6 58052554 cd7459df ... a4c6d56a 5f8933e6 };
+    };
+    "Ionicons.ttf" =     {
+        hash2 = {length = 32, bytes = 0x9c7fb907 1a6c2858 2c6b8446 8cbff2c7 ... 48a15993 8d22916b };
+    };
+    "LaunchScreen.storyboardc/01J-lp-oVM-view-Ze5-6b-2t3.nib" =     {
+        hash2 = {length = 32, bytes = 0xfece7f0e 4a76c144 9c35f1e5 4c6fa117 ... 3a04932f 1252d241 };
+    };
+    "LaunchScreen.storyboardc/Info.plist" =     {
+        hash2 = {length = 32, bytes = 0x1f255d5c c53b531e 3f29a940 6a8df49a ... bd8374f7 07f7d5c8 };
+    };
+    "LaunchScreen.storyboardc/UIViewController-01J-lp-oVM.nib" =     {
+        hash2 = {length = 32, bytes = 0x54f3637f 671feba5 f19e82ec 4f4a7fb4 ... 89aa571f c8f053e2 };
+    };
+    "MaterialCommunityIcons.ttf" =     {
+        hash2 = {length = 32, bytes = 0x9e94d4db e2e87ea4 95f0d42d 879146bc ... 154a15ee fa37ef59 };
+    };
+    "MaterialIcons.ttf" =     {
+        hash2 = {length = 32, bytes = 0xef149f08 bdd2ff09 a4e2c857 3476b7b0 ... e59899e7 175bedda };
+    };
+    "Octicons.ttf" =     {
+        hash2 = {length = 32, bytes = 0x16db3480 53ea1125 99e2a635 6f6c1fa0 ... fadffcda 90e2227c };
+    };
+    "QBImagePicker.bundle/Info.plist" =     {
+        hash2 = {length = 32, bytes = 0x8b29b67b 000407b2 8ed85849 07c575c9 ... eeb71c5b 00a61d70 };
+    };
+    "QBImagePicker.bundle/QBImagePicker.storyboardc/Info.plist" =     {
+        hash2 = {length = 32, bytes = 0x83216191 3c7b33dd 8ad63289 a521b462 ... b6799368 fe78ba46 };
+    };
+    "QBImagePicker.bundle/QBImagePicker.storyboardc/QBAlbumsNavigationController.nib" =     {
+        hash2 = {length = 32, bytes = 0x03863709 f24fdcec fcf6a31f a34d7113 ... a467e06e a377c5a0 };
+    };
+    "QBImagePicker.bundle/QBImagePicker.storyboardc/QBAlbumsViewController.nib" =     {
+        hash2 = {length = 32, bytes = 0x3aee74df 33884154 da2fcfd9 e6a582c0 ... 73958ca3 30dd4fe9 };
+    };
+    "QBImagePicker.bundle/QBImagePicker.storyboardc/QBAssetsViewController.nib" =     {
+        hash2 = {length = 32, bytes = 0xf5a94612 0799ded9 7969c007 f6f7b6e6 ... 24a90251 9923752b };
+    };
+    "QBImagePicker.bundle/QBImagePicker.storyboardc/QL5-wR-LYt-view-66K-TS-Yoc.nib" =     {
+        hash2 = {length = 32, bytes = 0x08fe9ef5 c94c6667 409ed78d 04785caf ... 6f7899dc 477e45c4 };
+    };
+    "QBImagePicker.bundle/QBImagePicker.storyboardc/QiH-NZ-ZGN-view-sD2-zK-ryo.nib" =     {
+        hash2 = {length = 32, bytes = 0xb9bdb95e ac5c2773 681cae77 47b14ef4 ... ef9744a1 3476884c };
+    };
+    "QBImagePicker.bundle/da.lproj/QBImagePicker.strings" =     {
+        hash2 = {length = 32, bytes = 0x0f51306e ab75c3e2 59bb43b8 d8b5cdc0 ... 38181c03 d5472f09 };
+        optional = 1;
+    };
+    "QBImagePicker.bundle/de.lproj/QBImagePicker.strings" =     {
+        hash2 = {length = 32, bytes = 0x15da473f 7716da16 51cc7a6f 67556f16 ... 7819a734 2dac8e62 };
+        optional = 1;
+    };
+    "QBImagePicker.bundle/en.lproj/QBImagePicker.strings" =     {
+        hash2 = {length = 32, bytes = 0x47d3f233 f2cb8567 fe636588 440ae3eb ... ebe2a1ba 6ef16526 };
+        optional = 1;
+    };
+    "QBImagePicker.bundle/es.lproj/QBImagePicker.strings" =     {
+        hash2 = {length = 32, bytes = 0x20ce99c1 35a98d9b 95f4506e c5cb66c4 ... 8df29102 0b9e057c };
+        optional = 1;
+    };
+    "QBImagePicker.bundle/fi.lproj/QBImagePicker.strings" =     {
+        hash2 = {length = 32, bytes = 0x0717fefb 04d45417 5c3d06d0 20ce80da ... 21fd5b37 4280899d };
+        optional = 1;
+    };
+    "QBImagePicker.bundle/fr.lproj/QBImagePicker.strings" =     {
+        hash2 = {length = 32, bytes = 0xc3af3711 3b2fd054 28c42a41 729789a8 ... 24ac20c0 8ac50e7d };
+        optional = 1;
+    };
+    "QBImagePicker.bundle/it.lproj/QBImagePicker.strings" =     {
+        hash2 = {length = 32, bytes = 0xac337f42 231c9d9a 9b8e8bf5 8fdd2134 ... 78c4cd9c 8b75bdfc };
+        optional = 1;
+    };
+    "QBImagePicker.bundle/ja.lproj/QBImagePicker.strings" =     {
+        hash2 = {length = 32, bytes = 0x4b8b149f 888b8acb 1dfdc90a 3e110816 ... 333c8645 e11115a1 };
+        optional = 1;
+    };
+    "QBImagePicker.bundle/ko.lproj/QBImagePicker.strings" =     {
+        hash2 = {length = 32, bytes = 0x0b99433a b4858f1b c4c5e673 92ed1018 ... db89d57e 6e23d491 };
+        optional = 1;
+    };
+    "QBImagePicker.bundle/nb.lproj/QBImagePicker.strings" =     {
+        hash2 = {length = 32, bytes = 0x4f2dbebf 0b2afdfd b19f9102 448e2a86 ... 9c0f38bb c342247c };
+        optional = 1;
+    };
+    "QBImagePicker.bundle/nl.lproj/QBImagePicker.strings" =     {
+        hash2 = {length = 32, bytes = 0x72fba902 14e7ebba 42f4a30a 8005ae1b ... 3abc300d 9968e17b };
+        optional = 1;
+    };
+    "QBImagePicker.bundle/pl.lproj/QBImagePicker.strings" =     {
+        hash2 = {length = 32, bytes = 0x64a46b39 922e0347 b4844d28 0c296c23 ... 9fa51722 2ffbde0f };
+        optional = 1;
+    };
+    "QBImagePicker.bundle/pt.lproj/QBImagePicker.strings" =     {
+        hash2 = {length = 32, bytes = 0xc277f8b0 0eee9538 e206cb32 0ff6ec47 ... d83b8920 73b17c1d };
+        optional = 1;
+    };
+    "QBImagePicker.bundle/ro.lproj/QBImagePicker.strings" =     {
+        hash2 = {length = 32, bytes = 0xff41720c 05734f9e ce6be31f 72cf1f05 ... 1ccf1c55 0ce04a91 };
+        optional = 1;
+    };
+    "QBImagePicker.bundle/ru.lproj/QBImagePicker.strings" =     {
+        hash2 = {length = 32, bytes = 0x37fcd819 8eb93b94 da9dc634 a71e8a47 ... e8baa542 8bf5c850 };
+        optional = 1;
+    };
+    "QBImagePicker.bundle/sv.lproj/QBImagePicker.strings" =     {
+        hash2 = {length = 32, bytes = 0x07801142 f0be0968 3a4bbee0 41809d26 ... a9a562a0 ba11cd01 };
+        optional = 1;
+    };
+    "QBImagePicker.bundle/tr.lproj/QBImagePicker.strings" =     {
+        hash2 = {length = 32, bytes = 0xb7f2f8b1 d20dab7d e5f21fd4 685326a8 ... 50f343a3 f5d6f18a };
+        optional = 1;
+    };
+    "QBImagePicker.bundle/uk.lproj/QBImagePicker.strings" =     {
+        hash2 = {length = 32, bytes = 0x33c3376f d28c718b 030948ec c88edbe5 ... 305d4137 85176549 };
+        optional = 1;
+    };
+    "QBImagePicker.bundle/vi.lproj/QBImagePicker.strings" =     {
+        hash2 = {length = 32, bytes = 0x3717adb8 01222b8c 74dc6d67 f789fb77 ... 9b93b2c3 b1103682 };
+        optional = 1;
+    };
+    "QBImagePicker.bundle/zh-Hans.lproj/QBImagePicker.strings" =     {
+        hash2 = {length = 32, bytes = 0x3ed09b75 c3d04834 505b1447 5386526c ... 8f24c7ff bc5c5ca7 };
+        optional = 1;
+    };
+    "QBImagePicker.bundle/zh-Hant.lproj/QBImagePicker.strings" =     {
+        hash2 = {length = 32, bytes = 0x5ec4b548 a324b603 ee9a417d 58941d13 ... 43743a99 d320ecc5 };
+        optional = 1;
+    };
+    "RNCAsyncStorage_resources.bundle/Info.plist" =     {
+        hash2 = {length = 32, bytes = 0x0f9a5849 cb058a9a fa320788 8721cbf3 ... 385772f9 55e73261 };
+    };
+    "RNCAsyncStorage_resources.bundle/PrivacyInfo.xcprivacy" =     {
+        hash2 = {length = 32, bytes = 0x0b1287d0 e686cf86 7d38d97c ca5dc694 ... dd4bd2fd 5458a2f0 };
+    };
+    "RNImageCropPickerPrivacyInfo.bundle/Info.plist" =     {
+        hash2 = {length = 32, bytes = 0x29b1f355 bf3c04b2 73f61d8a e96b2bd2 ... be04636a ef9981e9 };
+    };
+    "RNImageCropPickerPrivacyInfo.bundle/PrivacyInfo.xcprivacy" =     {
+        hash2 = {length = 32, bytes = 0x33c2947f 165272ff 788ee01b 0d758c96 ... dc8aa50e 9157fd84 };
+    };
+    "RNPermissionsPrivacyInfo.bundle/Info.plist" =     {
+        hash2 = {length = 32, bytes = 0x1bf484a3 d6871bbb 29ed1367 a68968c8 ... 4138f414 fb60a735 };
+    };
+    "RNPermissionsPrivacyInfo.bundle/PrivacyInfo.xcprivacy" =     {
+        hash2 = {length = 32, bytes = 0x3e4a93cb e86acef7 dd7e063a 28c84999 ... 37c1e8b0 e1b54686 };
+    };
+    "SimpleLineIcons.ttf" =     {
+        hash2 = {length = 32, bytes = 0x3f501ddb 05c70829 bbb51cfe 9ca9fff5 ... 3ccf25df 767f0870 };
+    };
+    "TOCropViewControllerBundle.bundle/Base.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0x196d99fb 833491e1 dcc4f617 fa81df10 ... 9b79892d 6ad358c1 };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/Info.plist" =     {
+        hash2 = {length = 32, bytes = 0xba8e9169 92a93d21 2d43a751 2340eaf5 ... 1c1c4bbb fe3390fd };
+    };
+    "TOCropViewControllerBundle.bundle/PrivacyInfo.xcprivacy" =     {
+        hash2 = {length = 32, bytes = 0x521eb6ef 8430773e 5c010e18 38fe9dd8 ... 8d7d8daa dcb144e2 };
+    };
+    "TOCropViewControllerBundle.bundle/ar.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0x463845d6 fed5919e 691cd5b0 ab8ab609 ... 8ed6d536 f9ab2151 };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/ca.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0x483a0ec2 4343e4c9 f1a615bf 08614aaf ... cafadf25 896ead4a };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/cs.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0x65ea0b63 d111d1b5 b3d712d0 9d9efcea ... f49f5643 c20d263b };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/da-DK.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0x78afaf79 b20fc038 07c7a5e5 5d670e75 ... 0435fc5c 30684e46 };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/de.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0x6c8d836a 96d43c66 18bdbd7c d2dc13a3 ... 40488209 e393980b };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/en.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0x196d99fb 833491e1 dcc4f617 fa81df10 ... 9b79892d 6ad358c1 };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/es.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0x59348afa e4a66913 3b510468 71a5333a ... cd8477e8 3d29ca6f };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/fa-IR.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0xaa55c494 d495f7af c185f9b6 561847bc ... e6cb2aa0 b8bb7b9f };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/fa.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0xaa55c494 d495f7af c185f9b6 561847bc ... e6cb2aa0 b8bb7b9f };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/fi.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0x830cd810 7cada3be f8c2b124 e407a8ce ... 97398f7d 61185cf3 };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/fr.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0xe2349f96 a350057f 870adc66 41399ceb ... 3694b97b 469c17fc };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/hu.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0x3c8358f1 31898d2b ae71fdf8 d5633555 ... 54b6312a 026a3d0d };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/id.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0xfdaeeed7 07df9287 a38abf8f 87cb72ed ... 17dc7f3b a0dc0cbb };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/it.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0x851b3126 77a8bea5 d385f642 205e5d80 ... c0494fb0 b806eec2 };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/ja.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0x655bcd0a 9d160f28 e80773ec 2afc439d ... 5d686437 c7ce8cad };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/ko.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0x60f97acc b9d7b4a9 e8dd3358 fc1223d1 ... 48e6bfea fe101d58 };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/ms.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0xc17cf0ad 646842b3 7c2393e6 2c6b315e ... 8905ea63 cdae890c };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/nl.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0x278b8709 918dca99 c27cd89d a697bd90 ... 94358c13 f35dee14 };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/pl.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0x60af2612 4f227706 113e384e d23fc814 ... 7a66bfdd efa42149 };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/pt-BR.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0x256f376c 16ce05ec 531652c6 645ecacf ... 1a417c70 da4e6320 };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/pt.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0x256f376c 16ce05ec 531652c6 645ecacf ... 1a417c70 da4e6320 };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/ro.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0x0fa7f37b b8a433c6 5d4513d1 72c90f65 ... 3b82d8ca 501d9eaf };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/ru.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0x917d8f4e cd3f824c 45ba12ac 65274343 ... d913c4b9 1f2a54bb };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/sk.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0xd4056c0e c6621e1f b5039009 6034b463 ... e9f756ec 92bbc393 };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/tr.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0x8206afca 669d9b48 eb85d305 960cc11e ... c78adc8f 4cd3faaa };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/uk.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0x3c3e707d 99725aaf 009665b3 013bb478 ... db9c8597 b37fbc92 };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/vi.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0x1c10e1a3 f087c6ad 7aeead17 f8d0d347 ... d09466f6 eac15c00 };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/zh-Hans.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0xb0e59e71 9003736e 7d61ea77 5c66c971 ... 921ed2ea e697b754 };
+        optional = 1;
+    };
+    "TOCropViewControllerBundle.bundle/zh-Hant.lproj/TOCropViewControllerLocalizable.strings" =     {
+        hash2 = {length = 32, bytes = 0xb5e11d12 6bd469df be2a66c0 19b989fa ... 798d7092 63f42e81 };
+        optional = 1;
+    };
+    "Zocial.ttf" =     {
+        hash2 = {length = 32, bytes = 0xdd8ee403 bbcbf5e5 8b77dca4 ac03ebaf ... 9ca49043 5a86fa48 };
+    };
+    "assets/android/app/assets/images/BG2.png" =     {
+        hash2 = {length = 32, bytes = 0x5e1c6e18 f5472f62 baefaa16 3f3d93a8 ... 2eecf3fa 1311c757 };
+    };
+    "assets/android/app/assets/images/BG3.png" =     {
+        hash2 = {length = 32, bytes = 0xfda74f5d 2d5f48ef b8603f9c a49d5f70 ... f66da799 968cf776 };
+    };
+    "assets/node_modules/@react-navigation/drawer/src/views/assets/toggle-drawer-icon.png" =     {
+        hash2 = {length = 32, bytes = 0x37fa5f25 51348a5e b41475a2 7bc8ce78 ... 5c786c05 84274809 };
+    };
+    "assets/node_modules/@react-navigation/drawer/src/views/assets/toggle-drawer-icon@2x.png" =     {
+        hash2 = {length = 32, bytes = 0x5a4e296a 810edee2 3bbac5f1 3671be66 ... 4395232a b9a4ada5 };
+    };
+    "assets/node_modules/@react-navigation/drawer/src/views/assets/toggle-drawer-icon@3x.png" =     {
+        hash2 = {length = 32, bytes = 0x7b569f04 df7d1171 309f6580 63bfa4b7 ... 1bff1a95 8b8a2cb3 };
+    };
+    "assets/node_modules/@react-navigation/elements/src/assets/back-icon-mask.png" =     {
+        hash2 = {length = 32, bytes = 0x2c95e8c2 675e7993 35fd0046 bb07dbda ... 22c6309d 619cc4d3 };
+    };
+    "assets/node_modules/@react-navigation/elements/src/assets/back-icon.png" =     {
+        hash2 = {length = 32, bytes = 0x2cdfeb8e 5ccde797 6f7012fb 8cce73af ... 09fed114 871c6cd8 };
+    };
+    "assets/node_modules/@react-navigation/elements/src/assets/back-icon@2x.png" =     {
+        hash2 = {length = 32, bytes = 0x2b7443a9 a58e92ca 11a575bd c1159861 ... 0d602606 b302cd98 };
+    };
+    "assets/node_modules/@react-navigation/elements/src/assets/back-icon@3x.png" =     {
+        hash2 = {length = 32, bytes = 0x3ddd0773 ed27e23d 25789f30 1731b3ac ... 1b838f89 c6d27225 };
+    };
+    "embedded.mobileprovision" =     {
+        hash2 = {length = 32, bytes = 0x02dc43c9 879a2624 185320ff 787ed4ef ... 35083700 188e2607 };
+    };
+    "main.jsbundle" =     {
+        hash2 = {length = 32, bytes = 0x1d947aff b527653d cb99cfe7 d0435c4d ... 3ecb5da3 4f50d1d8 };
+    };
+}], enableSignatureValidation: true)'
+2025-10-27 07:39:14 +0000 [MT] Sending request 59F49B5E-C660-4ED5-9FC3-6841F0D1F961 to <https://developerservices2.apple.com/services/v1/certificates> for session <DVTServicesAccountBasedSession: 0x7ff2753ed320; account='<DVTAppleIDBasedDeveloperAccount: 0x7ff275387ca0; username='hamza.gulistan5@gmail.com'>'>.
+Method: POST
+
+Headers:
+{
+    Accept = "application/vnd.api+json";
+    "Accept-Encoding" = "gzip, deflate";
+    "Content-Length" = 104;
+    "Content-Type" = "application/vnd.api+json";
+    DSESSIONID = e683sf5qlmddecpfn67nkuo48io43ovmatka1mamdchjse1p5lm;
+    "User-Agent" = Xcode;
+    "X-Apple-App-Info" = "com.apple.gs.xcode.auth";
+    "X-Apple-GS-Token" = "AAAABLwIAAAAAGjCeMsRDWdzLnhjb2RlLmF1dGi9AKBhV8HN7/hON8AVm592HwmyuhjWGv8fFbTDr9JMzFby6NkJ6ZI49PaNonow/DlX5Of23y0V9Lc5OPsPUGyQT2QjhWcc715w5LosgW7/fIBkTvHyiiTF6TnRq/2IB1xgRIVeQv2ss9+OWA31LgnacajqCHGX";
+    "X-Apple-I-Identity-Id" = "001113-08-eedbe70f-c1ce-4278-9ee6-e352970a941a";
+    "X-HTTP-Method-Override" = GET;
+    "X-MMe-Client-Info" = "<MacBookPro14,1> <macOS;13.7.8;22H730> <com.apple.AuthKit/1 (com.apple.dt.xcodebuild/22510)>";
+    "X-Mme-Device-Id" = "05572813-EE3E-55D0-A4E1-A55BA2C44399";
+    "X-Xcode-Version" = "15.2 (15C500b)";
+}
+
+Payload:
+{"urlEncodedQueryParams":"teamId=K5W9R92RTR&filter%5BcertificateType%5D=DISTRIBUTION_MANAGED&limit=200"}
+2025-10-27 07:39:14 +0000 [MT] Received response for 59F49B5E-C660-4ED5-9FC3-6841F0D1F961 @ <https://developerservices2.apple.com/services/v1/certificates>. Code = 0
+2025-10-27 07:39:14 +0000 [MT] Response payload: {
+  "data" : [ {
+    "type" : "certificates",
+    "id" : "9HY6M4FDKQ",
+    "attributes" : {
+      "requesterEmail" : "hamza.gulistan5@gmail.com",
+      "serialNumber" : "16C6D1F12A72D05AA831E4874302C731",
+      "certificateContent" : "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",
+      "displayName" : "Hamza Gullistan",
+      "requesterLastName" : "Gullistan",
+      "csrContent" : null,
+      "machineName" : null,
+      "platform" : null,
+      "requesterFirstName" : "Hamza",
+      "machineId" : null,
+      "name" : "Apple Distribution: Hamza Gullistan",
+      "responseId" : "153d4eee-b392-4245-98a7-d3d2af331ae4",
+      "expirationDate" : "2026-08-25T12:00:21.000+00:00",
+      "certificateType" : "DISTRIBUTION_MANAGED"
+    },
+    "links" : {
+      "self" : "https://developerservices2.apple.com:443/services/v1/certificates/9HY6M4FDKQ"
+    }
+  } ],
+  "links" : {
+    "self" : "https://developerservices2.apple.com:443/services/v1/certificates?filter%5BcertificateType%5D=DISTRIBUTION_MANAGED&limit=200"
+  },
+  "meta" : {
+    "paging" : {
+      "total" : 1,
+      "limit" : 200
+    }
+  }
+}
+
+2025-10-27 07:39:14 +0000 [MT] Sending request 22FDB089-CDDC-40BB-B327-DD9CE0A0FA4B to <https://developerservices3.apple.com/services/v1/batch> for session <DVTServicesAccountBasedSession: 0x7ff2753ed320; account='<DVTAppleIDBasedDeveloperAccount: 0x7ff275387ca0; username='hamza.gulistan5@gmail.com'>'>.
+Method: POST
+
+Headers:
+{
+    Accept = "application/vnd.api+json";
+    "Accept-Encoding" = "gzip, deflate";
+    "Content-Length" = 488;
+    "Content-Type" = "application/vnd.api+json";
+    DSESSIONID = e683sf5qlmddecpfn67nkuo48io43ovmatka1mamdchjse1p5lm;
+    "User-Agent" = Xcode;
+    "X-Apple-App-Info" = "com.apple.gs.xcode.auth";
+    "X-Apple-GS-Token" = "AAAABLwIAAAAAGjCeMsRDWdzLnhjb2RlLmF1dGi9AKBhV8HN7/hON8AVm592HwmyuhjWGv8fFbTDr9JMzFby6NkJ6ZI49PaNonow/DlX5Of23y0V9Lc5OPsPUGyQT2QjhWcc715w5LosgW7/fIBkTvHyiiTF6TnRq/2IB1xgRIVeQv2ss9+OWA31LgnacajqCHGX";
+    "X-Apple-I-Identity-Id" = "001113-08-eedbe70f-c1ce-4278-9ee6-e352970a941a";
+    "X-MMe-Client-Info" = "<MacBookPro14,1> <macOS;13.7.8;22H730> <com.apple.AuthKit/1 (com.apple.dt.xcodebuild/22510)>";
+    "X-Mme-Device-Id" = "05572813-EE3E-55D0-A4E1-A55BA2C44399";
+    "X-Xcode-Version" = "15.2 (15C500b)";
+}
+
+Payload:
+{"data":{"type":"batch","attributes":{"teamId":"K5W9R92RTR","resourceVersion":"1","resourceList":[{"data":{"type":"codeSignatures","attributes":{"teamId":"K5W9R92RTR","cdHashSha256":"25EEE0F75D706CCA8B2397B88B0AE437FEBEAB2F5393F36F2F2340621853E124","name":"0","digestHash":"25EEE0F75D706CCA8B2397B88B0AE437FEBEAB2F5393F36F2F2340621853E124"},"relationships":{"certificate":{"data":{"id":"9HY6M4FDKQ","type":"certificates"}},"bundleId":{"data":{"id":"RG9X5A43R2","type":"bundleIds"}}}}}]}}}
+2025-10-27 07:39:17 +0000 [MT] Received response for 22FDB089-CDDC-40BB-B327-DD9CE0A0FA4B @ <https://developerservices3.apple.com/services/v1/batch>. Code = 0
+2025-10-27 07:39:17 +0000 [MT] Response payload: {
+  "data" : {
+    "type" : "batch",
+    "id" : "6a730541-5c1b-4f74-8f3e-ae81727690d2",
+    "attributes" : {
+      "responseId" : "6a730541-5c1b-4f74-8f3e-ae81727690d2",
+      "resourceList" : [ {
+        "type" : "codeSignatures",
+        "id" : "f3189f69-c2af-4c6a-8664-5534c75cdb57",
+        "attributes" : {
+          "digestHash" : "25EEE0F75D706CCA8B2397B88B0AE437FEBEAB2F5393F36F2F2340621853E124",
+          "cdHashSha256" : "25EEE0F75D706CCA8B2397B88B0AE437FEBEAB2F5393F36F2F2340621853E124",
+          "signature" : "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",
+          "name" : "0",
+          "responseId" : "6a730541-5c1b-4f74-8f3e-ae81727690d2",
+          "cmsSignature" : "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",
+          "timestamp" : false
+        },
+        "relationships" : {
+          "bundleId" : {
+            "data" : {
+              "type" : "bundleIds",
+              "id" : "RG9X5A43R2"
+            },
+            "links" : {
+              "self" : {
+                "href" : "https://developerservices3.apple.com:443/services/v1/codeSignatures/f3189f69-c2af-4c6a-8664-5534c75cdb57/relationships/bundleId"
+              },
+              "related" : {
+                "href" : "https://developerservices3.apple.com:443/services/v1/codeSignatures/f3189f69-c2af-4c6a-8664-5534c75cdb57/bundleId"
+              }
+            }
+          },
+          "certificate" : {
+            "data" : {
+              "type" : "certificates",
+              "id" : "9HY6M4FDKQ"
+            },
+            "links" : {
+              "self" : {
+                "href" : "https://developerservices3.apple.com:443/services/v1/codeSignatures/f3189f69-c2af-4c6a-8664-5534c75cdb57/relationships/certificate"
+              },
+              "related" : {
+                "href" : "https://developerservices3.apple.com:443/services/v1/codeSignatures/f3189f69-c2af-4c6a-8664-5534c75cdb57/certificate"
+              }
+            }
+          }
+        },
+        "links" : {
+          "self" : {
+            "href" : "https://developerservices3.apple.com:443/services/v1/codeSignatures/f3189f69-c2af-4c6a-8664-5534c75cdb57"
+          }
+        }
+      } ],
+      "resourceVersion" : "1"
+    },
+    "links" : {
+      "self" : "https://developerservices3.apple.com:443/services/v1/batch/6a730541-5c1b-4f74-8f3e-ae81727690d2"
+    }
+  },
+  "links" : {
+    "self" : "https://developerservices3.apple.com:443/services/v1/batch"
+  }
+}
+
+2025-10-27 07:39:17 +0000 [MT] Remote signature for /var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/XcodeDistPipeline.~~~I9eR1p/Root/Payload/ICMSApp.app (arch: arm64) is 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
+2025-10-27 07:39:17 +0000 [MT] invoking codesign: <NSConcreteTask: 0x7ff276c31770; launchPath='/usr/bin/codesign', arguments='(
+    "-e",
+    "--edit-cms",
+    "/var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/cms~~~vr0Q3K",
+    "/var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/XcodeDistPipeline.~~~I9eR1p/Root/Payload/ICMSApp.app"
+)'>
+2025-10-27 07:39:17 +0000 [MT] codesign output: 
+2025-10-27 07:39:17 +0000 [MT] Processing step: IDEDistributionZipODRItemStep
+2025-10-27 07:39:17 +0000 [MT] Skipping step: IDEDistributionZipODRItemStep because it said so
+2025-10-27 07:39:17 +0000 [MT] Processing step: IDEDistributionCreateIPAStep
+2025-10-27 07:39:17 +0000 [MT] Running /usr/bin/rsync '-8aPhhE' '/var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/XcodeDistPipeline.~~~I9eR1p/Symbols' '--link-dest' '/var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/XcodeDistPipeline.~~~I9eR1p' '/var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/XcodeDistPipeline.~~~I9eR1p/Root'
+2025-10-27 07:39:17 +0000  building file list ... 
+2025-10-27 07:39:17 +0000   0 files...2025-10-27 07:39:17 +0000  4 files to consider
+2025-10-27 07:39:17 +0000  Symbols/
+2025-10-27 07:39:17 +0000  ._Symbols
+         163 100%    0.00kB/s    0:00:00         163 100%    0.00kB/s    0:00:00 (xfer#1, to-check=3/4)
+2025-10-27 07:39:17 +0000  Symbols/._8B048AFB-227F-375C-BFB1-7FD5B443627A.symbols
+2025-10-27 07:39:17 +0000           163 100%  159.18kB/s    0:00:00         163 100%  159.18kB/s    0:00:00 (xfer#2, to-check=1/4)
+2025-10-27 07:39:17 +0000  
+sent 652 bytes  received 70 bytes  1.41K bytes/sec
+total size is 9.75M  speedup is 14162.33
+2025-10-27 07:39:17 +0000 [MT] /usr/bin/rsync exited with 0
+2025-10-27 07:39:17 +0000 [MT] Running /usr/bin/ditto '-V' '-c' '-k' '--norsrc' '/var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/XcodeDistPipeline.~~~I9eR1p/Root' '/var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/XcodeDistPipeline.~~~I9eR1p/Packages/ICMSApp.ipa'
+2025-10-27 07:39:17 +0000  >>> Copying /var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/XcodeDistPipeline.~~~I9eR1p/Root 
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/_CodeSignature/CodeResources ... 
+2025-10-27 07:39:17 +0000  38079 bytes for ./Payload/ICMSApp.app/_CodeSignature/CodeResources
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/Fontisto.ttf ... 
+2025-10-27 07:39:17 +0000  313528 bytes for ./Payload/ICMSApp.app/Fontisto.ttf
+copying file ./Payload/ICMSApp.app/Octicons.ttf ... 
+2025-10-27 07:39:17 +0000  49404 bytes for ./Payload/ICMSApp.app/Octicons.ttf
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/Feather.ttf ... 
+2025-10-27 07:39:17 +0000  56228 bytes for ./Payload/ICMSApp.app/Feather.ttf
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/FontAwesome6_Regular.ttf ... 
+2025-10-27 07:39:17 +0000  67976 bytes for ./Payload/ICMSApp.app/FontAwesome6_Regular.ttf
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/Entypo.ttf ... 
+2025-10-27 07:39:17 +0000  66200 bytes for ./Payload/ICMSApp.app/Entypo.ttf
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/de.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:17 +0000  1131 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/de.lproj/QBImagePicker.strings
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/zh-Hans.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:17 +0000  1119 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/zh-Hans.lproj/QBImagePicker.strings
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/ja.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:17 +0000  1214 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/ja.lproj/QBImagePicker.strings
+copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/en.lproj/QBImagePicker.strings ... 
+1064 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/en.lproj/QBImagePicker.strings
+copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/uk.lproj/QBImagePicker.strings ... 
+1398 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/uk.lproj/QBImagePicker.strings
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/QBImagePicker.storyboardc/QiH-NZ-ZGN-view-sD2-zK-ryo.nib ... 
+2025-10-27 07:39:17 +0000  10292 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/QBImagePicker.storyboardc/QiH-NZ-ZGN-view-sD2-zK-ryo.nib
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/QBImagePicker.storyboardc/QBAlbumsViewController.nib ... 
+2025-10-27 07:39:17 +0000  1800 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/QBImagePicker.storyboardc/QBAlbumsViewController.nib
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/QBImagePicker.storyboardc/QBAssetsViewController.nib ... 
+2025-10-27 07:39:17 +0000  1393 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/QBImagePicker.storyboardc/QBAssetsViewController.nib
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/QBImagePicker.storyboardc/QL5-wR-LYt-view-66K-TS-Yoc.nib ... 
+2025-10-27 07:39:17 +0000  7037 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/QBImagePicker.storyboardc/QL5-wR-LYt-view-66K-TS-Yoc.nib
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/QBImagePicker.storyboardc/QBAlbumsNavigationController.nib ... 
+2025-10-27 07:39:17 +0000  2631 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/QBImagePicker.storyboardc/QBAlbumsNavigationController.nib
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/QBImagePicker.storyboardc/Info.plist ... 
+2025-10-27 07:39:17 +0000  289 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/QBImagePicker.storyboardc/Info.plist
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/nb.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:17 +0000  1076 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/nb.lproj/QBImagePicker.strings
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/es.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:17 +0000  1113 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/es.lproj/QBImagePicker.strings
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/da.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:17 +0000  1015 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/da.lproj/QBImagePicker.strings
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/it.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:17 +0000  1088 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/it.lproj/QBImagePicker.strings
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/sv.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:17 +0000  1082 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/sv.lproj/QBImagePicker.strings
+copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/ko.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:17 +0000  1139 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/ko.lproj/QBImagePicker.strings
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/zh-Hant.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:17 +0000  1119 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/zh-Hant.lproj/QBImagePicker.strings
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/tr.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:17 +0000  1104 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/tr.lproj/QBImagePicker.strings
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/pl.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:17 +0000  1119 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/pl.lproj/QBImagePicker.strings
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/vi.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:17 +0000  1143 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/vi.lproj/QBImagePicker.strings
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/ru.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:17 +0000  1433 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/ru.lproj/QBImagePicker.strings
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/fr.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:17 +0000  1153 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/fr.lproj/QBImagePicker.strings
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/fi.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:17 +0000  1002 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/fi.lproj/QBImagePicker.strings
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/nl.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:17 +0000  1017 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/nl.lproj/QBImagePicker.strings
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/pt.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:17 +0000  1112 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/pt.lproj/QBImagePicker.strings
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/ro.lproj/QBImagePicker.strings ... 
+2025-10-27 07:39:17 +0000  1127 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/ro.lproj/QBImagePicker.strings
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/QBImagePicker.bundle/Info.plist ... 
+2025-10-27 07:39:17 +0000  773 bytes for ./Payload/ICMSApp.app/QBImagePicker.bundle/Info.plist
+copying file ./Payload/ICMSApp.app/FontAwesome5_Brands.ttf ... 
+2025-10-27 07:39:17 +0000  134040 bytes for ./Payload/ICMSApp.app/FontAwesome5_Brands.ttf
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/MaterialCommunityIcons.ttf ... 
+2025-10-27 07:39:17 +0000  1147844 bytes for ./Payload/ICMSApp.app/MaterialCommunityIcons.ttf
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/AppIcon60x60@2x.png ... 
+2025-10-27 07:39:17 +0000  7940 bytes for ./Payload/ICMSApp.app/AppIcon60x60@2x.png
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/AntDesign.ttf ... 
+2025-10-27 07:39:17 +0000  70344 bytes for ./Payload/ICMSApp.app/AntDesign.ttf
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/Foundation.ttf ... 
+2025-10-27 07:39:17 +0000  56976 bytes for ./Payload/ICMSApp.app/Foundation.ttf
+copying file ./Payload/ICMSApp.app/Ionicons.ttf ... 
+2025-10-27 07:39:17 +0000  442604 bytes for ./Payload/ICMSApp.app/Ionicons.ttf
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/FontAwesome5_Solid.ttf ... 
+2025-10-27 07:39:17 +0000  202744 bytes for ./Payload/ICMSApp.app/FontAwesome5_Solid.ttf
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/FontAwesome5_Regular.ttf ... 
+2025-10-27 07:39:17 +0000  33736 bytes for ./Payload/ICMSApp.app/FontAwesome5_Regular.ttf
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/AccessibilityResources.bundle/en.lproj/Localizable.strings ... 
+2025-10-27 07:39:17 +0000  518 bytes for ./Payload/ICMSApp.app/AccessibilityResources.bundle/en.lproj/Localizable.strings
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/AccessibilityResources.bundle/Info.plist ... 
+2025-10-27 07:39:17 +0000  794 bytes for ./Payload/ICMSApp.app/AccessibilityResources.bundle/Info.plist
+2025-10-27 07:39:17 +0000  copying file ./Payload/ICMSApp.app/ICMSApp ... 
+2025-10-27 07:39:18 +0000  3584336 bytes for ./Payload/ICMSApp.app/ICMSApp
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/FontAwesome.ttf ... 
+2025-10-27 07:39:18 +0000  165548 bytes for ./Payload/ICMSApp.app/FontAwesome.ttf
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/RNImageCropPickerPrivacyInfo.bundle/PrivacyInfo.xcprivacy ... 
+2025-10-27 07:39:18 +0000  905 bytes for ./Payload/ICMSApp.app/RNImageCropPickerPrivacyInfo.bundle/PrivacyInfo.xcprivacy
+copying file ./Payload/ICMSApp.app/RNImageCropPickerPrivacyInfo.bundle/Info.plist ... 
+805 bytes for ./Payload/ICMSApp.app/RNImageCropPickerPrivacyInfo.bundle/Info.plist
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/Zocial.ttf ... 
+2025-10-27 07:39:18 +0000  25788 bytes for ./Payload/ICMSApp.app/Zocial.ttf
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/RNPermissionsPrivacyInfo.bundle/PrivacyInfo.xcprivacy ... 
+2025-10-27 07:39:18 +0000  598 bytes for ./Payload/ICMSApp.app/RNPermissionsPrivacyInfo.bundle/PrivacyInfo.xcprivacy
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/RNPermissionsPrivacyInfo.bundle/Info.plist ... 
+2025-10-27 07:39:18 +0000  796 bytes for ./Payload/ICMSApp.app/RNPermissionsPrivacyInfo.bundle/Info.plist
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/Assets.car ... 
+2025-10-27 07:39:18 +0000  222952 bytes for ./Payload/ICMSApp.app/Assets.car
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/EvilIcons.ttf ... 
+2025-10-27 07:39:18 +0000  13456 bytes for ./Payload/ICMSApp.app/EvilIcons.ttf
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/main.jsbundle ... 
+2025-10-27 07:39:18 +0000  5394883 bytes for ./Payload/ICMSApp.app/main.jsbundle
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/FontAwesome6_Solid.ttf ... 
+2025-10-27 07:39:18 +0000  423676 bytes for ./Payload/ICMSApp.app/FontAwesome6_Solid.ttf
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/LaunchScreen.storyboardc/01J-lp-oVM-view-Ze5-6b-2t3.nib ... 
+3815 bytes for ./Payload/ICMSApp.app/LaunchScreen.storyboardc/01J-lp-oVM-view-Ze5-6b-2t3.nib
+copying file ./Payload/ICMSApp.app/LaunchScreen.storyboardc/UIViewController-01J-lp-oVM.nib ... 
+2025-10-27 07:39:18 +0000  924 bytes for ./Payload/ICMSApp.app/LaunchScreen.storyboardc/UIViewController-01J-lp-oVM.nib
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/LaunchScreen.storyboardc/Info.plist ... 
+2025-10-27 07:39:18 +0000  258 bytes for ./Payload/ICMSApp.app/LaunchScreen.storyboardc/Info.plist
+copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/de.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  189 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/de.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/ar.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  207 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/ar.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/zh-Hans.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  172 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/zh-Hans.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/ja.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  210 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/ja.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/fa.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  210 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/fa.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/en.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  168 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/en.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/uk.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  231 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/uk.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/es.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  179 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/es.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/it.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  181 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/it.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/sk.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  176 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/sk.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/ms.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  173 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/ms.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/cs.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  173 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/cs.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/ko.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  187 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/ko.lproj/TOCropViewControllerLocalizable.strings
+copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/Base.lproj/TOCropViewControllerLocalizable.strings ... 
+168 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/Base.lproj/TOCropViewControllerLocalizable.strings
+copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/zh-Hant.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  175 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/zh-Hant.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/fa-IR.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  210 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/fa-IR.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/hu.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  194 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/hu.lproj/TOCropViewControllerLocalizable.strings
+copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/da-DK.lproj/TOCropViewControllerLocalizable.strings ... 
+174 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/da-DK.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/tr.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  183 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/tr.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/pl.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  171 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/pl.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/pt-BR.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  181 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/pt-BR.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/vi.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  178 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/vi.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/PrivacyInfo.xcprivacy ... 
+373 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/PrivacyInfo.xcprivacy
+copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/ru.lproj/TOCropViewControllerLocalizable.strings ... 
+237 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/ru.lproj/TOCropViewControllerLocalizable.strings
+copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/fr.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  193 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/fr.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/fi.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  179 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/fi.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/id.lproj/TOCropViewControllerLocalizable.strings ... 
+178 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/id.lproj/TOCropViewControllerLocalizable.strings
+copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/nl.lproj/TOCropViewControllerLocalizable.strings ... 
+178 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/nl.lproj/TOCropViewControllerLocalizable.strings
+copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/pt.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  181 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/pt.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/ro.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  181 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/ro.lproj/TOCropViewControllerLocalizable.strings
+copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/Info.plist ... 
+2025-10-27 07:39:18 +0000  800 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/Info.plist
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/ca.lproj/TOCropViewControllerLocalizable.strings ... 
+2025-10-27 07:39:18 +0000  177 bytes for ./Payload/ICMSApp.app/TOCropViewControllerBundle.bundle/ca.lproj/TOCropViewControllerLocalizable.strings
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/SimpleLineIcons.ttf ... 
+2025-10-27 07:39:18 +0000  54056 bytes for ./Payload/ICMSApp.app/SimpleLineIcons.ttf
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/FontAwesome6_Brands.ttf ... 
+2025-10-27 07:39:18 +0000  209376 bytes for ./Payload/ICMSApp.app/FontAwesome6_Brands.ttf
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/embedded.mobileprovision ... 
+2025-10-27 07:39:18 +0000  14205 bytes for ./Payload/ICMSApp.app/embedded.mobileprovision
+copying file ./Payload/ICMSApp.app/assets/node_modules/@react-navigation/drawer/src/views/assets/toggle-drawer-icon@3x.png ... 
+2025-10-27 07:39:18 +0000  212 bytes for ./Payload/ICMSApp.app/assets/node_modules/@react-navigation/drawer/src/views/assets/toggle-drawer-icon@3x.png
+copying file ./Payload/ICMSApp.app/assets/node_modules/@react-navigation/drawer/src/views/assets/toggle-drawer-icon@2x.png ... 
+2025-10-27 07:39:18 +0000  163 bytes for ./Payload/ICMSApp.app/assets/node_modules/@react-navigation/drawer/src/views/assets/toggle-drawer-icon@2x.png
+copying file ./Payload/ICMSApp.app/assets/node_modules/@react-navigation/drawer/src/views/assets/toggle-drawer-icon.png ... 
+108 bytes for ./Payload/ICMSApp.app/assets/node_modules/@react-navigation/drawer/src/views/assets/toggle-drawer-icon.png
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/assets/node_modules/@react-navigation/elements/src/assets/back-icon@3x.png ... 
+2025-10-27 07:39:18 +0000  761 bytes for ./Payload/ICMSApp.app/assets/node_modules/@react-navigation/elements/src/assets/back-icon@3x.png
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/assets/node_modules/@react-navigation/elements/src/assets/back-icon@2x.png ... 
+2025-10-27 07:39:18 +0000  405 bytes for ./Payload/ICMSApp.app/assets/node_modules/@react-navigation/elements/src/assets/back-icon@2x.png
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/assets/node_modules/@react-navigation/elements/src/assets/back-icon.png ... 
+2025-10-27 07:39:18 +0000  290 bytes for ./Payload/ICMSApp.app/assets/node_modules/@react-navigation/elements/src/assets/back-icon.png
+copying file ./Payload/ICMSApp.app/assets/node_modules/@react-navigation/elements/src/assets/back-icon-mask.png ... 
+2025-10-27 07:39:18 +0000  913 bytes for ./Payload/ICMSApp.app/assets/node_modules/@react-navigation/elements/src/assets/back-icon-mask.png
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/assets/android/app/assets/images/BG3.png ... 
+2025-10-27 07:39:18 +0000  15052 bytes for ./Payload/ICMSApp.app/assets/android/app/assets/images/BG3.png
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/assets/android/app/assets/images/BG2.png ... 
+2025-10-27 07:39:18 +0000  26715 bytes for ./Payload/ICMSApp.app/assets/android/app/assets/images/BG2.png
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/Info.plist ... 
+2025-10-27 07:39:18 +0000  2260 bytes for ./Payload/ICMSApp.app/Info.plist
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/RNCAsyncStorage_resources.bundle/PrivacyInfo.xcprivacy ... 
+2025-10-27 07:39:18 +0000  512 bytes for ./Payload/ICMSApp.app/RNCAsyncStorage_resources.bundle/PrivacyInfo.xcprivacy
+copying file ./Payload/ICMSApp.app/RNCAsyncStorage_resources.bundle/Info.plist ... 
+2025-10-27 07:39:18 +0000  798 bytes for ./Payload/ICMSApp.app/RNCAsyncStorage_resources.bundle/Info.plist
+2025-10-27 07:39:18 +0000  copying file ./Payload/ICMSApp.app/PkgInfo ... 
+2025-10-27 07:39:18 +0000  8 bytes for ./Payload/ICMSApp.app/PkgInfo
+copying file ./Payload/ICMSApp.app/MaterialIcons.ttf ... 
+2025-10-27 07:39:18 +0000  356840 bytes for ./Payload/ICMSApp.app/MaterialIcons.ttf
+2025-10-27 07:39:18 +0000  copying file ./Symbols/8B048AFB-227F-375C-BFB1-7FD5B443627A.symbols ... 
+2025-10-27 07:39:19 +0000  10225204 bytes for ./Symbols/8B048AFB-227F-375C-BFB1-7FD5B443627A.symbols
+2025-10-27 07:39:19 +0000 [MT] /usr/bin/ditto exited with 0
+2025-10-27 07:39:19 +0000 [MT] Processing step: IDEDistributionAppStoreInformationStep
+2025-10-27 07:39:19 +0000 [MT] Skipping step: IDEDistributionAppStoreInformationStep because it said so
+2025-10-27 07:39:19 +0000 [MT] Processing step: IDEDistributionGenerateProcessedDistributionItems
+2025-10-27 07:39:19 +0000 [MT] IDEDistributionItem init <DVTFilePath:0x7ff2753ded20:'/var/folders/sl/7npkc60163z8hzx26wfg1hqh0000gn/T/XcodeDistPipeline.~~~I9eR1p/Root/Payload/ICMSApp.app'>
+2025-10-27 07:39:19 +0000 [MT] Processing step: IDEDistributionCreateManifestStep
+2025-10-27 07:39:19 +0000 [MT] Skipping step: IDEDistributionCreateManifestStep because it said so

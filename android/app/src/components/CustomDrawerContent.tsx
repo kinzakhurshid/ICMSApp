@@ -30,6 +30,7 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
   // Check user role
   const isPM = (displayUser as any)?.role === 'PM' || (displayUser as any)?.role === 'pm';
   const isHR = (displayUser as any)?.role === 'HR' || (displayUser as any)?.role === 'hr';
+  const isOrgAdmin = ['ORG_ADMIN','OrgAdmin','org_admin','Org Admin','ORGADMIN','orgadmin','ORG'].includes(((displayUser as any)?.role || '').toString());
 
 
   // Role-based drawer items
@@ -48,6 +49,16 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
       screen: 'AttendanceTab'
     },
     { 
+      label: 'Idle Time', 
+      icon: <MaterialIcons name="timer" size={22} color="#FF5722" />,
+      route: 'HRIdleTime',
+    },
+    { 
+      label: 'Queries', 
+      icon: <MaterialIcons name="question-answer" size={22} color="#FF5722" />,
+      route: 'HRQueries',
+    },
+    { 
       label: 'Hiring', 
       icon: <MaterialIcons name="person-add" size={22} color="#FF5722" />,
       route: 'MainTabs',
@@ -60,19 +71,34 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
       screen: 'InboxTab'
     },
     { 
+      label: 'Employees', 
+      icon: <MaterialIcons name="people" size={22} color="#FF5722" />,
+      route: 'HREmployees',
+    },
+    { 
+      label: 'Resignation', 
+      icon: <MaterialIcons name="person-remove" size={22} color="#FF5722" />,
+      route: 'ResignationScreen',
+    },
+    { 
       label: 'Payroll', 
       icon: <MaterialIcons name="account-balance-wallet" size={22} color="#FF5722" />,
-      route: 'Payroll',
+      route: 'PayrollScreen',
     },
     { 
       label: 'Leaves', 
       icon: <MaterialIcons name="event-busy" size={22} color="#FF5722" />,
-      route: 'Leaves',
+      route: 'LeavesScreen',
     },
     { 
       label: 'Accessories', 
       icon: <MaterialIcons name="settings" size={22} color="#FF5722" />,
-      route: 'Accessories',
+      route: 'AccessoriesScreen',
+    },
+    { 
+      label: 'Settings', 
+      icon: <MaterialIcons name="settings" size={22} color="#FF5722" />,
+      route: 'SettingsScreen',
     },
     { 
       label: 'Resignation', 
@@ -119,6 +145,39 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
       label: 'Settings', 
       icon: <Ionicons name="settings-outline" size={22} color="#FF5722" />,
       route: 'AppSettings',
+    },
+  ] : isOrgAdmin ? [
+    { 
+      label: 'Dashboard', 
+      icon: <MaterialIcons name="dashboard" size={22} color="#FF5722" />, 
+      route: 'OrgMainTabs',
+      screen: 'OrgHomeTab'
+    },
+    { 
+      label: 'Departments', 
+      icon: <MaterialIcons name="apartment" size={22} color="#FF5722" />, 
+      route: 'Departments'
+    },
+    { 
+      label: 'Projects', 
+      icon: <MaterialIcons name="folder" size={22} color="#FF5722" />, 
+      route: 'OrgProjects'
+    },
+    { 
+      label: 'Attendance', 
+      icon: <MaterialIcons name="event-available" size={22} color="#FF5722" />, 
+      route: 'Attendance'
+    },
+    { 
+      label: 'Activities', 
+      icon: <MaterialIcons name="list" size={22} color="#FF5722" />, 
+      route: 'OrgActivities'
+    },
+    { 
+      label: 'Inbox', 
+      icon: <MaterialIcons name="inbox" size={22} color="#FF5722" />, 
+      route: 'OrgMainTabs',
+      screen: 'InboxTab'
     },
   ] : [
     // Employee menu items - using EmployeeTabNavigator tab names
@@ -167,20 +226,18 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
           try {
             console.log('🔍 Drawer Navigation:', { route: item.route, screen: item.screen });
             
-            // Close the drawer first
-            props.navigation.closeDrawer();
-            
             if (item.screen) {
-              // Navigate to MainTabs with the specific screen parameter
-              console.log('🔍 Navigating to MainTabs with screen:', item.screen);
-              props.navigation.navigate('MainTabs' as any, { 
+              // Navigate to a tab container with the specific screen parameter (supports OrgMainTabs and MainTabs)
+              console.log('🔍 Navigating to tab container with screen:', { route: item.route, screen: item.screen });
+              props.navigation.navigate(item.route as any, { 
                 screen: item.screen 
               });
-              console.log('🔍 Navigated to MainTabs with screen parameter');
-              
+              console.log('🔍 Navigated to tab container with screen parameter');
             } else {
-              // Navigate to a regular screen
+              // Navigate to a regular drawer screen
+              console.log('🔍 Navigating to drawer screen:', item.route);
               props.navigation.navigate(item.route as any);
+              console.log('🔍 Navigated to drawer screen successfully');
             }
           } catch (error) {
             console.log('🔍 Navigation Error:', error);
@@ -201,11 +258,11 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
     const state = props.state;
     
     if (item.screen) {
-      // For tab navigation items
+      // For tab navigation items (supports both MainTabs and OrgMainTabs)
       return state.routes.some(route => 
-        route.name === 'MainTabs' && 
-        route.state && 
-        route.state.routes[route.state.index || 0].name === item.screen
+        route.name === item.route && 
+        (route.state as any) && 
+        ((route.state as any).routes[(route.state as any).index || 0]?.name === item.screen)
       );
     } else {
       // For regular drawer items

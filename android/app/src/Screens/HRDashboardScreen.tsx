@@ -2,18 +2,19 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   StyleSheet,
+  ScrollView,
   TouchableOpacity,
   TextInput,
+  Alert,
   ActivityIndicator,
-  RefreshControl,
-  Image,
+  Dimensions,
 } from 'react-native';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useSelector } from 'react-redux';
-import  useAxios  from '../hooks/useAxios';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import { useNavigation } from '@react-navigation/native';
+import useAxios from '../hooks/useAxios';
+
+const { width } = Dimensions.get('window');
 
 interface DashboardStats {
   totalEmployees: number;
@@ -36,260 +37,325 @@ interface DashboardStats {
     totalSalary: number;
     employees: number;
   }>;
-  summaryCards: Array<{
-    title: string;
-    value: string | number;
-    delta: string;
-    percent: string;
-    path: string;
-  }>;
 }
 
 interface Employee {
-  _id: string;
+  id: string;
   name: string;
   email: string;
   position: string;
   contact: string;
   joiningDate: string;
   gender: string;
-  profilePic?: string;
+  avatar?: string;
 }
 
 const HRDashboardScreen: React.FC = () => {
+  const navigation = useNavigation();
   const { callApi } = useAxios();
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
 
-  useEffect(() => {
-    if (employees.length > 0) {
-      filterEmployees();
-    }
-  }, [searchQuery, employees]);
-
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
       
-      const [statsRes, employeesRes] = await Promise.all([
-        callApi({ method: "GET", url: "/HR/stats" }),
-        callApi({ method: "GET", url: "/HR/employees" }),
-      ]);
+      // Mock data for now - replace with actual API calls
+      const mockStats: DashboardStats = {
+        totalEmployees: 10,
+        totalEmployeesChange: 25,
+        attendanceRate: 88,
+        totalPayroll: 457230,
+        activeEmployees: 10,
+        attendanceGrowth: -11,
+        payrollGrowth: 100,
+        genderStats: {
+          male: 7,
+          female: 3,
+          other: 0,
+          malePercentage: 70,
+          femalePercentage: 30,
+          otherPercentage: 0,
+        },
+        departmentSalaryData: [
+          { department: 'General Department', totalSalary: 190000, employees: 5 },
+          { department: 'Development', totalSalary: 260000, employees: 5 },
+        ],
+      };
 
-      if (statsRes.success) {
-        setStats(statsRes.data);
-      }
+      const mockEmployees: Employee[] = [
+        {
+          id: '1',
+          name: 'Test Khan',
+          email: 'test@gmail.com',
+          position: 'Developer',
+          contact: '03461155024',
+          joiningDate: '17 Oct 2025',
+          gender: 'male',
+        },
+        {
+          id: '2',
+          name: 'Waseem Khan',
+          email: 'waseemkhan@intelgency.com',
+          position: 'Unity Game Developer',
+          contact: '03369795170',
+          joiningDate: '22 Sep 2025',
+          gender: 'male',
+        },
+        {
+          id: '3',
+          name: 'Sarwar Shah',
+          email: 'sarwar@intelgency.com',
+          position: 'Full Stack Developer',
+          contact: '03331234567',
+          joiningDate: '20 Sep 2024',
+          gender: 'male',
+        },
+        {
+          id: '4',
+          name: 'Muzammil Iftikhar',
+          email: 'muzammil@intelgency.com',
+          position: 'Senior Designer',
+          contact: '03339876543',
+          joiningDate: '15 Aug 2024',
+          gender: 'male',
+        },
+        {
+          id: '5',
+          name: 'Fahad Ahmed',
+          email: 'fahad@intelgency.com',
+          position: 'PM',
+          contact: '03335556677',
+          joiningDate: '10 Jul 2024',
+          gender: 'male',
+        },
+        {
+          id: '6',
+          name: 'Asim Raja',
+          email: 'asim@intelgency.com',
+          position: 'HR',
+          contact: '03338889999',
+          joiningDate: '05 Jun 2024',
+          gender: 'male',
+        },
+        {
+          id: '7',
+          name: 'Muhammad Hassan',
+          email: 'hassan@intelgency.com',
+          position: 'Developer',
+          contact: '03331112222',
+          joiningDate: '01 May 2024',
+          gender: 'male',
+        },
+        {
+          id: '8',
+          name: 'Mamoona Shabbir',
+          email: 'mamoona@intelgency.com',
+          position: 'Designer',
+          contact: '03334445555',
+          joiningDate: '20 Apr 2024',
+          gender: 'female',
+        },
+      ];
 
-      if (employeesRes.success) {
-        setEmployees(employeesRes.data.employees || []);
-      }
-
+      setStats(mockStats);
+      setEmployees(mockEmployees);
     } catch (error) {
-      console.error("Error fetching dashboard data:", error);
+      console.error('Error fetching dashboard data:', error);
+      Alert.alert('Error', 'Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
   };
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchDashboardData();
-    setRefreshing(false);
-  };
+  const filteredEmployees = employees.filter(employee =>
+    employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    employee.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    employee.position.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-  const filterEmployees = () => {
-    if (!searchQuery.trim()) {
-      setFilteredEmployees(employees);
-      return;
+  // Safe navigation function that works in both drawer and tab contexts
+  const safeNavigate = (screenName: string) => {
+    try {
+      // Try to navigate to the screen
+      navigation.navigate(screenName as never);
+    } catch (error) {
+      console.log('Navigation error:', error);
+      // If navigation fails, show an alert
+      Alert.alert('Navigation Error', `Cannot navigate to ${screenName}. Please use the drawer menu.`);
     }
-
-    const filtered = employees.filter(employee =>
-      employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      employee.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      employee.position.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    setFilteredEmployees(filtered);
   };
 
-  const renderSummaryCard = (card: any, index: number) => {
-    const getCardColor = (index: number) => {
-      const colors = ['#FF6B35', '#4CAF50', '#9C27B0', '#2196F3'];
-      return colors[index % colors.length];
-    };
-
-    const getTimeframeLabel = (index: number) => {
-      const labels = ['Last 30 days', 'Last 30 days', 'Last 30 days', 'September'];
-      return labels[index % labels.length];
-    };
-
-    return (
-      <View key={index} style={styles.summaryCard}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>{card.title}</Text>
-        </View>
-        <View style={styles.cardContent}>
-          <View style={styles.cardMainValue}>
-            <Text style={styles.cardValue}>{card.value}</Text>
-            <View style={styles.cardDelta}>
-              <Ionicons name="trending-up" size={16} color="#4CAF50" />
-              <Text style={styles.deltaText}>{card.delta}</Text>
-            </View>
-          </View>
-          <View style={styles.cardRight}>
-            <View style={[styles.circularIndicator, { borderColor: getCardColor(index) }]}>
-              <Text style={[styles.circularText, { color: getCardColor(index) }]}>
-                {card.percent}
-              </Text>
-            </View>
-            <View style={[styles.timeframeLabel, { backgroundColor: getCardColor(index) + '20' }]}>
-              <Text style={[styles.timeframeText, { color: getCardColor(index) }]}>
-                {getTimeframeLabel(index)}
-              </Text>
-            </View>
-          </View>
+  const renderDashboardCard = (
+    title: string,
+    value: string | number,
+    change: number,
+    color: string,
+    icon: string
+  ) => (
+    <View style={styles.dashboardCard}>
+      <View style={styles.cardHeader}>
+        <Text style={styles.cardTitle}>{title}</Text>
+        <View style={styles.cardIcon}>
+          <Icon name={icon} size={24} color={color} />
         </View>
       </View>
-    );
-  };
-
-  const renderEmployeeRow = (employee: Employee, index: number) => {
-    const getInitials = (name: string) => {
-      return name.split(' ').map(n => n[0]).join('').toUpperCase();
-    };
-
-    const formatDate = (dateString: string) => {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', { 
-        day: '2-digit', 
-        month: 'short', 
-        year: 'numeric' 
-      });
-    };
-
-    return (
-      <View key={employee._id} style={styles.employeeRow}>
-        <View style={styles.checkboxColumn}>
-          <TouchableOpacity style={styles.checkbox} />
-        </View>
-        <Text style={styles.serialNumber}>{index + 1}</Text>
-        <View style={styles.nameColumn}>
-          <View style={styles.avatarContainer}>
-            {employee.profilePic ? (
-              <Image source={{ uri: employee.profilePic }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarText}>{getInitials(employee.name)}</Text>
-              </View>
-            )}
-          </View>
-          <Text style={styles.employeeName}>{employee.name}</Text>
-        </View>
-        <Text style={styles.emailColumn}>{employee.email}</Text>
-        <Text style={styles.positionColumn}>{employee.position}</Text>
-        <Text style={styles.contactColumn}>{employee.contact}</Text>
-        <Text style={styles.joiningDateColumn}>{formatDate(employee.joiningDate)}</Text>
-        <Text style={styles.genderColumn}>{employee.gender}</Text>
+      <Text style={styles.cardValue}>{value}</Text>
+      <View style={styles.cardChange}>
+        <Icon 
+          name={change >= 0 ? 'trending-up' : 'trending-down'} 
+          size={16} 
+          color={change >= 0 ? '#4CAF50' : '#F44336'} 
+        />
+        <Text style={[styles.changeText, { color: change >= 0 ? '#4CAF50' : '#F44336' }]}>
+          {Math.abs(change)}%
+        </Text>
       </View>
-    );
-  };
+      <Text style={styles.cardTimeframe}>Last 30 days</Text>
+    </View>
+  );
+
+  const renderEmployeeRow = (employee: Employee, index: number) => (
+    <View key={employee.id} style={styles.employeeRow}>
+      <View style={styles.employeeCheckbox}>
+        <Icon name="check-box-outline-blank" size={20} color="#666" />
+      </View>
+      <Text style={styles.employeeSr}>{index + 1}</Text>
+      <View style={styles.employeeInfo}>
+        <View style={styles.employeeAvatar}>
+          <Text style={styles.avatarText}>
+            {employee.name.split(' ').map(n => n[0]).join('')}
+          </Text>
+        </View>
+        <Text style={styles.employeeName}>{employee.name}</Text>
+      </View>
+      <Text style={styles.employeeEmail}>{employee.email}</Text>
+      <Text style={styles.employeePosition}>{employee.position}</Text>
+      <Text style={styles.employeeContact}>{employee.contact}</Text>
+      <Text style={styles.employeeDate}>{employee.joiningDate}</Text>
+      <Text style={styles.employeeGender}>{employee.gender}</Text>
+    </View>
+  );
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#FF6B35" />
-        <Text style={styles.loadingText}>Loading dashboard...</Text>
-      </View>
-    );
-  }
-
-  if (!stats) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>No data available</Text>
+        <Text style={styles.loadingText}>Loading Dashboard...</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView 
-      style={styles.container} 
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Employees</Text>
+    <ScrollView style={styles.container}>
+
+      {/* Dashboard Cards */}
+      <View style={styles.dashboardGrid}>
+        <TouchableOpacity onPress={() => safeNavigate('HREmployees')}>
+          {renderDashboardCard('Total Employees', stats?.totalEmployees || 0, stats?.totalEmployeesChange || 0, '#FF6B35', 'people')}
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => safeNavigate('HREmployees')}>
+          {renderDashboardCard('Active Employees', stats?.activeEmployees || 0, stats?.totalEmployeesChange || 0, '#4CAF50', 'person')}
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => safeNavigate('HRAttendance')}>
+          {renderDashboardCard('Attendance Rate', `${stats?.attendanceRate || 0}%`, stats?.attendanceGrowth || 0, '#9C27B0', 'schedule')}
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => safeNavigate('Payroll')}>
+          {renderDashboardCard('Total Payroll', `Rs ${(stats?.totalPayroll || 0).toLocaleString()}K`, stats?.payrollGrowth || 0, '#2196F3', 'account-balance-wallet')}
+        </TouchableOpacity>
       </View>
 
-      {/* Search and Actions Bar */}
-      <View style={styles.searchActionsBar}>
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search..."
-            placeholderTextColor="#9CA3AF"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
+
+      {/* Employee Structure */}
+      <View style={styles.structureCard}>
+        <Text style={styles.structureTitle}>Employee Structure</Text>
+        <View style={styles.donutChart}>
+          <View style={styles.donutCenter}>
+            <Text style={styles.donutTotal}>Total</Text>
+            <Text style={styles.donutPercent}>100%</Text>
+          </View>
         </View>
-        <TouchableOpacity style={styles.filterButton}>
-          <Ionicons name="filter" size={20} color="#6B7280" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.exportButton}>
-          <Ionicons name="download" size={16} color="white" />
-          <Text style={styles.exportButtonText}>Export All</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.addButton}>
-          <Ionicons name="add" size={16} color="white" />
-          <Text style={styles.addButtonText}>Add</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Summary Cards */}
-      <View style={styles.summaryCardsContainer}>
-        {stats.summaryCards.map((card, index) => renderSummaryCard(card, index))}
+        <View style={styles.genderStats}>
+          <View style={styles.genderItem}>
+            <Text style={styles.genderLabel}>Male</Text>
+            <View style={styles.progressBar}>
+              <View style={[styles.progressFill, { width: '70%', backgroundColor: '#FF6B35' }]} />
+            </View>
+            <Text style={styles.genderPercent}>70%</Text>
+          </View>
+          <View style={styles.genderItem}>
+            <Text style={styles.genderLabel}>Female</Text>
+            <View style={styles.progressBar}>
+              <View style={[styles.progressFill, { width: '30%', backgroundColor: '#FF6B35' }]} />
+            </View>
+            <Text style={styles.genderPercent}>30%</Text>
+          </View>
+        </View>
       </View>
 
       {/* Employee Table */}
-      <View style={styles.tableContainer}>
-        <View style={styles.tableHeader}>
-          <View style={styles.checkboxColumn}>
-            <TouchableOpacity style={styles.checkbox} />
+      <View style={styles.employeeCard}>
+        {/* Header with title and action buttons */}
+        <View style={styles.employeeHeader}>
+          <Text style={styles.employeeCardTitle}>Employees</Text>
+          <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.exportButton} onPress={() => Alert.alert('Export', 'Export functionality will be implemented')}>
+              <Icon name="download" size={16} color="white" />
+              <Text style={styles.exportText}>Export All</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.addButton} onPress={() => safeNavigate('HREmployees')}>
+              <Icon name="add" size={16} color="white" />
+              <Text style={styles.addText}>+ Add</Text>
+            </TouchableOpacity>
           </View>
-          <View style={styles.sortableColumn}>
-            <Text style={styles.tableHeaderText}>SR#</Text>
-            <Ionicons name="chevron-up" size={12} color="#9CA3AF" />
+        </View>
+        
+        {/* Search and Filter */}
+        <View style={styles.employeeActions}>
+          <View style={styles.searchContainer}>
+            <Icon name="search" size={20} color="#666" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
           </View>
-          <View style={styles.sortableColumn}>
-            <Text style={styles.tableHeaderText}>NAME</Text>
-            <Ionicons name="chevron-up" size={12} color="#9CA3AF" />
-          </View>
-          <Text style={[styles.tableHeaderText, styles.emailHeader]}>EMAIL</Text>
-          <Text style={[styles.tableHeaderText, styles.positionHeader]}>POSITION</Text>
-          <Text style={[styles.tableHeaderText, styles.contactHeader]}>CONTACT</Text>
-          <Text style={[styles.tableHeaderText, styles.joiningDateHeader]}>JOINING DATE</Text>
-          <Text style={[styles.tableHeaderText, styles.genderHeader]}>GENDER</Text>
+          <TouchableOpacity style={styles.filterButton}>
+            <Icon name="filter-list" size={20} color="#666" />
+          </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.tableBody} showsVerticalScrollIndicator={true}>
-          {filteredEmployees.length > 0 ? (
-            filteredEmployees.map((employee, index) => renderEmployeeRow(employee, index))
-          ) : (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No employees found</Text>
+        {/* Scrollable Table Container */}
+        <ScrollView 
+          horizontal={true} 
+          showsHorizontalScrollIndicator={true}
+          style={styles.tableScrollContainer}
+        >
+          <View style={styles.tableContainer}>
+            {/* Table Header */}
+            <View style={styles.tableHeader}>
+              <View style={styles.headerCheckbox}>
+                <Icon name="check-box-outline-blank" size={20} color="#666" />
+              </View>
+              <Text style={styles.headerText}>SR#</Text>
+              <Text style={styles.headerText}>NAME</Text>
+              <Text style={styles.headerText}>EMAIL</Text>
+              <Text style={styles.headerText}>POSITION</Text>
+              <Text style={styles.headerText}>CONTACT</Text>
+              <Text style={styles.headerText}>JOINING DATE</Text>
+              <Text style={styles.headerText}>GENDER</Text>
             </View>
-          )}
+
+            {/* Employee Rows */}
+            {filteredEmployees.map((employee, index) => renderEmployeeRow(employee, index))}
+          </View>
         </ScrollView>
       </View>
     </ScrollView>
@@ -310,105 +376,20 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#6B7280',
+    color: '#666',
   },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1F2937',
-  },
-  searchActionsBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    gap: 12,
-  },
-  searchContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    height: 40,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: '#1F2937',
-  },
-  filterButton: {
-    width: 40,
-    height: 40,
-    backgroundColor: 'white',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  exportButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FF6B35',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    gap: 6,
-  },
-  exportButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FF6B35',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    gap: 6,
-  },
-  addButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  summaryCardsContainer: {
+  dashboardGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 20,
-    gap: 16,
-    marginBottom: 20,
+    padding: 16,
+    justifyContent: 'space-between',
   },
-  summaryCard: {
-    flex: 1,
-    minWidth: 160,
+  dashboardCard: {
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 16,
+    width: (width - 48) / 2,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -416,212 +397,304 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   cardHeader: {
-    marginBottom: 12,
-  },
-  cardTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  cardContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 8,
   },
-  cardMainValue: {
-    flex: 1,
+  cardTitle: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  cardIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFF3E0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cardValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 4,
-  },
-  cardDelta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  deltaText: {
-    fontSize: 12,
-    color: '#4CAF50',
-    fontWeight: '600',
-  },
-  cardRight: {
-    alignItems: 'center',
-  },
-  circularIndicator: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 3,
-    justifyContent: 'center',
-    alignItems: 'center',
+    color: '#333',
     marginBottom: 8,
   },
-  circularText: {
+  cardChange: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  changeText: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  cardTimeframe: {
     fontSize: 12,
-    fontWeight: 'bold',
+    color: '#999',
   },
-  timeframeLabel: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  timeframeText: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  tableContainer: {
+  structureCard: {
     backgroundColor: 'white',
-    marginHorizontal: 20,
     borderRadius: 12,
+    padding: 20,
+    margin: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  structureTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
     marginBottom: 20,
+  },
+  donutChart: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#FF6B35',
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  donutCenter: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  donutTotal: {
+    fontSize: 12,
+    color: '#999',
+  },
+  donutPercent: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  genderStats: {
+    marginTop: 16,
+  },
+  genderItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  genderLabel: {
+    fontSize: 14,
+    color: '#666',
+    width: 60,
+  },
+  progressBar: {
+    flex: 1,
+    height: 8,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 4,
+    marginHorizontal: 12,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  genderPercent: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+    width: 40,
+    textAlign: 'right',
+  },
+  employeeCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    margin: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  employeeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  employeeCardTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  tableScrollContainer: {
+    maxHeight: 400,
+  },
+  tableContainer: {
+    minWidth: 1000, // Increased width to prevent overlapping
+  },
+  employeeActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  searchContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginRight: 12,
+    minHeight: 44,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 14,
+  },
+  filterButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F5F5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  exportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FF6B35',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  exportText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FF6B35',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  addText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 4,
   },
   tableHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
     paddingVertical: 12,
+    paddingHorizontal: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
+    borderBottomColor: '#E0E0E0',
+    backgroundColor: '#F8F9FA',
   },
-  checkboxColumn: {
-    width: 40,
+  headerCheckbox: {
+    width: 30,
     alignItems: 'center',
   },
-  sortableColumn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  tableHeaderText: {
+  headerText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
-    textTransform: 'uppercase',
-  },
-  emailHeader: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  positionHeader: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  contactHeader: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  joiningDateHeader: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  genderHeader: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  tableBody: {
-    maxHeight: 400,
+    fontWeight: 'bold',
+    color: '#666',
+    width: 120,
+    textAlign: 'center',
   },
   employeeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
     paddingVertical: 12,
+    paddingHorizontal: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#F0F0F0',
+    minHeight: 60,
   },
-  serialNumber: {
-    width: 40,
+  employeeCheckbox: {
+    width: 30,
+    alignItems: 'center',
+  },
+  employeeSr: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#666',
+    width: 30,
     textAlign: 'center',
   },
-  nameColumn: {
-    flex: 1,
+  employeeInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 16,
-    gap: 8,
+    width: 180,
+    marginLeft: 8,
   },
-  avatarContainer: {
-    width: 32,
-    height: 32,
-  },
-  avatar: {
+  employeeAvatar: {
     width: 32,
     height: 32,
     borderRadius: 16,
-  },
-  avatarPlaceholder: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#FF6B35',
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 8,
   },
   avatarText: {
+    color: 'white',
     fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
+    fontWeight: 'bold',
   },
   employeeName: {
     fontSize: 14,
+    color: '#333',
     fontWeight: '500',
-    color: '#1F2937',
-  },
-  emailColumn: {
     flex: 1,
+  },
+  employeeEmail: {
     fontSize: 12,
-    color: '#6B7280',
-    marginLeft: 16,
+    color: '#666',
+    width: 150,
+    textAlign: 'center',
   },
-  positionColumn: {
-    flex: 1,
+  employeePosition: {
     fontSize: 12,
-    color: '#6B7280',
-    marginLeft: 16,
+    color: '#666',
+    width: 120,
+    textAlign: 'center',
   },
-  contactColumn: {
-    flex: 1,
+  employeeContact: {
     fontSize: 12,
-    color: '#6B7280',
-    marginLeft: 16,
+    color: '#666',
+    width: 120,
+    textAlign: 'center',
   },
-  joiningDateColumn: {
-    flex: 1,
+  employeeDate: {
     fontSize: 12,
-    color: '#6B7280',
-    marginLeft: 16,
+    color: '#666',
+    width: 120,
+    textAlign: 'center',
   },
-  genderColumn: {
-    flex: 1,
+  employeeGender: {
     fontSize: 12,
-    color: '#6B7280',
-    marginLeft: 16,
-  },
-  checkbox: {
-    width: 16,
-    height: 16,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 3,
-  },
-  emptyState: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  emptyStateText: {
-    fontSize: 16,
-    color: '#6B7280',
+    color: '#666',
+    width: 100,
+    textAlign: 'center',
   },
 });
 

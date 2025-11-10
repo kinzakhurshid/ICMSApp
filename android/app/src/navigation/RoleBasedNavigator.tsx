@@ -16,6 +16,7 @@ const RoleBasedNavigator: React.FC = () => {
   // Check user roles
   const isPM = (displayUser as any)?.role === 'PM' || (displayUser as any)?.role === 'pm';
   const isHR = (displayUser as any)?.role === 'HR' || (displayUser as any)?.role === 'hr';
+  const isOrgAdmin = ['ORG_ADMIN','OrgAdmin','org_admin','Org Admin','ORGADMIN','orgadmin','ORG'].includes(((displayUser as any)?.role || '').toString());
 
   console.log('🔍 RoleBasedNavigator - displayUser:', displayUser);
   console.log('🔍 RoleBasedNavigator - isPM:', isPM, 'isHR:', isHR);
@@ -23,8 +24,8 @@ const RoleBasedNavigator: React.FC = () => {
   if (isPM) {
     console.log('🔍 Using PMNavigator');
     return <PMNavigator />;
-  } else if (isHR) {
-    console.log('🔍 Using DrawerNavigator for HR');
+  } else if (isHR || isOrgAdmin) {
+    console.log('🔍 Using DrawerNavigator for HR/OrgAdmin');
     return <DrawerNavigator />;
   } else {
     console.log('🔍 Using EmployeeNavigator');

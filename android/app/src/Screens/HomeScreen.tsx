@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import PMDashboardScreen from './PMDashboardScreen';
 import HRDashboardScreen from './HRDashboardScreen';
+import OrgAdminDashboardScreen from './OrgAdminDashboardScreen';
 import EmployeeDashboard from './EmployeeDashboard';
 
 const HomeScreen: React.FC = () => {
@@ -20,12 +21,15 @@ const HomeScreen: React.FC = () => {
   
   const isPM = (displayUser as any)?.role === 'PM' || (displayUser as any)?.role === 'pm';
   const isHR = (displayUser as any)?.role === 'HR' || (displayUser as any)?.role === 'hr';
+  const isOrgAdmin = ['ORG_ADMIN','OrgAdmin','org_admin','Org Admin','ORGADMIN','orgadmin','ORG'].includes(((displayUser as any)?.role || '').toString());
 
 
   if (isHR) {
     return <HRDashboardScreen key={refreshKey} />;
   } else if (isPM) {
     return <PMDashboardScreen key={refreshKey} navigation={navigation} />;
+  } else if (isOrgAdmin) {
+    return <OrgAdminDashboardScreen key={refreshKey} />;
   } else {
     return <EmployeeDashboard key={refreshKey} />;
   }
