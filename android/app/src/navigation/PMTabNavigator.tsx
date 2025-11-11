@@ -10,10 +10,12 @@ import ProjectDetailScreen from '../Screens/ProjectDetailScreen';
 import TaskScreen from '../Screens/TasksScreen';
 import CallScreen from '../Screens/CallScreen';
 import AppHeader from '../components/AppHeader';
+import RequestLeaveScreen from '../Screens/RequestLeaveScreen';
 
 // Define parameter lists
 export type HomeStackParamList = {
   HomeMain: undefined;
+  RequestLeave: { redirectTo?: string } | undefined;
 };
 
 export type ProjectStackParamList = {
@@ -54,6 +56,12 @@ const HomeStackNavigator = () => (
     <HomeStack.Screen
       name="HomeMain"
       component={HomeScreen}
+      options={{ headerShown: false }}
+    />
+    <HomeStack.Screen
+      name="RequestLeave"
+      component={RequestLeaveScreen}
+      initialParams={{ redirectTo: 'HomeMain' }}
       options={{ headerShown: false }}
     />
   </HomeStack.Navigator>

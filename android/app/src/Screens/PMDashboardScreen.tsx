@@ -324,6 +324,15 @@ const cards: CardData[] = [
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.topActions}>
+        <TouchableOpacity
+          style={styles.requestLeaveButton}
+          onPress={() => navigation.navigate('RequestLeave', { redirectTo: 'HomeMain' })}
+        >
+          <Ionicons name="exit-outline" size={18} color="#fff" />
+          <Text style={styles.requestLeaveText}>Request Leave</Text>
+        </TouchableOpacity>
+      </View>
       {/* Cards */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Overview</Text>
@@ -647,6 +656,32 @@ const cards: CardData[] = [
 
 const styles = StyleSheet.create({
 container: { flex: 1, backgroundColor: '#F9F9F9' },
+  topActions: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 4,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  requestLeaveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FB923C',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 12,
+    shadowColor: '#00000020',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  requestLeaveText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9F9F9' },
   sectionTitle: { fontSize: 18, fontWeight: '700', color: '#333' }, 
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 15, marginTop: 15 },
