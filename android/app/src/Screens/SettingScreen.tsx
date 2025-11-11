@@ -1,8 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { DrawerParamList } from '../navigation/types';
+import { useDispatch } from 'react-redux';
+import { logout } from '../states/userSlice';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type SettingsScreenNavigationProp = DrawerNavigationProp<DrawerParamList, 'AppSettings'>;
 
@@ -11,9 +14,43 @@ interface SettingsScreenProps {
 }
 
 const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
+  const dispatch = useDispatch();
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = React.useState(false);
   const [biometricEnabled, setBiometricEnabled] = React.useState(false);
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Clear AsyncStorage
+              await AsyncStorage.clear();
+              // Dispatch logout action
+              dispatch(logout());
+              // Navigate to login screen or reset navigation stack
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'MainTabs' }],
+              });
+            } catch (error) {
+              console.error('Error during logout:', error);
+              Alert.alert('Error', 'Failed to logout. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -93,7 +130,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.logoutButton}>
+      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Text style={styles.logoutButtonText}>Logout</Text>
       </TouchableOpacity>
     </ScrollView>

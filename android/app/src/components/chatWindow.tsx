@@ -1,47 +1,97 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
-  Text,
   FlatList,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
-  Modal,
   Alert,
+  ActivityIndicator,
+  Text,
   TouchableOpacity,
+  Modal,
+  Keyboard,
 } from 'react-native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import { Chat, Message, User } from '../types/chattypes';
-import MessageBubble from './MessageBubbles';
-import MessageInput from './MessageInput';
-import PinnedMessages from './PinedMessages';
+import { useNavigation } from '@react-navigation/native';
+
+// Utility functions from website
+const getDateGroupKey = (date: Date): string => {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  const messageDate = new Date(date);
+  const messageDateStr = messageDate.toDateString();
+  const todayStr = today.toDateString();
+  const yesterdayStr = yesterday.toDateString();
+  
+  if (messageDateStr === todayStr) {
+    return 'Today';
+  } else if (messageDateStr === yesterdayStr) {
+    return 'Yesterday';
+  } else {
+    return messageDate.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  }
+};
+
+const getOrderedDateGroups = (groupedMessages: { [key: string]: Message[] }): string[] => {
+  const groups = Object.keys(groupedMessages);
+  return groups.sort((a, b) => {
+    if (a === 'Today') return -1;
+    if (b === 'Today') return 1;
+    if (a === 'Yesterday') return -1;
+    if (b === 'Yesterday') return 1;
+    return new Date(a).getTime() - new Date(b).getTime();
+  });
+};
+import { Chat, Message, User, MessageSearchResult, ChatState, MentionSuggestion } from '../types/chattypes';
+import { 
+  getChatMessages, 
+  sendMessage, 
+  editMessage, 
+  deleteMessage,
+  getPinnedMessages,
+  searchMessages,
+  getChatMembers,
+  addReaction,
+  removeReaction,
+  pinMessage,
+  unpinMessage
+} from '../Services/api';
 import { useSocket } from '../Context/SocketContext';
-import useSocketEvents from '../hooks/useSocketEvent';
-import useAxios from '../hooks/useAxios';
+import { useSelector } from 'react-redux';
+import { RootState } from '../states/store';
 import {
-  CHAT_JOINED,
-  CHAT_LEAVED,
-  DELETE_MESSAGE,
   NEW_MESSAGE,
   NEW_MESSAGE_ALERT,
   NEW_REACTION,
-  ONLINE_USERS,
+  ADD_REACTION,
+  REMOVE_REACTION,
+  PIN_MESSAGE,
+  UNPIN_MESSAGE,
+  DELETE_MESSAGE,
+  UPDATE_MESSAGE,
   START_TYPING,
   STOP_TYPING,
-  UPDATE_MESSAGE,
-  CALL_INVITE,
-  CALL_ACCEPTED,
-  CALL_REJECTED,
-  CALL_ENDED,
-  CALL_ICE_CANDIDATE,
-  CALL_OFFER,
-  CALL_ANSWER,
+  ONLINE_USERS,
+  REFETCH_CHAT_DETAILS,
 } from '../constants/events';
-import CallScreen from './CallScreen';
-import { callManager } from './callManager';
-import webRTCManager from './WebRTCManeger';
-import { requestAndroidPermissions } from '../constants/androidPermissions';
+
+// Import components
+import ChatHeaderNew from './ChatHeaderNew';
+import MessageBubble from './MessageBubble';
+import MessageInput from './MessageInput';
+import PinnedMessages from './PinnedMessages';
+import PinnedMessagesHeader from './PinnedMessagesHeader';
+import PinnedMessagesScreen from './PinnedMessagesScreen';
+import TypingIndicator from './TypingIndicator';
+import MessageSearch from './MessageSearch';
+import ChatSearch from './ChatSearch';
 
 interface ChatWindowProps {
   chat: Chat;
@@ -50,910 +100,793 @@ interface ChatWindowProps {
   onBack: () => void;
 }
 
-interface ChatMessagesResponse {
-  messages: Message[];
-  groupedMessages: { [key: string]: Message[] };
-  page: number;
-  totalPages: number;
-  totalMessages: number;
-}
-
 const ChatWindow: React.FC<ChatWindowProps> = ({
   chat,
   currentUser,
   onMarkAsRead,
   onBack,
 }) => {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [messagesLoading, setMessagesLoading] = useState<boolean>(true);
-  const [newMessage, setNewMessage] = useState("");
-  const [showPinnedMessages, setShowPinnedMessages] = useState(false);
-  const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
-  const [IamTyping, setIamTyping] = useState(false);
-  const [userTyping, setUserTyping] = useState(false);
-  const [attachments, setAttachments] = useState<any[]>([]);
-  const [showCallScreen, setShowCallScreen] = useState(false);
-  const [currentCall, setCurrentCall] = useState<any>(null);
-  const [isAudioMuted, setIsAudioMuted] = useState(false);
-  const [isVideoDisabled, setIsVideoDisabled] = useState(false);
-  const [isIncomingCall, setIsIncomingCall] = useState(false);
+  const navigation = useNavigation();
+  const [chatState, setChatState] = useState<ChatState>({
+    messages: [],
+    groupedMessages: {},
+    dateGroups: [],
+    pinnedMessages: [],
+    onlineUsers: [],
+    typingUsers: [],
+    searchResults: null,
+    isSearching: false,
+    isLoadingMessages: true,
+    isLoadingPinned: false,
+  });
   
-  const typingTimeout = useRef<NodeJS.Timeout | null>(null);
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [showPinnedMessages, setShowPinnedMessages] = useState(false);
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [members, setMembers] = useState<User[]>([]);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [showSearch, setShowSearch] = useState(false);
+  
   const flatListRef = useRef<FlatList>(null);
-  const currentCallIdRef = useRef<string | null>(null);
-
-  const members = chat.members;
-  const isGroupChat = chat.isGroup || chat.members.length > 1;
   const { socket } = useSocket();
-  const { callApi } = useAxios();
-
-  // Get the actual user object
+  const token = useSelector((state: RootState) => state.user.token);
   const actualUser = currentUser.currentUser;
 
-  // Initialize call manager with socket
+  // Load initial data
   useEffect(() => {
-    if (actualUser && socket) {
-      callManager.initialize(actualUser);
-      callManager.setSocket(socket);
-    }
-  }, [actualUser, socket]);
+    loadInitialData();
+  }, [chat._id]);
 
-  // Update call manager when current user changes
+  // Keyboard event listeners
   useEffect(() => {
-    if (actualUser) {
-      callManager.setCurrentUser(actualUser);
-    }
-  }, [actualUser]);
-
-  // Cleanup WebRTC on unmount
-  useEffect(() => {
-    return () => {
-      webRTCManager.close();
-      webRTCManager.removeAllListeners();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (chat.unreadCount && chat.unreadCount > 0) {
-      onMarkAsRead();
-    }
-  }, [chat._id, onMarkAsRead]);
-
-  useEffect(() => {
-    const getChatDetails = async () => {
-      setMessagesLoading(true);
-      try {
-        const response: ChatMessagesResponse = await callApi({
-          method: "GET",
-          url: `/chats/getChatMessages/${chat._id}`,
-        });
-
-        const sortedMessages = (response.messages || []).map(msg => ({
-          ...msg,
-          id: msg._id
-        })).sort(
-          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        );
-
-        setMessages(sortedMessages);
-      } catch (error) {
-        console.error("Error fetching messages:", error);
-        setMessages([]);
-      } finally {
-        setMessagesLoading(false);
-      }
-    };
-    getChatDetails();
-  }, [chat]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  useEffect(() => {
-    socket?.emit(CHAT_JOINED, {
-      userId: actualUser._id,
-      members,
-      chatId: chat._id,
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
     });
 
     return () => {
-      setMessages([]);
-      socket?.emit(CHAT_LEAVED, {
-        userId: actualUser._id,
-        members,
-        chatId: chat._id,
-      });
-    };
-  }, [chat]);
-
-  // FIXED: Enhanced getOtherMember function
-  const getOtherMember = useCallback(() => {
-    console.log('=== getOtherMember Debug ===');
-    console.log('Chat members:', JSON.stringify(chat.members, null, 2));
-    console.log('Current user ID:', actualUser._id);
-    console.log('Chat is group:', chat.isGroup);
-    
-    if (chat.isGroup) {
-      console.log('❌ Chat is group, returning null');
-      return null;
-    }
-    
-    if (!chat.members || chat.members.length === 0) {
-      console.log('❌ No members found');
-      return null;
-    }
-
-    const processedMembers = chat.members.map(member => {
-      console.log('Processing member:', member);
-      
-      if (typeof member === 'string') {
-        return { _id: member, name: 'Unknown User', profilePic: '' };
-      }
-      
-      const memberId = member.id;
-      if (!memberId) {
-        console.log('⚠️ Member has no ID:', member);
-        return null;
-      }
-      
-      return {
-        _id: memberId,
-        name: member.name || 'Unknown User',
-        profilePic: member.profilePic || member.avatar || '',
-      };
-    }).filter(member => member !== null);
-
-    console.log('Processed members:', processedMembers);
-
-    if (processedMembers.length === 0) {
-      console.log('❌ No valid members found after processing');
-      return null;
-    }
-
-    const otherMember = processedMembers.find(member => 
-      member._id !== actualUser._id
-    );
-
-    console.log('Found other member:', otherMember);
-
-    if (!otherMember) {
-      if (processedMembers.length === 1) {
-        console.log('⚠️ Only one member found, using that member');
-        return processedMembers[0];
-      }
-      console.log('❌ No other member found after processing');
-      return null;
-    }
-
-    console.log('✅ Returning other member with ID:', otherMember._id);
-    return otherMember;
-  }, [chat.members, chat.isGroup, actualUser._id]);
-
-  const otherMember = getOtherMember();
-  
-  // FIXED: Enhanced online users processing
-  const processOnlineUsers = useCallback((data: any): string[] => {
-    console.log('Processing online users data:', data);
-    
-    let onlineUserIds: string[] = [];
-    
-    if (Array.isArray(data)) {
-      onlineUserIds = data
-        .filter(userId => userId !== null && userId !== undefined)
-        .map(userId => String(userId).trim())
-        .filter(userId => userId.length > 0);
-    } else if (typeof data === 'object' && data !== null) {
-      onlineUserIds = Object.values(data)
-        .filter(userId => userId !== null && userId !== undefined)
-        .map(userId => String(userId).trim())
-        .filter(userId => userId.length > 0);
-    } else if (typeof data === 'string') {
-      onlineUserIds = [data.trim()].filter(userId => userId.length > 0);
-    }
-    
-    console.log('Processed online users IDs:', onlineUserIds);
-    return onlineUserIds;
-  }, []);
-
-  // FIXED: Enhanced online users listener
-  const onlineUsersListener = useCallback((data: any) => {
-    console.log('Raw online users data received:', data);
-    
-    const processedUsers = processOnlineUsers(data);
-    console.log('Setting online users:', processedUsers);
-    setOnlineUsers(processedUsers);
-  }, [processOnlineUsers]);
-
-  // FIXED: Check if other user is online
-  const isOtherUserOnline = useCallback(() => {
-    if (!otherMember || !otherMember._id) {
-      console.log('❌ Cannot check online status: no other member or ID');
-      return false;
-    }
-
-    const otherMemberId = String(otherMember._id).trim();
-    const isOnline = onlineUsers.some(userId => 
-      String(userId).trim() === otherMemberId
-    );
-
-    console.log('Online status check:', {
-      otherMemberId,
-      onlineUsers,
-      isOnline
-    });
-
-    return isOnline;
-  }, [otherMember, onlineUsers]);
-
-  // MODIFIED: Show call buttons even when user is offline
-  const shouldShowCallButtons = useCallback(() => {
-    console.log('=== MODIFIED: Call buttons for offline calling ===');
-    
-    if (chat.isGroup) {
-      console.log('❌ Call buttons hidden: Chat is group');
-      return false;
-    }
-
-    if (showCallScreen || isIncomingCall) {
-      console.log('❌ Call buttons hidden: Active call in progress');
-      return false;
-    }
-
-    if (!otherMember || !otherMember._id) {
-      console.log('❌ Call buttons hidden: No valid other member');
-      return false;
-    }
-
-    const showButtons = true;
-    
-    console.log('Call buttons visibility check:', {
-      isGroup: chat.isGroup,
-      showCallScreen,
-      isIncomingCall,
-      isOtherUserOnline: isOtherUserOnline(),
-      hasOtherMember: !!otherMember,
-      showCallButtons: showButtons
-    });
-
-    return showButtons;
-  }, [chat.isGroup, showCallScreen, isIncomingCall, otherMember, isOtherUserOnline]);
-
-  // FIXED: WebRTC helper functions with better error handling
-  const startWebRTCConnection = async (isCaller: boolean, callType: 'voice' | 'video') => {
-    try {
-      console.log('🔄 Starting WebRTC connection:', { isCaller, callType });
-      
-      const initialized = await webRTCManager.initialize(callType);
-      if (!initialized) {
-        throw new Error('Failed to initialize WebRTC');
-      }
-
-      const currentCallId = currentCallIdRef.current;
-      if (!currentCallId) {
-        throw new Error('No active call ID');
-      }
-
-      // Set up WebRTC event listeners
-      webRTCManager.on('iceCandidate', (candidate: any) => {
-        if (!currentCallIdRef.current || currentCallIdRef.current !== currentCallId) {
-          console.log('❌ Call ended, not sending ICE candidate');
-          return;
-        }
-        
-        console.log('Sending ICE candidate for call:', currentCallId);
-        socket?.emit(CALL_ICE_CANDIDATE, {
-          callId: currentCallId,
-          candidate,
-        });
-      });
-
-      webRTCManager.on('remoteStream', (stream: any) => {
-        console.log('✅ Remote stream received');
-      });
-
-      webRTCManager.on('localStream', (stream: any) => {
-        console.log('✅ Local stream ready');
-      });
-
-      webRTCManager.on('connectionStateChange', (state: string) => {
-        console.log('🔌 WebRTC connection state:', state);
-      });
-
-      webRTCManager.on('iceConnectionStateChange', (state: string) => {
-        console.log('❄️ WebRTC ICE connection state:', state);
-      });
-
-      if (isCaller) {
-        console.log('🎥 Getting local media for call type:', callType);
-        await webRTCManager.getLocalMedia(callType === 'video');
-        
-        console.log('📤 Creating offer...');
-        const offer = await webRTCManager.createOffer();
-        
-        if (!currentCallIdRef.current || currentCallIdRef.current !== currentCallId) {
-          console.log('❌ Call ended before offer could be sent');
-          return;
-        }
-        
-        console.log('✅ Sending offer via socket');
-        socket?.emit(CALL_OFFER, {
-          callId: currentCallId,
-          offer,
-        });
-      }
-      
-      console.log('✅ WebRTC connection started successfully');
-    } catch (error) {
-      console.error('❌ Failed to start WebRTC connection:', error);
-      Alert.alert('Error', 'Failed to start call connection. Please try again.');
-    }
-  };
-
-  const handleIncomingOffer = async (offer: any) => {
-    try {
-      console.log('📥 Handling incoming offer');
-      await webRTCManager.setRemoteDescription(offer);
-      const answer = await webRTCManager.createAnswer();
-      
-      if (!currentCallIdRef.current) {
-        console.log('❌ Call ended before answer could be sent');
-        return;
-      }
-      
-      console.log('✅ Sending answer via socket');
-      socket?.emit(CALL_ANSWER, {
-        callId: currentCallIdRef.current,
-        answer,
-      });
-    } catch (error) {
-      console.error('❌ Failed to handle call offer:', error);
-    }
-  };
-
-  const handleIncomingAnswer = async (answer: any) => {
-    try {
-      console.log('📥 Handling incoming answer');
-      await webRTCManager.setRemoteDescription(answer);
-      console.log('✅ Remote description set successfully');
-    } catch (error) {
-      console.error('❌ Failed to handle call answer:', error);
-    }
-  };
-
-  // MODIFIED: Call functions with offline support
-  const startCall = async (callType: 'voice' | 'video') => {
-    console.log('Starting call:', callType);
-        if (Platform.OS === 'android') {
-        const hasPermissions = await requestAndroidPermissions();
-        if (!hasPermissions) {
-            Alert.alert(
-                'Permissions Required',
-                'Camera and microphone permissions are required for calls.',
-                [{ text: 'OK' }]
-            );
-            return;
-        }
-    }
-    if (!otherMember) {
-      Alert.alert('Error', 'Cannot start call: No valid receiver found');
-      return;
-    }
-
-    // MODIFIED: Show warning but allow calling offline users
-    if (!isOtherUserOnline()) {
-      Alert.alert(
-        'User Offline', 
-        'The user is currently offline. They will receive the call notification when they come online.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Call Anyway', onPress: () => proceedWithCall(callType) }
-        ]
-      );
-      return;
-    }
-
-    await proceedWithCall(callType);
-  };
-
-  // New helper function to proceed with call
-  const proceedWithCall = async (callType: 'voice' | 'video') => {
-    try {
-      console.log('📞 Proceeding with call type:', callType);
-      const callData = await callManager.startCall(otherMember, callType);
-      if (callData) {
-        setCurrentCall(callData);
-        currentCallIdRef.current = callData.callId;
-        setShowCallScreen(true);
-        setIsIncomingCall(false);
-        
-        // Initialize WebRTC for the caller with delay
-        setTimeout(() => {
-          startWebRTCConnection(true, callType);
-        }, 500);
-      }
-    } catch (error) {
-      console.error('❌ Failed to start call:', error);
-      Alert.alert('Error', 'Failed to start call. Please try again.');
-    }
-  };
-
-  const acceptCall = () => {
-    console.log('✅ Accepting call');
-    callManager.acceptCall();
-    setShowCallScreen(true);
-    setIsIncomingCall(false);
-    
-    // Initialize WebRTC for the receiver
-    setTimeout(() => {
-      if (currentCall) {
-        startWebRTCConnection(false, currentCall.type);
-      }
-    }, 500);
-  };
-
-  const rejectCall = () => {
-    console.log('❌ Rejecting call');
-    callManager.rejectCall();
-    setIsIncomingCall(false);
-    setCurrentCall(null);
-    currentCallIdRef.current = null;
-    webRTCManager.close();
-  };
-
-  const endCall = () => {
-    console.log('📵 Ending call');
-    
-    // Close WebRTC connection first
-    webRTCManager.close();
-    
-    // Then end the call through call manager
-    callManager.endCall();
-    
-    // Finally update UI state
-    setShowCallScreen(false);
-    setCurrentCall(null);
-    currentCallIdRef.current = null;
-    setIsIncomingCall(false);
-  };
-
-  const toggleAudio = () => {
-    const muted = !isAudioMuted;
-    setIsAudioMuted(muted);
-    webRTCManager.toggleAudio(!muted);
-    console.log('🎙️ Audio toggled:', muted ? 'MUTED' : 'UNMUTED');
-  };
-
-  const toggleVideo = () => {
-    const disabled = !isVideoDisabled;
-    setIsVideoDisabled(disabled);
-    webRTCManager.toggleVideo(!disabled);
-    console.log('📹 Video toggled:', disabled ? 'DISABLED' : 'ENABLED');
-  };
-
-  const switchCamera = () => {
-    webRTCManager.switchCamera();
-    console.log('📸 Switching camera');
-  };
-
-  // Call event listeners
-  useEffect(() => {
-    const handleCallStarted = (callData: any) => {
-      console.log('📞 Call started:', callData);
-      setCurrentCall(callData);
-      currentCallIdRef.current = callData.callId;
-      setShowCallScreen(true);
-      setIsIncomingCall(false);
-    };
-
-    const handleIncomingCall = (callData: any) => {
-      console.log('📞 Incoming call:', callData);
-      setCurrentCall(callData);
-      currentCallIdRef.current = callData.callId;
-      setIsIncomingCall(true);
-    };
-
-    const handleCallAccepted = (callData: any) => {
-      console.log('✅ Call accepted:', callData);
-      setCurrentCall(callData);
-      currentCallIdRef.current = callData.callId;
-      setShowCallScreen(true);
-      setIsIncomingCall(false);
-    };
-
-    const handleCallEnded = () => {
-      console.log('📵 Call ended');
-      setShowCallScreen(false);
-      setCurrentCall(null);
-      currentCallIdRef.current = null;
-      setIsIncomingCall(false);
-      webRTCManager.close();
-    };
-
-    const handleCallRejected = () => {
-      console.log('❌ Call rejected');
-      setShowCallScreen(false);
-      setCurrentCall(null);
-      currentCallIdRef.current = null;
-      setIsIncomingCall(false);
-      webRTCManager.close();
-    };
-
-    callManager.on('callStarted', handleCallStarted);
-    callManager.on('incomingCall', handleIncomingCall);
-    callManager.on('callAccepted', handleCallAccepted);
-    callManager.on('callEnded', handleCallEnded);
-    callManager.on('callRejected', handleCallRejected);
-
-    return () => {
-      callManager.removeAllListeners();
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
     };
   }, []);
 
-  // FIXED: WebRTC socket event listeners with null checks
+  // Socket event listeners
   useEffect(() => {
     if (!socket) return;
 
-    const handleCallIceCandidate = (data: any) => {
-      if (!currentCallIdRef.current) {
-        console.log('❌ Cannot send ICE candidate: No active call');
-        return;
-      }
+    const handleNewMessage = (data: any) => {
+      if (data.chatId !== chat._id) return;
       
-      if (currentCallIdRef.current === data.callId) {
-        console.log('📨 Received ICE candidate for call:', data.callId);
-        webRTCManager.addIceCandidate(data.candidate);
+      const newMessage = {
+        ...data.message,
+        id: data.message._id
+      };
+      
+      setChatState(prev => ({
+        ...prev,
+        messages: [...prev.messages, newMessage]
+      }));
+      
+      // Scroll to bottom
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+
+
+      // Note: NEW_MESSAGE_ALERT should be emitted by the backend when a message is sent
+      // This frontend code just receives and displays the message
+    };
+
+    const handleNewReaction = (data: any) => {
+      if (data.chatId !== chat._id) return;
+      
+      setChatState(prev => ({
+        ...prev,
+        messages: prev.messages.map(msg =>
+          msg._id === data.messageId
+            ? { ...msg, reactions: data.reactions }
+            : msg
+        )
+      }));
+    };
+
+    const handleMessageUpdate = (data: any) => {
+      if (data.chatId !== chat._id) return;
+      
+      setChatState(prev => ({
+        ...prev,
+        messages: prev.messages.map(msg =>
+          msg._id === data.messageId
+            ? { ...msg, ...data.message }
+            : msg
+        )
+      }));
+    };
+
+    const handleMessageDelete = (data: any) => {
+      if (data.chatId !== chat._id) return;
+      
+      setChatState(prev => ({
+        ...prev,
+        messages: prev.messages.filter(msg => msg._id !== data.messageId)
+      }));
+    };
+
+    const handlePinMessage = (data: any) => {
+      if (data.chatId !== chat._id) return;
+      
+      setChatState(prev => ({
+        ...prev,
+        messages: prev.messages.map(msg =>
+          msg._id === data.messageId
+            ? { ...msg, pinned: true, isPinned: true }
+            : msg
+        )
+      }));
+      
+      loadPinnedMessages();
+    };
+
+    const handleUnpinMessage = (data: any) => {
+      if (data.chatId !== chat._id) return;
+      
+      setChatState(prev => ({
+        ...prev,
+        messages: prev.messages.map(msg =>
+          msg._id === data.messageId
+            ? { ...msg, pinned: false, isPinned: false }
+            : msg
+        ),
+        pinnedMessages: prev.pinnedMessages.filter(msg => msg._id !== data.messageId)
+      }));
+    };
+
+    const handleOnlineUsers = (data: any) => {
+      setChatState(prev => ({
+        ...prev,
+        onlineUsers: Array.isArray(data) ? data : Object.values(data)
+      }));
+    };
+
+    const handleTyping = (data: any) => {
+      if (data.chatId !== chat._id) return;
+      
+      setChatState(prev => ({
+        ...prev,
+        typingUsers: data.isTyping 
+          ? [...prev.typingUsers.filter(id => id !== data.userId), data.userId]
+          : prev.typingUsers.filter(id => id !== data.userId)
+      }));
+    };
+
+    const handleRefetchChatDetails = (data: any) => {
+      if (data.chatId === chat._id) {
+        loadPinnedMessages();
+        loadMembers();
       }
     };
 
-    const handleCallOffer = async (data: any) => {
-      if (!currentCallIdRef.current) {
-        console.log('❌ Cannot handle offer: No active call');
-        return;
-      }
+    const handleAddReaction = (data: any) => {
+      if (data.chatId !== chat._id) return;
       
-      if (currentCallIdRef.current === data.callId) {
-        await handleIncomingOffer(data.offer);
-      }
+      setChatState(prev => ({
+        ...prev,
+        messages: prev.messages.map(msg =>
+          msg._id === data.messageId
+            ? {
+                ...msg,
+                reactions: [
+                  ...msg.reactions.filter(r => !(r.user._id === data.userId && r.emoji === data.emoji)),
+                  { user: data.user, emoji: data.emoji, _id: `react_${Date.now()}` }
+                ]
+              }
+            : msg
+        )
+      }));
     };
 
-    const handleCallAnswer = async (data: any) => {
-      if (!currentCallIdRef.current) {
-        console.log('❌ Cannot handle answer: No active call');
-        return;
-      }
+    const handleRemoveReaction = (data: any) => {
+      if (data.chatId !== chat._id) return;
       
-      if (currentCallIdRef.current === data.callId) {
-        await handleIncomingAnswer(data.answer);
-      }
+      setChatState(prev => ({
+        ...prev,
+        messages: prev.messages.map(msg =>
+          msg._id === data.messageId
+            ? {
+                ...msg,
+                reactions: msg.reactions.filter(r => !(r.user._id === data.userId && r.emoji === data.emoji))
+              }
+            : msg
+        )
+      }));
     };
 
-    socket.on(CALL_ICE_CANDIDATE, handleCallIceCandidate);
-    socket.on(CALL_OFFER, handleCallOffer);
-    socket.on(CALL_ANSWER, handleCallAnswer);
+    // Register event listeners
+    socket.on(NEW_MESSAGE, handleNewMessage);
+    socket.on(NEW_REACTION, handleNewReaction);
+    socket.on(UPDATE_MESSAGE, handleMessageUpdate);
+    socket.on(DELETE_MESSAGE, handleMessageDelete);
+    socket.on(PIN_MESSAGE, handlePinMessage);
+    socket.on(UNPIN_MESSAGE, handleUnpinMessage);
+    socket.on(ONLINE_USERS, handleOnlineUsers);
+    socket.on(START_TYPING, handleTyping);
+    socket.on(STOP_TYPING, handleTyping);
+    socket.on(REFETCH_CHAT_DETAILS, handleRefetchChatDetails);
+    socket.on('ADD_REACTION', handleAddReaction);
+    socket.on('REMOVE_REACTION', handleRemoveReaction);
 
     return () => {
-      socket.off(CALL_ICE_CANDIDATE, handleCallIceCandidate);
-      socket.off(CALL_OFFER, handleCallOffer);
-      socket.off(CALL_ANSWER, handleCallAnswer);
+      socket.off(NEW_MESSAGE, handleNewMessage);
+      socket.off(NEW_REACTION, handleNewReaction);
+      socket.off(UPDATE_MESSAGE, handleMessageUpdate);
+      socket.off(DELETE_MESSAGE, handleMessageDelete);
+      socket.off(PIN_MESSAGE, handlePinMessage);
+      socket.off(UNPIN_MESSAGE, handleUnpinMessage);
+      socket.off(ONLINE_USERS, handleOnlineUsers);
+      socket.off(START_TYPING, handleTyping);
+      socket.off(STOP_TYPING, handleTyping);
+      socket.off(REFETCH_CHAT_DETAILS, handleRefetchChatDetails);
+      socket.off('ADD_REACTION', handleAddReaction);
+      socket.off('REMOVE_REACTION', handleRemoveReaction);
     };
-  }, [socket]);
+  }, [socket, chat._id]);
+
+  const loadInitialData = async () => {
+    await Promise.all([
+      loadMessages(),
+      loadPinnedMessages(),
+      loadMembers(),
+    ]);
+  };
+
+  const loadMessages = async () => {
+    if (!token) return;
+    
+    setChatState(prev => ({ ...prev, isLoadingMessages: true }));
+    
+    try {
+      const response = await getChatMessages(chat._id, 1, 50, token);
+      
+      const messages = response.messages || response || [];
+      const sortedMessages = Array.isArray(messages) ? messages
+        .map(msg => ({ 
+          ...msg, 
+          id: msg._id,
+          createdAt: new Date(msg.createdAt),
+          updatedAt: new Date(msg.updatedAt)
+        }))
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) : [];
+      
+      
+      setChatState(prev => ({
+        ...prev,
+        messages: sortedMessages,
+        isLoadingMessages: false
+      }));
+    } catch (error) {
+      // If API is not available, start with empty messages
+      setChatState(prev => ({
+        ...prev,
+        messages: [],
+        isLoadingMessages: false
+      }));
+    }
+  };
+
+  const loadPinnedMessages = async () => {
+    if (!token) return;
+    
+    setChatState(prev => ({ ...prev, isLoadingPinned: true }));
+    
+    try {
+      const response = await getPinnedMessages(chat._id, token);
+      
+      // Handle different response formats
+      const pinnedMessages = response.pinnedMessages || response.messages || response || [];
+      
+      setChatState(prev => ({
+        ...prev,
+        pinnedMessages: Array.isArray(pinnedMessages) ? pinnedMessages : [],
+        isLoadingPinned: false
+      }));
+    } catch (error) {
+      setChatState(prev => ({
+        ...prev,
+        pinnedMessages: [],
+        isLoadingPinned: false
+      }));
+    }
+  };
+
+  const loadMembers = async () => {
+    
+    if (!token) {
+      return;
+    }
+    
+    try {
+      const response = await getChatMembers(chat._id, token);
+      
+      // Filter out undefined/null members and ensure they have required properties
+      const memberUsers = (response.members || [])
+        .map((m: any) => m?.user || m)
+        .filter((user: any) => user && user._id && user.name)
+        .map((user: any) => ({
+          _id: user._id || user.id,
+          name: user.name || user.fullName || '',
+          email: user.email || '',
+          profilePic: user.profilePic || user.avatar || '',
+          avatar: user.profilePic || user.avatar || ''
+        }));
+      
+      setMembers(memberUsers);
+    } catch (error) {
+      
+      // Fallback to chat members from props - convert to User format
+      const memberUsers = (chat.members || [])
+        .filter((m: any) => m && (m.user || m._id))
+        .map((m: any) => {
+          const user = m.user || m;
+          return {
+            _id: user._id || user.id || '',
+            name: user.name || user.fullName || '',
+            email: user.email || '',
+            profilePic: user.profilePic || user.avatar || '',
+            avatar: user.profilePic || user.avatar || ''
+          };
+        })
+        .filter((user: any) => user._id && user.name);
+      
+      setMembers(memberUsers);
+    }
+  };
+
+  const handleSendMessage = async (content: string, attachments?: any[], replyToId?: string, mentions?: string[]) => {
+    if (!token || (!content.trim() && !attachments?.length)) return;
+    
+    try {
+      // Create message object exactly like website
+      const message: Message = {
+        messageId: `msg${Date.now()}`,
+        content: content.trim(),
+        sender: {
+          _id: actualUser._id || "",
+          name: actualUser.name || "",
+          email: actualUser.email || "",
+          avatar: actualUser.profilePic || "",
+          profilePic: actualUser.profilePic || "",
+        },
+        chat: chat._id,
+        readBy: [],
+        deletedFor: [],
+        reactions: [],
+        type: attachments && attachments.length > 0 ? "attachment" : "text",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        attachments: attachments || [],
+        _id: `msg${Date.now()}`,
+        replyTo: replyToId,
+        mentions: mentions?.map(id => {
+          const mentionedUser = members.find(m => m._id === id);
+          return mentionedUser ? { _id: mentionedUser._id, name: mentionedUser.name } : undefined;
+        }).filter(Boolean) as MentionSuggestion[] || [],
+      };
+
+      // If replying, find the full replyToMessage object
+      if (replyToId) {
+        const repliedMessage = chatState.messages.find(msg => msg._id === replyToId);
+        if (repliedMessage) {
+          message.replyToMessage = repliedMessage;
+        }
+      }
+
+      // Add to local state immediately (like website)
+      setChatState(prev => ({
+        ...prev,
+        messages: [...prev.messages, message]
+      }));
+
+      // Update grouped messages (like website)
+      const groupKey = getDateGroupKey(new Date());
+      setChatState(prev => {
+        const newGroups = { ...prev.groupedMessages };
+        if (!newGroups[groupKey]) {
+          newGroups[groupKey] = [];
+        }
+        newGroups[groupKey].push(message);
+        return {
+          ...prev,
+          groupedMessages: newGroups
+        };
+      });
+
+      // Update date groups (like website)
+      setChatState(prev => {
+        if (!prev.dateGroups.includes(groupKey)) {
+          const newOrderedGroups = getOrderedDateGroups({
+            ...prev.groupedMessages,
+            [groupKey]: [message],
+          });
+          return {
+            ...prev,
+            dateGroups: newOrderedGroups.reverse()
+          };
+        }
+        return prev;
+      });
+
+      // Emit socket event exactly like website
+      socket?.emit(NEW_MESSAGE, {
+        chatId: chat._id,
+        members: chat.members,
+        message,
+        messageId: message.messageId,
+      });
+      
+      // Clear reply
+      setReplyTo(null);
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      Alert.alert('Error', 'Failed to send message');
+    }
+  };
+
+  const handleEditMessage = async (message: Message, newContent: string) => {
+    if (!token || !newContent.trim()) return;
+    
+    try {
+      await editMessage(message._id, newContent.trim(), token);
+      
+      // Emit socket event
+      socket?.emit(UPDATE_MESSAGE, {
+        chatId: chat._id,
+        messageId: message._id,
+        message: { content: newContent.trim() }
+      });
+      
+      setEditingMessage(null);
+    } catch (error) {
+      console.error('Failed to edit message:', error);
+      Alert.alert('Error', 'Failed to edit message');
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!token) return;
+    
+    // Remove from local state immediately
+    setChatState(prev => ({
+      ...prev,
+      messages: prev.messages.filter(msg => msg._id !== messageId),
+    }));
+    
+    try {
+      await deleteMessage(messageId, token);
+      
+      // Emit socket event
+      socket?.emit(DELETE_MESSAGE, {
+        chatId: chat._id,
+        messageId
+      });
+    } catch (error) {
+      console.error('Failed to delete message:', error);
+      
+      // Check if message was already deleted
+      if (error.message?.includes('Resource not found') || 
+          error.message?.includes('Message not found') ||
+          error.message?.includes('Message not found or deleted')) {
+        // Message was already removed from local state, so this is fine
+      } else {
+        Alert.alert('Error', 'Failed to delete message');
+      }
+    }
+  };
+
+  const handleReaction = async (messageId: string, emoji: string) => {
+    if (!token) return;
+    
+    try {
+      const message = chatState.messages.find(m => m._id === messageId);
+      const existingReaction = message?.reactions.find(
+        r => r.user._id === actualUser._id && r.emoji === emoji
+      );
+      
+      if (existingReaction) {
+        await removeReaction(messageId, emoji, token);
+      } else {
+        await addReaction(messageId, emoji, token);
+      }
+      
+      // Emit socket event
+      socket?.emit(existingReaction ? REMOVE_REACTION : ADD_REACTION, {
+        messageId,
+        chatId: chat._id,
+        emoji,
+        userId: actualUser._id
+      });
+    } catch (error) {
+      console.error('Failed to handle reaction:', error);
+      Alert.alert('Error', 'Failed to update reaction');
+    }
+  };
+
+  const handlePinMessage = async (messageId: string) => {
+    if (!token) return;
+    
+    try {
+      await pinMessage(messageId, token);
+      
+      // Emit socket event
+      socket?.emit(PIN_MESSAGE, {
+        messageId,
+        chatId: chat._id
+      });
+      
+      loadPinnedMessages();
+    } catch (error) {
+      console.error('Failed to pin message:', error);
+      Alert.alert('Error', 'Failed to pin message');
+    }
+  };
+
+  const handleUnpinMessage = async (messageId: string) => {
+    if (!token) return;
+    
+    try {
+      await unpinMessage(messageId, token);
+      
+      // Emit socket event
+      socket?.emit(UNPIN_MESSAGE, {
+        messageId,
+        chatId: chat._id
+      });
+    } catch (error) {
+      console.error('Failed to unpin message:', error);
+      Alert.alert('Error', 'Failed to unpin message');
+    }
+  };
+
+  const handleSearch = async (query: string) => {
+    if (!token || !query.trim()) {
+      setChatState(prev => ({ ...prev, searchResults: null, isSearching: false }));
+        return;
+      }
+      
+    setChatState(prev => ({ ...prev, isSearching: true }));
+    
+    try {
+      const results = await searchMessages(chat._id, query, 1, 20, token);
+      setChatState(prev => ({ ...prev, searchResults: results, isSearching: false }));
+    } catch (error) {
+      console.error('Search failed:', error);
+      setChatState(prev => ({ ...prev, isSearching: false }));
+      Alert.alert('Error', 'Failed to search messages');
+    }
+  };
+
+  const handleClearSearch = () => {
+    setChatState(prev => ({ ...prev, searchResults: null, isSearching: false }));
+  };
+
+  const handleSearchMessage = (message: Message) => {
+    // Find the message in the current messages and scroll to it
+    const messageIndex = chatState.messages.findIndex(msg => msg._id === message._id);
+    if (messageIndex !== -1 && flatListRef.current) {
+      flatListRef.current.scrollToIndex({ index: messageIndex, animated: true });
+    }
+    setShowSearch(false);
+  };
+
+  // Get other member for call functionality
+  const getOtherMember = useCallback(() => {
+    if (chat.isGroup) return null;
+    if (!chat.members || chat.members.length === 0) return null;
+
+    const processedMembers = chat.members.map(member => {
+      if (typeof member === 'string') {
+        return { _id: member, name: 'Unknown User', avatar: '' };
+      }
+
+      const memberId = member.id || member.user?.id;
+      if (!memberId) return null;
+
+      return {
+        _id: memberId,
+        name: member.name || member.user?.name || 'Unknown User',
+        avatar: member.profilePic || member.user?.profilePic || '',
+      };
+    }).filter(member => member !== null);
+
+    if (processedMembers.length === 0) return null;
+
+    const otherMember = processedMembers.find(member => member._id !== actualUser._id);
+    return otherMember || processedMembers[0];
+  }, [chat.members, chat.isGroup, actualUser._id]);
+
+  const handleStartVoiceCall = () => {
+    const otherMember = getOtherMember();
+    if (otherMember) {
+      // Navigate using the parent navigation (InboxStack)
+      (navigation as any).navigate('CallScreen', {
+        userName: otherMember.name,
+        userAvatar: otherMember.avatar,
+        isVideoCall: false,
+        isIncoming: false,
+      });
+    }
+  };
+
+  const handleStartVideoCall = () => {
+    const otherMember = getOtherMember();
+    if (otherMember) {
+      // Navigate using the parent navigation (InboxStack)
+      (navigation as any).navigate('CallScreen', {
+        userName: otherMember.name,
+        userAvatar: otherMember.avatar,
+        isVideoCall: true,
+        isIncoming: false,
+      });
+    }
+  };
+
+  const handleSearchPress = () => {
+    setShowSearch(true);
+  };
+
+  const handleReply = (message: Message) => {
+    setReplyTo(message);
+  };
+
+  const handleCancelReply = () => {
+    setReplyTo(null);
+  };
+
+  const handleEdit = (message: Message) => {
+    setEditingMessage(message);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessage(null);
+  };
+
+  const handleTyping = (isTyping: boolean) => {
+    if (isTyping) {
+      socket?.emit(START_TYPING, { chatId: chat._id });
+        } else {
+      socket?.emit(STOP_TYPING, { chatId: chat._id });
+    }
+  };
 
   const scrollToBottom = () => {
-    if (messages.length > 0) {
+    if (flatListRef.current) {
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
   };
 
-  const handleMessageChange = (value: string) => {
-    setNewMessage(value);
-
-    if (!IamTyping) {
-      socket?.emit(START_TYPING, { members, chatId: chat._id });
-      setIamTyping(true);
-    }
-
-    if (typingTimeout.current) clearTimeout(typingTimeout.current);
-
-    typingTimeout.current = setTimeout(() => {
-      socket?.emit(STOP_TYPING, { members, chatId: chat._id });
-      setIamTyping(false);
-    }, 2000);
-  };
-
-  const handleSendMessage = (text: string, messageAttachments?: any[], voiceMessages?: any[]) => {
-    if (!text.trim() && (!messageAttachments || messageAttachments.length === 0) && (!voiceMessages || voiceMessages.length === 0)) return;
-
-    const message: Message = {
-      _id: `msg${Date.now()}`,
-      messageId: `msg${Date.now()}`,
-      content: text,
-      sender: {
-        _id: actualUser._id,
-        name: actualUser.name,
-        email: actualUser.email,
-        avatar: actualUser?.profilePic || "",
-        profilePic: actualUser?.profilePic || "",
-      },
-      chat: chat._id,
-      readBy: [],
-      deletedFor: [],
-      reactions: [],
-      type: messageAttachments && messageAttachments.length > 0 ? "attachment" : "text",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      attachments: messageAttachments || [],
-    };
-
-    setMessages((prev) => [...prev, message]);
-    setAttachments([]);
-
-    socket?.emit(NEW_MESSAGE, {
-      chatId: chat._id,
-      members,
-      message,
-      messageId: message.messageId,
-    });
-    setNewMessage("");
-  };
-
-  const handleAttachmentsUpload = (uploadedAttachments: any[]) => {
-    setAttachments(uploadedAttachments);
-  };
-
-  const newMessagesListener = useCallback(
-    (data: any) => {
-      if (data.chatId !== chat._id) return;
-
-      const newMessage = {
-        ...data.message,
-        id: data.message._id
-      };
-
-      setMessages((prev) => {
-        const newMessages = [...prev];
-        const insertIndex = newMessages.findIndex(
-          (msg) => new Date(msg.createdAt) > new Date(newMessage.createdAt)
-        );
-
-        if (insertIndex === -1) {
-          return [...prev, newMessage];
-        } else {
-          newMessages.splice(insertIndex, 0, newMessage);
-          return newMessages;
-        }
-      });
-    },
-    [chat._id]
-  );
-
-  const reactionListener = useCallback(
-    (data: any) => {
-      if (data.chatId !== chat._id) return;
-
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.messageId === data.message.messageId
-            ? { ...msg, reactions: data.message.reactions }
-            : msg
-        )
-      );
-    },
-    [chat._id]
-  );
-
-  const deleteMessageAlertListener = useCallback(
-    (data: any) => {
-      if (data.chatId !== chat._id) return;
-      setMessages((prev) => prev.filter((msg) => msg._id !== data.messageId));
-    },
-    [chat._id]
-  );
-
-  const updateMessageAlertListener = useCallback(
-    (data: any) => {
-      if (data.chatId !== chat._id) return;
-
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg._id === data.messageId ? { ...msg, ...data.message } : msg
-        )
-      );
-    },
-    [chat._id]
-  );
-
-  const startTypingListener = useCallback(
-    (data: any) => {
-      if (data.chatId !== chat._id) return;
-      setUserTyping(true);
-    },
-    [chat._id]
-  );
-
-  const stopTypingListener = useCallback(
-    (data: any) => {
-      if (data.chatId !== chat._id) return;
-      setUserTyping(false);
-    },
-    [chat._id]
-  );
-
-  const eventHandler = {
-    [NEW_MESSAGE]: newMessagesListener,
-    [ONLINE_USERS]: onlineUsersListener,
-    [NEW_REACTION]: reactionListener,
-    [NEW_MESSAGE_ALERT]: () => {},
-    [DELETE_MESSAGE]: deleteMessageAlertListener,
-    [UPDATE_MESSAGE]: updateMessageAlertListener,
-    [START_TYPING]: startTypingListener,
-    [STOP_TYPING]: stopTypingListener,
-  };
-
-  useSocketEvents(socket, eventHandler);
-
-  const renderItem = ({ item }: { item: Message }) => {
-    return (
+  const renderMessage = ({ item }: { item: Message }) => (
       <MessageBubble
         message={item}
         isCurrentUser={item.sender._id === actualUser._id}
         currentUser={actualUser}
-        typing={userTyping}
-        isGroupChat={isGroupChat}
-      />
-    );
-  };
-
-  const MessageSkeleton = ({ isCurrentUser }: { isCurrentUser: boolean }) => (
-    <View
-      style={[
-        styles.messageSkeletonContainer,
-        isCurrentUser ? styles.currentUserSkeleton : styles.otherUserSkeleton,
-      ]}
-    >
-      {!isCurrentUser && (
-        <View style={styles.skeletonAvatar} />
-      )}
-      <View style={styles.skeletonContent}>
-        <View style={styles.skeletonBubble} />
-        <View style={styles.skeletonTimestamp} />
-      </View>
-      {isCurrentUser && (
-        <View style={styles.skeletonAvatar} />
-      )}
-    </View>
+      onReply={handleReply}
+      onEdit={handleEdit}
+      onDelete={handleDeleteMessage}
+      onPin={handlePinMessage}
+      onUnpin={handleUnpinMessage}
+    />
   );
 
-  if (messagesLoading) {
+  const renderTypingIndicator = () => {
+    // Convert typing user IDs to User objects
+    const typingUsers = chatState.typingUsers.map(userId => 
+      members.find(member => member._id === userId) || 
+      { _id: userId, name: 'Someone', email: '', avatar: '' }
+    ).filter(Boolean) as User[];
+    
+    return <TypingIndicator users={typingUsers} />;
+  };
+
+  if (chatState.isLoadingMessages) {
     return (
-      <View style={styles.container}>
-        <View style={styles.headerSkeleton}>
-          <View style={styles.headerAvatarSkeleton} />
-          <View style={styles.headerTextSkeleton}>
-            <View style={styles.headerNameSkeleton} />
-            <View style={styles.headerStatusSkeleton} />
-        </View>
-        </View>
-
-        <FlatList
-          data={[...Array(8)]}
-          keyExtractor={(_, index) => index.toString()}
-          renderItem={({ index }) => (
-            <MessageSkeleton isCurrentUser={index % 3 === 0} />
-          )}
-          contentContainerStyle={styles.messagesContainer}
-        />
-
-        <View style={styles.inputSkeleton}>
-          <View style={styles.inputFieldSkeleton} />
-        </View>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Loading messages...</Text>
       </View>
     );
   }
-
-  const showCallButtons = shouldShowCallButtons();
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 20}
+      enabled={true}
     >
-      <ChatHeader
+      <ChatHeaderNew
         chat={chat}
-        onlineUsers={onlineUsers}
         currentUser={actualUser}
-        onTogglePinned={() => setShowPinnedMessages(!showPinnedMessages)}
+        onlineUsers={chatState.onlineUsers}
         onBack={onBack}
-        onStartVoiceCall={() => startCall('voice')}
-        onStartVideoCall={() => startCall('video')}
-        isInCall={showCallScreen || isIncomingCall}
-        showCallButtons={showCallButtons}
+        onTogglePinned={() => setShowPinnedMessages(true)}
+        onSearch={handleSearchPress}
+        onStartVoiceCall={handleStartVoiceCall}
+        onStartVideoCall={handleStartVideoCall}
+        showCallButtons={true}
+        pinnedMessagesCount={chatState.pinnedMessages.length}
       />
-
-      {/* Incoming Call Alert */}
-      {isIncomingCall && currentCall && (
-        <View style={styles.incomingCallContainer}>
-          <View style={styles.incomingCallContent}>
-            <Text style={styles.incomingCallText}>
-              Incoming {currentCall.type} call from {currentCall.caller.name}
-            </Text>
-            <View style={styles.incomingCallButtons}>
-              <TouchableOpacity
-                style={[styles.callButton, styles.rejectButton]}
-                onPress={rejectCall}
-              >
-                <Ionicons name="close" size={24} color="white" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.callButton, styles.acceptButton]}
-                onPress={acceptCall}
-              >
-                <Ionicons name="call" size={24} color="white" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {/* Call Screen Modal */}
-      <Modal
-        visible={showCallScreen}
-        animationType="slide"
-        transparent={false}
-        statusBarTranslucent={true}
-      >
-        {currentCall && (
-          <CallScreen
-            callData={currentCall}
-            currentUser={actualUser}
-            onEndCall={endCall}
-            onToggleAudio={toggleAudio}
-            onToggleVideo={toggleVideo}
-            onSwitchCamera={switchCamera}
-            isAudioMuted={isAudioMuted}
-            isVideoDisabled={isVideoDisabled}
-          />
-        )}
-      </Modal>
-
-      {showPinnedMessages && (
-        <PinnedMessages
-          pinnedMessages={chat.pinnedMessages || []}
+      
+      {chatState.pinnedMessages.length > 0 && (
+        <PinnedMessagesHeader
+          pinnedMessages={chatState.pinnedMessages}
           onClose={() => setShowPinnedMessages(false)}
+          onMessagePress={(message) => {
+            // Scroll to message
+            const messageIndex = chatState.messages.findIndex(msg => msg._id === message._id);
+            if (messageIndex !== -1 && flatListRef.current) {
+              flatListRef.current.scrollToIndex({ index: messageIndex, animated: true });
+            }
+          }}
+            currentUser={actualUser}
         />
       )}
 
       <FlatList
         ref={flatListRef}
-        data={messages}
-        keyExtractor={(item) => item._id}
-        renderItem={renderItem}
+        data={chatState.searchResults ? chatState.searchResults.messages : chatState.messages}
+        keyExtractor={(item, index) => item._id || `message_${index}`}
+        renderItem={renderMessage}
+        style={styles.messagesList}
         contentContainerStyle={styles.messagesContainer}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="chatbubble-outline" size={64} color="#D1D5DB" />
-            <Text style={styles.emptyTitle}>No messages yet</Text>
-            <Text style={styles.emptySubtitle}>
-              Start a conversation by sending a message!
-            </Text>
-          </View>
-        }
         onContentSizeChange={scrollToBottom}
         onLayout={scrollToBottom}
+        ListFooterComponent={renderTypingIndicator}
+        showsVerticalScrollIndicator={false}
       />
 
       <MessageInput
-        value={newMessage}
-        onChangeText={handleMessageChange}
-        onSend={handleSendMessage}
-        onAttachmentsUpload={handleAttachmentsUpload}
+        onSendMessage={handleSendMessage}
+        onTyping={handleTyping}
+        replyTo={replyTo}
+        onCancelReply={handleCancelReply}
+        editingMessage={editingMessage}
+        onCancelEdit={handleCancelEdit}
         chatId={chat._id}
-        typing={userTyping}
-        style={styles.messageInput}
+        members={members}
       />
+
+      {showPinnedMessages && (
+        <PinnedMessagesScreen
+          chatId={chat._id}
+          currentUser={actualUser}
+          onClose={() => setShowPinnedMessages(false)}
+          onMessagePress={(message) => {
+            // Scroll to the message in the chat
+            const messageIndex = chatState.messages.findIndex(msg => msg._id === message._id);
+            if (messageIndex !== -1 && flatListRef.current) {
+              flatListRef.current.scrollToIndex({ index: messageIndex, animated: true });
+            }
+          }}
+          token={token || ''}
+        />
+      )}
+
+      {/* Search Modal */}
+      <Modal
+        visible={showSearch}
+        animationType="slide"
+        onRequestClose={() => setShowSearch(false)}
+      >
+        <ChatSearch
+          chatId={chat._id}
+          onClose={() => setShowSearch(false)}
+          onSelectMessage={handleSearchMessage}
+          token={token || ''}
+        />
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -963,146 +896,32 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  messagesList: {
+    flex: 1,
+  },
   messagesContainer: {
     padding: 16,
     flexGrow: 1,
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  messageSkeletonContainer: {
-    flexDirection: 'row',
-    marginBottom: 16,
-    alignItems: 'flex-end',
-  },
-  currentUserSkeleton: {
-    justifyContent: 'flex-end',
-  },
-  otherUserSkeleton: {
-    justifyContent: 'flex-start',
-  },
-  skeletonAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F3F4F6',
-    marginHorizontal: 8,
-  },
-  skeletonContent: {
-    maxWidth: '70%',
-  },
-  skeletonBubble: {
-    height: 48,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 16,
-    marginBottom: 4,
-  },
-  skeletonTimestamp: {
-    height: 12,
-    width: 64,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 4,
-  },
-  headerSkeleton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
-  },
-  headerAvatarSkeleton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-    marginRight: 12,
-  },
-  headerTextSkeleton: {
-    flex: 1,
-  },
-  headerNameSkeleton: {
-    height: 16,
-    width: 120,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 4,
-    marginBottom: 4,
-  },
-  headerStatusSkeleton: {
-    height: 12,
-    width: 80,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 4,
-  },
-  inputSkeleton: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
-  },
-  inputFieldSkeleton: {
-    height: 48,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 24,
-  },
-  messageInput: {
-    position: 'relative',
-    width: '100%',
-  },
-  incomingCallContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  incomingCallContent: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 15,
+  typingIndicator: {
+    padding: 12,
     alignItems: 'center',
   },
-  incomingCallText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  incomingCallButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-  },
-  callButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  acceptButton: {
-    backgroundColor: '#4cd964',
-  },
-  rejectButton: {
-    backgroundColor: '#ff3b30',
+  typingText: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
   },
 });
 

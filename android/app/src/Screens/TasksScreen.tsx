@@ -69,8 +69,13 @@ type TaskDetail = {
 };
 
 type StatsData = {
+  total?: number;
+  completed?: number;
   highPriority?: number;
+  overdue?: number;
+  completionRate?: number;
   priority?: {
+    high?: number;
     medium?: number;
     low?: number;
   };
@@ -78,11 +83,8 @@ type StatsData = {
     todo?: number;
     in_progress?: number;
     in_review?: number;
+    blocked?: number;
   };
-  completed?: number;
-  total?: number;
-  incomplete?: number;
-  overdue?: number;
 };
 
 // Define props for Donut component
@@ -182,6 +184,9 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
   const { callApi } = useAxios();
 
   const renderBoardView = () => {
+    console.log('Board view - allTasks:', allTasks.length, allTasks.map(t => ({ title: t.title, status: t.status })));
+    console.log('Board view - activeTab:', activeTab);
+    
     const boardColumns: BoardColumn[] = [
       { id: '1', title: 'To Do', status: 'todo', color: '#ffb020' },
       { id: '2', title: 'In Progress', status: 'in_progress', color: '#4cb3ff' },
@@ -191,7 +196,9 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
     ];
 
     const getTasksForColumn = (status: string) => {
-      return filteredTasks.filter(task => task.status === status);
+      const tasks = allTasks.filter(task => task.status === status);
+      console.log(`Board - ${status} tasks:`, tasks.length, tasks.map(t => t.title));
+      return tasks;
     };
 
     const handleTaskPress = (task: TaskDetail) => {
@@ -365,6 +372,8 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
       });
 
       console.log('API Response:', JSON.stringify(response, null, 2));
+      console.log('Tasks Data:', response?.data?.tasks);
+      console.log('Tasks Count:', response?.data?.tasks?.length);
 
       if (response?.success) {
         setAllTasks(response.data.tasks);
@@ -402,12 +411,13 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
           method: "GET",
           url: `/task/stats`,
           params: {
-            timePeriod: dateRange,
-            organizationId: currentUser?.organization
+            organizationId: currentUser?.organization,
+            timePeriod: timeFilter
           }
         });
         
         console.log('Stats API Response:', response);
+        console.log('Stats Data:', response?.data);
         
         if (response?.success) {
           setStats(response.data);
@@ -439,7 +449,7 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
   const dynamicStats: StatItem[] = [
     { id: '1', label: 'Total', value: stats?.total || 0, color: '#ff6b00' },
     { id: '2', label: 'Completed', value: stats?.completed || 0, color: '#41d16a' },
-    { id: '3', label: 'Incomplete', value: stats?.incomplete || 0, color: '#ffb020' },
+    { id: '3', label: 'High Priority', value: stats?.highPriority || 0, color: '#ffb020' },
     { id: '4', label: 'Overdue', value: stats?.overdue || 0, color: '#ff4d4f' },
   ];
 
@@ -447,7 +457,7 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
   const dynamicPieData: PieDataItem[] = [
     {
       name: 'High',
-      population: stats?.highPriority || 0,
+      population: stats?.priority?.high || 0,
       color: '#ff4d4f',
       legendFontColor: '#8E8E93',
       legendFontSize: 12,
@@ -469,8 +479,10 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
   ];
 
   // Calculate completion percentage
-  const completionPercentage = stats?.total ? (stats.completed || 0) / stats.total : 0;
-  const completionLabel = `${Math.round(completionPercentage * 100)}%`;
+  const completionPercentage = stats?.completionRate || 0;
+  // If completionRate is already a decimal (0.33), use it directly; if it's a percentage (33), divide by 100
+  const actualPercentage = completionPercentage > 1 ? completionPercentage / 100 : completionPercentage;
+  const completionLabel = `${Math.round(actualPercentage * 100)}%`;
 
   const chartConfig = useMemo(
     () => ({
@@ -755,7 +767,7 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
             <View style={styles.chartCard}>
               <Text style={styles.cardTitle}>Task Activities</Text>
               <View style={{ alignItems: 'center', paddingTop: 8, height: 180 }}>
-                <Donut progress={completionPercentage} label={completionLabel} />
+                <Donut progress={actualPercentage} label={completionLabel} />
                 <View style={[styles.legendRow, styles.compactLegendRow]}>
                   <LegendDot color="#ff4d4f" label="Over Due" />
                   <LegendDot color="#ffb020" label="Pending" />
@@ -787,13 +799,13 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
           <View style={styles.tabPills}>
             <TouchableOpacity 
               style={[styles.pill, activeTab === 'Active' && styles.pillActive]} 
-              onPress={() => handleTabChange('Active')}
+              onPress={() => setActiveTab('Active')}
             >
               <Text style={[styles.pillText, activeTab === 'Active' && styles.pillTextActive]}>Active</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.pill, activeTab === 'Completed' && styles.pillActive]} 
-              onPress={() => handleTabChange('Completed')}
+              onPress={() => setActiveTab('Completed')}
             >
               <Text style={[styles.pillText, activeTab === 'Completed' && styles.pillTextActive]}>Completed</Text>
             </TouchableOpacity>
@@ -1055,7 +1067,11 @@ const styles = StyleSheet.create({
   },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   legendDot: { width: 10, height: 10, borderRadius: 5 },
-  legendText: { fontSize: 12 },
+  legendText: { 
+    fontSize: 12,
+    color: '#1F2937',
+    fontWeight: '500'
+  },
 
   searchWrap: {
     marginTop: 12,
@@ -1281,4 +1297,5 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     marginBottom: 30,
   },
+
 });

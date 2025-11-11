@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, Dimensions } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, Dimensions, Modal, Animated } from 'react-native';
 import { Chat, Message, User, ChatWithUnread, NewMessageAlertData } from '../types/chattypes';
+import { InboxNotification } from '../Context/NotificationContext';
 import ChatList from './chatList';
 import ChatWindow from './chatWindow';
 import useChat from '../hooks/useChat';
@@ -10,8 +11,10 @@ import {
   NEW_MESSAGE_ALERT,
   NEW_NOTIFICATION_ALERT,
   UPDATE_LAST_MESSAGE,
+  NEW_MESSAGE,
 } from '../constants/events';
 import { useSocket } from '../Context/SocketContext';
+import { useNotifications } from '../Context/NotificationContext';
 import { ArrowLeft } from 'react-native-feather';
 import { Alert } from 'react-native';
 
@@ -27,9 +30,11 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ currentUser }) => {
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [chatLastMessages, setChatLastMessages] = useState<Record<string, Message>>({});
   const [chatTimestamps, setChatTimestamps] = useState<Record<string, number>>({});
+  // Notification popup is now handled globally by NotificationManager
   const { callApi } = useAxios();
   const { myChats, myChatLoading } = useChat();
   const { socket } = useSocket();
+  const { addNotification } = useNotifications();
 
   useEffect(() => {
     if (myChats.length > 0) {
@@ -65,7 +70,6 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ currentUser }) => {
   };
 
   const handleChatSelect = (chat: Chat) => {
-    Alert.alert('Parent Component', `Chat selected: ${chat._id}`);
     setUnreadCounts((prev) => ({
       ...prev,
       [chat._id]: 0,
@@ -102,26 +106,94 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ currentUser }) => {
     return chatsWithUnread.sort((a, b) => b.lastUpdated - a.lastUpdated);
   };
 
+  // Function to extract sender name from message content (same as NotificationsScreen)
+  const extractSenderNameFromMessage = (message: string): string | null => {
+    // Look for patterns like "You have a new message from [Name]"
+    const fromMatch = message.match(/from\s+([^,\n]+)/i);
+    if (fromMatch && fromMatch[1]) {
+      return fromMatch[1].trim();
+    }
+    
+    // Look for other patterns
+    const nameMatch = message.match(/(?:message|notification)\s+from\s+([^,\n]+)/i);
+    if (nameMatch && nameMatch[1]) {
+      return nameMatch[1].trim();
+    }
+    
+    return null;
+  };
+
   const newMessageAlertListener = useCallback(
-    (data: NewMessageAlertData) => {
+    (data: any) => {
+      console.log('🔍 newMessageAlertListener called with data:', data);
+      
+      // Don't increment unread count if user is currently viewing this chat
       if (selectedChat && selectedChat._id === data.chatId) {
+        console.log('🔍 User is viewing this chat, not incrementing unread count');
         return;
       }
 
+      // Update timestamp
       setChatTimestamps((prev) => ({
         ...prev,
         [data.chatId]: Date.now(),
       }));
 
+      // Increment unread count only once
       setUnreadCounts((prev) => {
         const currentCount = prev[data.chatId] || 0;
+        const newCount = currentCount + 1;
+        console.log(`🔍 Updating unread count for chat ${data.chatId}: ${currentCount} -> ${newCount}`);
         return {
           ...prev,
-          [data.chatId]: currentCount + 1,
+          [data.chatId]: newCount,
         };
       });
+
+      // Show notification popup only (notification creation is handled in handleNewMessage)
+      try {
+        console.log('🔍 Setting notification popup:', data);
+        
+        // Debug logging to understand the incoming data structure
+        console.log('🔍 ===== CHAT CONTAINER NEW MESSAGE ALERT =====');
+        console.log('🔍 Raw socket data received:', JSON.stringify(data, null, 2));
+        console.log('🔍 Data sender:', JSON.stringify(data.sender, null, 2));
+        console.log('🔍 Data message sender:', JSON.stringify(data.message?.sender, null, 2));
+        console.log('🔍 Data message:', JSON.stringify(data.message, null, 2));
+        console.log('🔍 Data metadata:', JSON.stringify(data.metadata, null, 2));
+        
+        // Convert socket data to proper notification format
+        const sender = data.sender || data.message?.sender;
+        const notificationData: InboxNotification = {
+          _id: data._id || Date.now().toString(),
+          receiver: currentUser?._id || '',
+          sender: sender || { _id: '', username: 'Unknown User', name: 'Unknown User' },
+          type: (data.type || 'message') as "message" | "reaction" | "mention" | "system" | "group_invite",
+          chat: data.chat,
+          relatedMessage: data.message,
+          title: data.title || 'New Message',
+          body: data.message?.content || data.body || 'New message',
+          metadata: {
+            ...data.metadata,
+            senderName: sender?.name || sender?.username || 'Unknown User'
+          },
+          read: false,
+          delivered: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        
+        console.log('🔍 Converted notification data:', JSON.stringify(notificationData, null, 2));
+        console.log('🔍 Final sender object:', JSON.stringify(notificationData.sender, null, 2));
+        console.log('🔍 Final metadata:', JSON.stringify(notificationData.metadata, null, 2));
+        console.log('🔍 ===== END CHAT CONTAINER NEW MESSAGE ALERT =====');
+        
+        // Notification popup is now handled globally by NotificationManager
+      } catch (error) {
+        console.error('Error showing notification:', error);
+      }
     },
-    [selectedChat]
+    [selectedChat, currentUser]
   );
 
   const updateLastMessageEventListener = useCallback((data: any) => {
@@ -132,8 +204,99 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ currentUser }) => {
     }));
   }, []);
 
+  // Handle real NEW_MESSAGE events from backend
+  const handleNewMessage = useCallback((data: any) => {
+    console.log('🔍 handleNewMessage called with data:', data);
+    
+    // If message is from another user and chat is not currently selected
+    if (data.message?.sender?._id !== currentUser._id && 
+        (!selectedChat || selectedChat._id !== data.chatId)) {
+      
+      console.log('🔍 Message is from another user and chat is not selected');
+      
+      // Update chat timestamps (unread count will be handled by newMessageAlertListener)
+      setChatTimestamps((prev) => ({
+        ...prev,
+        [data.chatId]: Date.now(),
+      }));
+
+      // Update last message
+      const newMessage = createMessage(data);
+      setChatLastMessages((prev) => ({
+        ...prev,
+        [data.chatId]: newMessage,
+      }));
+
+      // Show notification popup
+      try {
+        console.log('🔍 Setting notification popup from handleNewMessage:', data);
+        
+        // Debug logging to understand the incoming data structure
+        console.log('🔍 ===== CHAT CONTAINER HANDLE NEW MESSAGE =====');
+        console.log('🔍 Raw handleNewMessage data received:', JSON.stringify(data, null, 2));
+        console.log('🔍 Message sender:', JSON.stringify(data.message?.sender, null, 2));
+        console.log('🔍 Data sender:', JSON.stringify(data.sender, null, 2));
+        console.log('🔍 Message content:', data.message?.content);
+        console.log('🔍 Data metadata:', JSON.stringify(data.metadata, null, 2));
+        
+        // Convert socket data to proper notification format
+        const sender = data.message?.sender || data.sender;
+        const notificationData: InboxNotification = {
+          _id: data.message?._id || Date.now().toString(),
+          receiver: currentUser?._id || '',
+          sender: sender || { _id: '', username: 'Unknown User', name: 'Unknown User' },
+          type: 'message',
+          chat: data.chat,
+          relatedMessage: data.message,
+          title: 'New Message',
+          body: data.message?.content || 'New message',
+          metadata: {
+            ...data.metadata,
+            senderName: sender?.name || sender?.username || 'Unknown User'
+          },
+          read: false,
+          delivered: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        
+        console.log('🔍 Converted handleNewMessage notification data:', JSON.stringify(notificationData, null, 2));
+        console.log('🔍 Final sender object:', JSON.stringify(notificationData.sender, null, 2));
+        console.log('🔍 Final metadata:', JSON.stringify(notificationData.metadata, null, 2));
+        console.log('🔍 ===== END CHAT CONTAINER HANDLE NEW MESSAGE =====');
+        
+        // Add to notification context for the notification screen
+        const notification: InboxNotification = {
+          _id: data.message?._id || `msg_${Date.now()}`,
+          receiver: currentUser?._id || '',
+          sender: sender || { _id: '', username: 'Unknown User', name: 'Unknown User' },
+          type: 'message',
+          chat: data.chat,
+          relatedMessage: data.message,
+          title: 'New Message',
+          body: data.message?.content || 'New message',
+          metadata: {
+            ...data.metadata,
+            senderName: sender?.name || sender?.username || 'Unknown User'
+          },
+          read: false,
+          delivered: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        
+        addNotification(notification);
+        
+        // Notification popup is now handled globally by NotificationManager
+      } catch (error) {
+        console.error('Error showing notification:', error);
+      }
+    }
+  }, [currentUser, selectedChat, addNotification]);
+
+  // Socket events are now handled globally by NotificationManager
+  // Only keep the updateLastMessageEventListener for chat list updates
   const eventHandler = {
-    [NEW_NOTIFICATION_ALERT]: newMessageAlertListener,
     [UPDATE_LAST_MESSAGE]: updateLastMessageEventListener,
   };
 
@@ -161,12 +324,14 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ currentUser }) => {
         <View style={styles.chatWindowContainer}>
           <ChatWindow
             chat={selectedChat}
-            currentUser={currentUser}
+            currentUser={{ currentUser }}
             onMarkAsRead={() => markChatAsRead(selectedChat._id)}
             onBack={handleBackToList}
           />
         </View>
       )}
+
+      {/* Notification popup is now handled globally by NotificationManager */}
     </View>
   );
 };
@@ -220,6 +385,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
   },
+  // Notification popup styles removed - now handled globally by NotificationManager
 });
 
 export default ChatContainer;

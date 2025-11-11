@@ -1,100 +1,78 @@
-// navigation/MainNavigator.tsx (FIXED)
+// navigation/MainNavigator.tsx (Simplified for HR role)
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import HomeScreen from '../Screens/HomeScreen';
-import InboxWrapper from '../Screens/InboxWrapper'; // Use the wrapper
-import ProfileScreen from '../Screens/ProfileScreen';
-import SettingsScreen from '../Screens/SettingScreen';
-import RoleWebViewScreen from '../Screens/RoleWebView';
-import ProjectScreen from '../Screens/ProjectScreen';
-import TaskScreen from '../Screens/TasksScreen';
-import ProjectOverview from '../Screens/ProjectDetail';
+import InboxWrapper from '../Screens/InboxWrapper';
+import AttendanceScreen from '../Screens/AttendanceScreen';
+import HRAttendanceScreen from '../Screens/HRAttendanceScreen';
+import HiringScreen from '../Screens/HiringScreen';
+import CallScreen from '../Screens/CallScreen';
+import HRDashboardScreen from '../Screens/HRDashboardScreen';
+import OrgAdminDashboardScreen from '../Screens/OrgAdminDashboardScreen';
+import RequestLeaveScreen from '../Screens/RequestLeaveScreen';
 import AppHeader from '../components/AppHeader';
+import { useSelector } from 'react-redux';
+import { RootState } from '../states/store';
 
-// Define parameter lists
+// Define parameter lists for HR role
 export type HomeStackParamList = {
   HomeMain: undefined;
-  RoleWebView: { role: string };
-};
-
-export type ProjectStackParamList = {
-  ProjectList: undefined;
-  ProjectDetail: { projectId: string };
-  CreateProject: undefined;
-};
-
-export type TaskStackParamList = {
-  TaskList: undefined;
 };
 
 export type InboxStackParamList = {
   InboxMain: undefined;
-};
-
-export type SettingsStackParamList = {
-  SettingsMain: undefined;
-  Profile: undefined;
+  CallScreen: {
+    userName: string;
+    userAvatar: string;
+    isVideoCall?: boolean;
+    isIncoming?: boolean;
+  };
 };
 
 export type TabParamList = {
   HomeTab: undefined;
-  ProjectsTab: undefined;
-  TasksTab: undefined;
+  AttendanceTab: undefined;
+  HiringTab: undefined;
   InboxTab: undefined;
-  ProfileTab: undefined;
 };
 
 const Tab = createBottomTabNavigator<TabParamList>();
 const HomeStack = createNativeStackNavigator<HomeStackParamList>();
-const ProjectStack = createNativeStackNavigator<ProjectStackParamList>();
-const TaskStack = createNativeStackNavigator<TaskStackParamList>();
 const InboxStack = createNativeStackNavigator<InboxStackParamList>();
-const SettingsStack = createNativeStackNavigator<SettingsStackParamList>();
+export type AttendanceStackParamList = {
+  AttendanceMain: undefined;
+  RequestLeave: { redirectTo?: string } | undefined;
+};
+const AttendanceStack = createNativeStackNavigator<AttendanceStackParamList>();
 
 // Home Stack
 function HomeStackScreen() {
+  const user = useSelector((state: RootState) => state.user);
+  const currentUser = useSelector((state: RootState) => state.user.currentUser);
+  
+  // Use currentUser if available, otherwise fall back to user
+  const displayUser = currentUser || user;
+  
+  // Check if user is HR
+  const isHR = (displayUser as any)?.role === 'HR' || (displayUser as any)?.role === 'hr';
+  const isOrgAdmin = ['ORG_ADMIN','OrgAdmin','org_admin','Org Admin','ORGADMIN','orgadmin','ORG'].includes(((displayUser as any)?.role || '').toString());
+  
+  console.log('🔍 HomeStackScreen - displayUser:', displayUser);
+  console.log('🔍 HomeStackScreen - isHR:', isHR);
+
   return (
     <HomeStack.Navigator
       screenOptions={({ navigation }) => ({
         header: () => <AppHeader navigation={navigation} />,
       })}
     >
-      <HomeStack.Screen name="HomeMain" component={HomeScreen} />
       <HomeStack.Screen 
-        name="RoleWebView" 
-        component={RoleWebViewScreen}
-        options={{ headerShown: false }}
+        name="HomeMain" 
+        component={isHR ? HRDashboardScreen : isOrgAdmin ? OrgAdminDashboardScreen : HomeScreen} 
       />
     </HomeStack.Navigator>
-  );
-}
-
-// Project Stack
-function ProjectStackScreen() {
-  return (
-    <ProjectStack.Navigator
-      screenOptions={({ navigation }) => ({
-        header: () => <AppHeader navigation={navigation} />,
-      })}
-    >
-      <ProjectStack.Screen name="ProjectList" component={ProjectScreen} />
-      <ProjectStack.Screen name="ProjectDetail" component={ProjectOverview} />
-    </ProjectStack.Navigator>
-  );
-}
-
-// Task Stack
-function TaskStackScreen() {
-  return (
-    <TaskStack.Navigator
-      screenOptions={({ navigation }) => ({
-        header: () => <AppHeader navigation={navigation} />,
-      })}
-    >
-      <TaskStack.Screen name="TaskList" component={TaskScreen} />
-    </TaskStack.Navigator>
   );
 }
 
@@ -108,57 +86,67 @@ function InboxStackScreen() {
     >
       <InboxStack.Screen 
         name="InboxMain" 
-        component={InboxWrapper} // Use the wrapper instead of InboxScreen directly
-        options={{ headerShown: false }} // Hide header since InboxScreen has its own
+        component={InboxWrapper}
+        options={{ headerShown: false }}
+      />
+      <InboxStack.Screen 
+        name="CallScreen" 
+        component={CallScreen}
+        options={{ headerShown: false }}
       />
     </InboxStack.Navigator>
   );
 }
 
-// Profile Stack
-function ProfileStackScreen() {
+// Attendance Screen Wrapper - conditionally shows HR or regular attendance
+const AttendanceScreenWrapper = () => {
+  const user = useSelector((state: RootState) => state.user);
+  const currentUser = useSelector((state: RootState) => state.user.currentUser);
+  
+  // Use currentUser if available, otherwise fall back to user
+  const displayUser = currentUser || user;
+  
+  // Check if user is HR
+  const isHR = (displayUser as any)?.role === 'HR' || (displayUser as any)?.role === 'hr';
+  
+  console.log('🔍 AttendanceScreenWrapper - isHR:', isHR);
+  
+  return isHR ? <HRAttendanceScreen /> : <AttendanceScreen />;
+};
+
+// Attendance Stack
+function AttendanceStackScreen() {
   return (
-    <SettingsStack.Navigator
-      screenOptions={({ navigation }) => ({
-        header: () => <AppHeader navigation={navigation} />,
-      })}
-    >
-      <SettingsStack.Screen name="Profile" component={ProfileScreen} />
-    </SettingsStack.Navigator>
+    <AttendanceStack.Navigator screenOptions={{ headerShown: false }}>
+      <AttendanceStack.Screen name="AttendanceMain" component={AttendanceScreenWrapper} />
+      <AttendanceStack.Screen
+        name="RequestLeave"
+        component={RequestLeaveScreen}
+        initialParams={{ redirectTo: 'AttendanceMain' }}
+      />
+    </AttendanceStack.Navigator>
   );
 }
 
-// Settings Stack
-function SettingsStackScreen() {
-  return (
-    <SettingsStack.Navigator
-      screenOptions={({ navigation }) => ({
-        header: () => <AppHeader navigation={navigation} />,
-      })}
-    >
-      <SettingsStack.Screen name="SettingsMain" component={SettingsScreen} />
-    </SettingsStack.Navigator>
-  );
-}
-
-// Main Tab Navigator
+// Main Tab Navigator - Simplified for HR role only
 const MainTabNavigator: React.FC = () => {
+  console.log('🔍 MainTabNavigator component created for HR role');
+  
   return (
     <Tab.Navigator
+      initialRouteName="HomeTab"
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName = '';
 
           if (route.name === 'HomeTab') {
             iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'ProjectsTab') {
-            iconName = focused ? 'folder' : 'folder-outline';
-          } else if (route.name === 'TasksTab') {
-            iconName = focused ? 'list' : 'list-outline';
+          } else if (route.name === 'AttendanceTab') {
+            iconName = focused ? 'calendar' : 'calendar-outline';
+          } else if (route.name === 'HiringTab') {
+            iconName = focused ? 'person-add' : 'person-add-outline';
           } else if (route.name === 'InboxTab') {
             iconName = focused ? 'mail' : 'mail-outline';
-          } else if (route.name === 'ProfileTab') {
-            iconName = focused ? 'person' : 'person-outline';
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -178,14 +166,14 @@ const MainTabNavigator: React.FC = () => {
         options={{ title: 'Home' }}
       />
       <Tab.Screen 
-        name="ProjectsTab" 
-        component={ProjectStackScreen} 
-        options={{ title: 'Projects' }}
+        name="AttendanceTab" 
+        component={AttendanceStackScreen} 
+        options={{ title: 'Attendance' }}
       />
       <Tab.Screen 
-        name="TasksTab" 
-        component={TaskStackScreen} 
-        options={{ title: 'Tasks' }}
+        name="HiringTab" 
+        component={HiringScreen} 
+        options={{ title: 'Hiring' }}
       />
       <Tab.Screen 
         name="InboxTab" 

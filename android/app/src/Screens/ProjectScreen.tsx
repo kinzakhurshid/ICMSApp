@@ -13,9 +13,9 @@ import {
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
-import { PieChart } from "react-native-chart-kit";
 import { useNavigation } from "@react-navigation/native";
 import useAxios from "../hooks/useAxios";
+ 
 
 const { width } = Dimensions.get("window");
 
@@ -133,7 +133,40 @@ const Dashboard = () => {
   const [search, setSearch] = useState("");
   const [projects, setProjects] = useState<Project[]>([]);
   const [recentProjects, setRecentProjects] = useState<Project[]>([]);
+  const [weeklyProjects, setWeeklyProjects] = useState<Project[]>([]);
+  const [stats, setStats] = useState({
+    Completed: 0,
+    'In Progress': 0,
+    'Not Started': 0,
+    'On Hold': 0,
+    Cancelled: 0,
+  });
+  const [pagination, setPagination] = useState({
+    total: 0,
+    page: 1,
+    limit: 10,
+    totalPages: 1,
+  });
   const { callApi: callRealApi, loading: isLoading, error } = useAxios();
+
+  // Fetch weekly projects (same as website)
+  const fetchWeeklyProjects = async () => {
+    try {
+      const response = await callRealApi({
+        method: 'GET',
+        url: '/projects/weekly',
+      });
+
+      if (response?.success) {
+        setWeeklyProjects(prev => [...response.data.weekProjects, ...response.data.overdueProjects]);
+      } else {
+        setWeeklyProjects([]);
+      }
+    } catch (error) {
+      console.error('Error fetching weekly projects:', error);
+      setWeeklyProjects([]);
+    }
+  };
 
   // Fetch projects on mount
   useEffect(() => {
@@ -141,16 +174,44 @@ const Dashboard = () => {
       try {
         const response = await callRealApi({
           method: 'GET',
-          url: '/projects',
+          url: '/projects?page=1&limit=10&search=&status=',
         });
         
         console.log('Full API Response:', JSON.stringify(response, null, 2));
         
-        if (Array.isArray(response)) {
+        // Handle the correct API response structure (same as website)
+        if (response?.success && Array.isArray(response.data)) {
           // Process projects to ensure team members are properly formatted
-          const processedProjects = response.map(project => ({
+          const processedProjects = response.data.map(project => ({
             ...project,
             // Ensure teamMembers is always an array of proper objects
+            teamMembers: extractTeamMembers(project)
+          }));
+          
+          setProjects(processedProjects);
+          
+          // Set stats and pagination (same as website)
+          if (response.stats) {
+            setStats(response.stats);
+          }
+          
+          if (response.pagination) {
+            setPagination(response.pagination);
+          }
+          
+          // Get recent projects (last 5 created)
+          const sortedByDate = [...processedProjects].sort((a, b) => {
+            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return dateB - dateA;
+          });
+          
+          setRecentProjects(sortedByDate.slice(0, 5));
+        } else if (Array.isArray(response)) {
+          // Fallback for direct array response (old format)
+          console.log('Using fallback array format');
+          const processedProjects = response.map(project => ({
+            ...project,
             teamMembers: extractTeamMembers(project)
           }));
           
@@ -166,7 +227,7 @@ const Dashboard = () => {
           setRecentProjects(sortedByDate.slice(0, 5));
         } else {
           Alert.alert("Error", "Invalid project data received from server");
-          console.log('Invalid project data from API');
+          console.log('Invalid project data from API:', response);
         }
       } catch (error) {
         console.error('Error fetching projects from API:', error);
@@ -175,6 +236,7 @@ const Dashboard = () => {
     };
 
     fetchProjects();
+    fetchWeeklyProjects();
   }, []);
 
   const chartConfig = {
@@ -205,7 +267,7 @@ const Dashboard = () => {
 
   // Function to handle project row click
   const handleProjectClick = (project: Project) => {
-    // navigation.navigate('ProjectOverview', { project });
+    navigation.navigate('ProjectDetail', { projectId: project._id });
   };
 
   if (isLoading) {
@@ -231,129 +293,22 @@ const Dashboard = () => {
     );
   }
 
-  // Count projects by status for the chart
-  const inProgressCount = projects.filter(p => p.status === "In Progress").length;
-  const notStartedCount = projects.filter(p => p.status === "Not Started").length;
-  const completedCount = projects.filter(p => p.status === "Completed").length;
+  // Use stats from API response (same as website)
+  const inProgressCount = stats['In Progress'] || 0;
+  const notStartedCount = stats['Not Started'] || 0;
+  const completedCount = stats['Completed'] || 0;
+  const onHoldCount = stats['On Hold'] || 0;
+  const cancelledCount = stats['Cancelled'] || 0;
+
+  const totalProjects = projects.length;
+  const inProgress = projects.filter(p => p.status === 'In Progress').length;
+  const highPriority = projects.filter(p => p.priority === 'High' || p.priority === 'Critical').length;
+  const pending = projects.filter(p => p.status === 'Not Started').length;
 
   return (
     <ScrollView style={styles.container}>
       {/* Title */}
       <Text style={styles.title}>Projects</Text>
-
-      {/* Chart Section as Card with Create Button */}
-      <View style={styles.chartCard}>
-        {/* Create Button in top right corner */}
-        <View style={styles.createBtnWrapper}>
-          <TouchableOpacity 
-            style={styles.createBtn} 
-            onPress={() => navigation.navigate('CreateProject')}
-          >
-            <Text style={styles.createBtnText}>Create Project</Text>
-          </TouchableOpacity>
-        </View>
-        
-        <View style={styles.chartContainer}>
-          <PieChart
-            data={[
-              { name: "In Progress", population: inProgressCount, color: "#E08C42", legendFontColor: "#444", legendFontSize: 12 },
-              { name: "Not Started", population: notStartedCount, color: "#FF5900", legendFontColor: "#444", legendFontSize: 12 },
-              { name: "Completed", population: completedCount, color: "#FF0004", legendFontColor: "#444", legendFontSize: 12 },
-            ]}
-            width={width * 0.9}
-            height={220}
-            chartConfig={chartConfig}
-            accessor="population"
-            backgroundColor="transparent"
-            paddingLeft="0"
-            center={[0, 0]}
-            absolute
-            hasLegend={false}
-          />
-        </View>
-
-        {/* Legends */}
-        <View style={styles.legends}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: "#E08C42" }]} />
-            <Text style={styles.legendText}>In Progress</Text>
-            <Text style={styles.legendValue}>({inProgressCount})</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: "#FF5900" }]} />
-            <Text style={styles.legendText}>Not Started</Text>
-            <Text style={styles.legendValue}>({notStartedCount})</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: "#FF0004" }]} />
-            <Text style={styles.legendText}>Completed</Text>
-            <Text style={styles.legendValue}>({completedCount})</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Recent Projects with Card Background */}
-      <View style={styles.recentProjectsCard}>
-        <Text style={styles.sectionTitle}>Recent Projects</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {recentProjects.length > 0 ? (
-            recentProjects.map((project, projectIndex) => {
-              const teamMembersCount = project.teamMembers ? project.teamMembers.length : 0;
-              
-              return (
-                <View key={project._id} style={styles.projectCard}>
-                  <View style={styles.projectCardHeader}>
-                    <Text 
-                      style={styles.projectName}
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                    >
-                      {project.name}
-                    </Text>
-                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(project.status) }]}>
-                      <Text style={styles.statusText}>{project.status}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.progressBar}>
-                    <View style={[styles.progressFill, { 
-                      width: `${project.progress || (project.status === "Completed" ? 100 : project.status === "Not Started" ? 0 : 50)}%` 
-                    }]} />
-                  </View>
-                  <View style={styles.membersRow}>
-                    {teamMembersCount > 0 ? (
-                      <>
-                        {project.teamMembers.slice(0, 3).map((member, idx) => (
-                          <Image 
-                            key={member._id || idx} 
-                            source={{ uri: generateAvatarUrl((projectIndex * 3) + idx) }} 
-                            style={styles.memberPic} 
-                            onError={(e) => {
-                              e.nativeEvent.target && (e.nativeEvent.target.src = 'https://randomuser.me/api/portraits/women/44.jpg');
-                            }}
-                          />
-                        ))}
-                        {teamMembersCount > 3 && (
-                          <Text style={styles.moreMembers}>
-                            +{teamMembersCount - 3}
-                          </Text>
-                        )}
-                      </>
-                    ) : (
-                      <View style={styles.noMembersContainer}>
-                        <Text style={styles.noMembersText}>No team members</Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-              );
-            })
-          ) : (
-            <View style={styles.noProjects}>
-              <Text style={styles.noProjectsText}>No recent projects</Text>
-            </View>
-          )}
-        </ScrollView>
-      </View>
 
       {/* My Projects */}
       <View style={styles.myProjects}>
@@ -399,16 +354,20 @@ const Dashboard = () => {
                 <View style={[styles.memberList, {flex: 1}]}>
                   {teamMembersCount > 0 ? (
                     <>
-                      {p.teamMembers.slice(0, 3).map((member, idx) => (
-                        <Image 
-                          key={member._id || idx} 
-                          source={{ uri: generateAvatarUrl((index * 3) + idx) }} 
-                          style={styles.memberPic} 
-                          onError={(e) => {
-                            e.nativeEvent.target && (e.nativeEvent.target.src = 'https://randomuser.me/api/portraits/women/44.jpg');
-                          }}
-                        />
-                      ))}
+                      {p.teamMembers.slice(0, 3).map((member, idx) => {
+                        const avatarUrl = generateAvatarUrl((index * 3) + idx);
+                        return (
+                          <Image 
+                            key={member._id || idx} 
+                            source={{ uri: avatarUrl }} 
+                            style={styles.memberPic}
+                            defaultSource={{ uri: 'https://randomuser.me/api/portraits/women/44.jpg' }}
+                            onError={() => {
+                              console.log('Image load error for:', avatarUrl);
+                            }}
+                          />
+                        );
+                      })}
                       {teamMembersCount > 3 && (
                         <Text style={styles.moreMembers}>+{teamMembersCount - 3}</Text>
                       )}
@@ -464,9 +423,11 @@ const styles = StyleSheet.create({
   title: { 
     fontSize: 22, 
     fontWeight: "700", 
+    color: "#1F2937",
     paddingHorizontal: 15, 
     marginTop: 10 
   },
+  
   chartCard: {
     position: "relative",
     marginVertical: 15,
@@ -480,6 +441,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 5,
   },
+  kpiRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 15, marginTop: 10 },
   createBtnWrapper: {
     position: "absolute",
     top: 15,
@@ -526,6 +488,7 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 14,
     fontWeight: "500",
+    color: "#1F2937",
     marginRight: 5,
   },
   legendValue: {
@@ -569,6 +532,7 @@ const styles = StyleSheet.create({
   projectName: { 
     fontWeight: "600", 
     fontSize: 14, 
+    color: "#1F2937",
     flex: 1, 
     marginRight: 8,
     maxWidth: '65%',
@@ -672,7 +636,9 @@ const styles = StyleSheet.create({
   },
   tableCell: { 
     fontSize: 12,
+    color: "#1F2937",
     textAlign: "center",
+    fontWeight: "500",
   },
   memberList: { 
     flexDirection: "row",
