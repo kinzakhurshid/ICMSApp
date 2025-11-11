@@ -13,6 +13,7 @@ import {
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useSelector } from 'react-redux';
+import { useNavigation } from '@react-navigation/native';
 import useAxios from '../hooks/useAxios';
 
 interface AttendanceRecord {
@@ -28,6 +29,7 @@ interface AttendanceRecord {
 
 const AttendanceScreen: React.FC = () => {
   const { callApi } = useAxios();
+  const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
@@ -198,6 +200,13 @@ const AttendanceScreen: React.FC = () => {
           <Ionicons name="download" size={16} color="white" />
           <Text style={styles.exportButtonText}>Export</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.requestButton}
+          onPress={() => navigation.navigate('RequestLeave', { redirectTo: 'AttendanceMain' })}
+        >
+          <Ionicons name="exit-outline" size={16} color="white" />
+          <Text style={styles.exportButtonText}>Request Leave</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Date Selector */}
@@ -308,6 +317,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FF6B35',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 6,
+  },
+  requestButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FB923C',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,

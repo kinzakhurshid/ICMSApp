@@ -12,14 +12,16 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../states/store';
 import  useAxios  from '../hooks/useAxios';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Edit2, Trash2 } from 'lucide-react-native';
 import { Leave } from '../types';
+import { EmployeeLeaveStackParamList } from '../navigation/EmployeeTabNavigator';
 
 const EmployeeLeaveTable = () => {
   const { callApi } = useAxios();
   const { currentUser } = useSelector((state: RootState) => state.user);
   const employeeId = currentUser?.employee._id;
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<EmployeeLeaveStackParamList>>();
 
   const [data, setData] = useState<Leave[]>([]);
   const [loading, setLoading] = useState(false);
@@ -55,7 +57,7 @@ const EmployeeLeaveTable = () => {
   }, [employeeId]);
 
   const handleRequestLeave = () => {
-    // navigation.navigate('RequestLeave');
+    navigation.navigate('RequestLeave', { redirectTo: 'EmployeeLeaveMain' });
   };
 
   const handleEditLeave = (leave: Leave) => {

@@ -11,6 +11,7 @@ import HiringScreen from '../Screens/HiringScreen';
 import CallScreen from '../Screens/CallScreen';
 import HRDashboardScreen from '../Screens/HRDashboardScreen';
 import OrgAdminDashboardScreen from '../Screens/OrgAdminDashboardScreen';
+import RequestLeaveScreen from '../Screens/RequestLeaveScreen';
 import AppHeader from '../components/AppHeader';
 import { useSelector } from 'react-redux';
 import { RootState } from '../states/store';
@@ -40,6 +41,11 @@ export type TabParamList = {
 const Tab = createBottomTabNavigator<TabParamList>();
 const HomeStack = createNativeStackNavigator<HomeStackParamList>();
 const InboxStack = createNativeStackNavigator<InboxStackParamList>();
+export type AttendanceStackParamList = {
+  AttendanceMain: undefined;
+  RequestLeave: { redirectTo?: string } | undefined;
+};
+const AttendanceStack = createNativeStackNavigator<AttendanceStackParamList>();
 
 // Home Stack
 function HomeStackScreen() {
@@ -108,6 +114,20 @@ const AttendanceScreenWrapper = () => {
   return isHR ? <HRAttendanceScreen /> : <AttendanceScreen />;
 };
 
+// Attendance Stack
+function AttendanceStackScreen() {
+  return (
+    <AttendanceStack.Navigator screenOptions={{ headerShown: false }}>
+      <AttendanceStack.Screen name="AttendanceMain" component={AttendanceScreenWrapper} />
+      <AttendanceStack.Screen
+        name="RequestLeave"
+        component={RequestLeaveScreen}
+        initialParams={{ redirectTo: 'AttendanceMain' }}
+      />
+    </AttendanceStack.Navigator>
+  );
+}
+
 // Main Tab Navigator - Simplified for HR role only
 const MainTabNavigator: React.FC = () => {
   console.log('🔍 MainTabNavigator component created for HR role');
@@ -147,7 +167,7 @@ const MainTabNavigator: React.FC = () => {
       />
       <Tab.Screen 
         name="AttendanceTab" 
-        component={AttendanceScreenWrapper} 
+        component={AttendanceStackScreen} 
         options={{ title: 'Attendance' }}
       />
       <Tab.Screen 

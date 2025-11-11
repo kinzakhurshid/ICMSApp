@@ -12,7 +12,10 @@ import {
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useSelector } from 'react-redux';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAxios } from '../hooks/useAxios';
+import { EmployeeLeaveStackParamList } from '../navigation/EmployeeTabNavigator';
 
 interface LeaveRequest {
   _id: string;
@@ -29,6 +32,7 @@ interface LeaveRequest {
 
 const EmployeeLeavesScreen: React.FC = () => {
   const { callApi } = useAxios();
+  const navigation = useNavigation<NativeStackNavigationProp<EmployeeLeaveStackParamList>>();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
@@ -227,7 +231,10 @@ const EmployeeLeavesScreen: React.FC = () => {
             onChangeText={setSearchQuery}
           />
         </View>
-        <TouchableOpacity style={styles.addButton}>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => navigation.navigate('RequestLeave', { redirectTo: 'EmployeeLeaveMain' })}
+        >
           <Ionicons name="add" size={16} color="white" />
           <Text style={styles.addButtonText}>Apply Leave</Text>
         </TouchableOpacity>

@@ -6,6 +6,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import EmployeeDashboard from '../Screens/EmployeeDashboard';
 import EmployeeTasksScreen from '../Screens/EmployeeTasksScreen';
 import EmployeeLeavePage from '../Screens/EmployeeLeavePage';
+import RequestLeaveScreen from '../Screens/RequestLeaveScreen';
 import InboxWrapper from '../Screens/InboxWrapper';
 import CallScreen from '../Screens/CallScreen';
 import AppHeader from '../components/AppHeader';
@@ -21,6 +22,7 @@ export type EmployeeTaskStackParamList = {
 
 export type EmployeeLeaveStackParamList = {
   EmployeeLeaveMain: undefined;
+  RequestLeave: { redirectTo?: string } | undefined;
 };
 
 export type EmployeeInboxStackParamList = {
@@ -72,6 +74,11 @@ const EmployeeLeaveStackNavigator = () => (
     <EmployeeLeaveStack.Screen
       name="EmployeeLeaveMain"
       component={EmployeeLeavePage}
+      options={{ headerShown: false }}
+    />
+    <EmployeeLeaveStack.Screen
+      name="RequestLeave"
+      component={RequestLeaveScreen}
       options={{ headerShown: false }}
     />
   </EmployeeLeaveStack.Navigator>
