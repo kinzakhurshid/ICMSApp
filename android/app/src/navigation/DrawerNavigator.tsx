@@ -26,6 +26,7 @@ import OrgAdminActivitiesScreen from '../Screens/OrgAdminActivitiesScreen';
 import AttendanceScreen from '../Screens/AttendanceScreen';
 import HrIdleTimeScreen from '../Screens/HrIdleTimeScreen';
 import HrQueriesScreen from '../Screens/HrQueriesScreen';
+import FCMTokenTestScreen from '../Screens/FCMTokenTestScreen';
 
 export type DrawerParamList = {
   MainTabs: undefined;
@@ -44,6 +45,7 @@ export type DrawerParamList = {
   LeavesScreen: undefined;
   AccessoriesScreen: undefined;
   SettingsScreen: undefined;
+  FCMTokenTest: undefined;
 };
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
@@ -151,6 +153,16 @@ const DrawerNavigator: React.FC = () => {
           options={{ title: 'Developer Tools' }}
         />
       {/* )} */}
+      
+      {/* FCM Token Test Screen - For debugging FCM token generation */}
+      <Drawer.Screen
+        name="FCMTokenTest"
+        component={FCMTokenTestScreen}
+        options={{ 
+          title: '🔥 FCM Token Test',
+          headerShown: true,
+        }}
+      />
       
               <Drawer.Screen
                 name="NotificationsScreen"

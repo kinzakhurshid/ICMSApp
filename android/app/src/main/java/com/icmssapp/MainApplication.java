@@ -1,4 +1,4 @@
-package com.icmsapp;
+package com.icmssapp;
 
 import android.app.Application;
 import com.facebook.react.PackageList;

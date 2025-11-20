@@ -5,7 +5,7 @@ buildscript {
         compileSdkVersion = 34
         targetSdkVersion = 34
 
-        minSdkVersion = 21
+        minSdkVersion = 23
         ndkVersion = "25.1.8937393"
 
         // ✅ RN 0.72 works with Kotlin 1.8.x
@@ -24,6 +24,8 @@ buildscript {
         classpath("com.android.tools.build:gradle:$androidGradlePluginVersion")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+        // Add the dependency for the Google services Gradle plugin
+        classpath("com.google.gms:google-services:4.4.2")
     }
 }
 // Add this at the very bottom of your android/build.gradle file
@@ -49,7 +51,7 @@ allprojects {
             buildToolsVersion "33.0.0"
             
             defaultConfig {
-                minSdk 21
+                minSdk 23
                 targetSdk 33
             }
             

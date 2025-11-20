@@ -101,6 +101,11 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
       route: 'SettingsScreen',
     },
     { 
+      label: '🔥 FCM Token Test', 
+      icon: <MaterialIcons name="bug-report" size={22} color="#FF5722" />,
+      route: 'FCMTokenTest',
+    },
+    { 
       label: 'Resignation', 
       icon: <MaterialIcons name="person-remove" size={22} color="#FF5722" />,
       route: 'Resignation',
@@ -146,6 +151,11 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
       icon: <Ionicons name="settings-outline" size={22} color="#FF5722" />,
       route: 'AppSettings',
     },
+    { 
+      label: '🔥 FCM Token Test', 
+      icon: <MaterialIcons name="bug-report" size={22} color="#FF5722" />,
+      route: 'FCMTokenTest',
+    },
   ] : isOrgAdmin ? [
     { 
       label: 'Dashboard', 
@@ -178,6 +188,11 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
       icon: <MaterialIcons name="inbox" size={22} color="#FF5722" />, 
       route: 'OrgMainTabs',
       screen: 'InboxTab'
+    },
+    { 
+      label: '🔥 FCM Token Test', 
+      icon: <MaterialIcons name="bug-report" size={22} color="#FF5722" />,
+      route: 'FCMTokenTest',
     },
   ] : [
     // Employee menu items - using EmployeeTabNavigator tab names
@@ -219,6 +234,11 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
       label: 'Settings', 
       icon: <Ionicons name="settings-outline" size={22} color="#FF5722" />,
       route: 'AppSettings',
+    },
+    { 
+      label: '🔥 FCM Token Test', 
+      icon: <MaterialIcons name="bug-report" size={22} color="#FF5722" />,
+      route: 'FCMTokenTest',
     },
   ];
 

@@ -4,6 +4,7 @@ import { useNotifications } from '../Context/NotificationContext';
 import { useSocket } from '../Context/SocketContext';
 import NotificationPopup from './NotificationPopup';
 import NotificationService from '../Services/NotificationService';
+import FirebaseMessagingService from '../Services/FirebaseMessagingService';
 import { InboxNotification } from '../Context/NotificationContext';
 import { navigationRef } from '../Services/NavigationService';
 import { UPDATE_LAST_MESSAGE } from '../constants/events';
@@ -21,6 +22,7 @@ const NotificationManager: React.FC<NotificationManagerProps> = ({ children }) =
   const appState = useRef(AppState.currentState);
   const notificationTimeout = useRef<NodeJS.Timeout>();
   const processedNotifications = useRef<Set<string>>(new Set());
+  const fcmInitialized = useRef(false);
 
   // Deduplication function to prevent multiple notifications for same message
   const isNotificationProcessed = (notificationId: string, messageId?: string): boolean => {
@@ -43,6 +45,85 @@ const NotificationManager: React.FC<NotificationManagerProps> = ({ children }) =
     
     return false;
   };
+
+  // Initialize Firebase Cloud Messaging
+  useEffect(() => {
+    const initializeFCM = async () => {
+      if (fcmInitialized.current) return;
+      
+      try {
+        console.log('🔥 Initializing Firebase Cloud Messaging...');
+        await FirebaseMessagingService.initialize();
+        
+        // Get FCM token (with timeout to prevent hanging if SHA-1 not added)
+        try {
+          const token = await Promise.race([
+            FirebaseMessagingService.getToken(),
+            new Promise<null>((_, reject) => 
+              setTimeout(() => reject(new Error('Token generation timeout - SHA-1 fingerprint may be missing')), 15000)
+            )
+          ]);
+          
+          if (token) {
+            console.log('🔥 FCM Token obtained:', token);
+            // TODO: Send token to your backend to register device
+            // Example: await api.post('/users/fcm-token', { token });
+          } else {
+            console.warn('⚠️ FCM Token is null - check SHA-1 fingerprint in Firebase Console');
+          }
+        } catch (tokenError: any) {
+          console.warn('⚠️ Could not get FCM token during initialization:', tokenError.message);
+          console.warn('💡 This is normal if SHA-1 fingerprint is not added to Firebase Console');
+          console.warn('💡 Token will be generated when user manually requests it or when SHA-1 is added');
+          // Don't throw - initialization is still successful, just no token yet
+        }
+        
+        // Set up notification received callback
+        FirebaseMessagingService.onNotificationReceived((notification: InboxNotification) => {
+          console.log('🔥 FCM notification received:', notification);
+          
+          // Check for duplicates
+          if (isNotificationProcessed(notification._id, notification.relatedMessage?._id)) {
+            console.log('🔥 Duplicate FCM notification, skipping');
+            return;
+          }
+          
+          // Add to notification context
+          addNotification(notification);
+          
+          // Show popup if app is in foreground
+          if (appState.current === 'active') {
+            setCurrentNotification(notification);
+            setIsVisible(true);
+            NotificationService.showLocalNotification(notification);
+          }
+          
+          // Emit UPDATE_LAST_MESSAGE event
+          if (socket && notification.chat?._id) {
+            socket.emit(UPDATE_LAST_MESSAGE, {
+              chatId: notification.chat._id,
+              message: notification.relatedMessage,
+              unreadCount: 1
+            });
+          }
+        });
+        
+        // Set up token refresh callback
+        FirebaseMessagingService.onTokenRefresh((token: string) => {
+          console.log('🔥 FCM Token refreshed:', token);
+          // TODO: Update token on backend
+          // Example: await api.put('/users/fcm-token', { token });
+        });
+        
+        fcmInitialized.current = true;
+        console.log('🔥 Firebase Cloud Messaging initialized successfully');
+      } catch (error) {
+        console.error('🔥 Error initializing Firebase Cloud Messaging:', error);
+      }
+    };
+    
+    initializeFCM();
+  }, []);
 
   // Handle new notifications from socket
   useEffect(() => {

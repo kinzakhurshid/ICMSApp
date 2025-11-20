@@ -9,6 +9,7 @@ import SprintDetailScreen from '../Screens/SprintDetailScreen';
 import MeetingDashboard from '../Screens/MeetingScreen';
 import AppHeader from '../components/AppHeader';
 import NotificationsScreen from '../Screens/NotificationsScreen';
+import FCMTokenTestScreen from '../Screens/FCMTokenTestScreen';
 import Icon from 'react-native-vector-icons/FontAwesome';
 
 export type PMDrawerParamList = {
@@ -18,6 +19,7 @@ export type PMDrawerParamList = {
   Meeting: undefined;
   AppSettings: undefined;
   NotificationsScreen: undefined;
+  FCMTokenTest: undefined;
 };
 
 const Drawer = createDrawerNavigator<PMDrawerParamList>();
@@ -93,6 +95,16 @@ const PMNavigator: React.FC = () => {
           title: 'Settings',
           drawerIcon: ({ color, size }) => (
             <Icon name="settings" size={size} color={color} />
+          ),
+        }}
+      />
+      <Drawer.Screen
+        name="FCMTokenTest"
+        component={FCMTokenTestScreen}
+        options={{
+          title: '🔥 FCM Token Test',
+          drawerIcon: ({ color, size }) => (
+            <Icon name="bug" size={size} color={color} />
           ),
         }}
       />

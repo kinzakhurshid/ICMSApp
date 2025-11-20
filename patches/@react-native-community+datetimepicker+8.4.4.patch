@@ -60,104 +60,85 @@ index 0000000..68c9fab
 +eclipse.preferences.version=1
 diff --git a/node_modules/@react-native-community/datetimepicker/android/bin/build/generated/source/buildConfig/debug/com/reactcommunity/rndatetimepicker/BuildConfig.class b/node_modules/@react-native-community/datetimepicker/android/bin/build/generated/source/buildConfig/debug/com/reactcommunity/rndatetimepicker/BuildConfig.class
 new file mode 100644
-index 0000000..8ac2d80
-Binary files /dev/null and b/node_modules/@react-native-community/datetimepicker/android/bin/build/generated/source/buildConfig/debug/com/reactcommunity/rndatetimepicker/BuildConfig.class differ
+index 0000000..e69de29
 diff --git a/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/Common.class b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/Common.class
 new file mode 100644
-index 0000000..5256831
-Binary files /dev/null and b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/Common.class differ
+index 0000000..e69de29
 diff --git a/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/DatePickerModule$DatePickerDialogListener.class b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/DatePickerModule$DatePickerDialogListener.class
 new file mode 100644
-index 0000000..a83f8aa
-Binary files /dev/null and b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/DatePickerModule$DatePickerDialogListener.class differ
+index 0000000..e69de29
 diff --git a/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/DatePickerModule.class b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/DatePickerModule.class
 new file mode 100644
-index 0000000..7c806c6
-Binary files /dev/null and b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/DatePickerModule.class differ
+index 0000000..e69de29
 diff --git a/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/MinuteIntervalSnappableTimePickerDialog.class b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/MinuteIntervalSnappableTimePickerDialog.class
 new file mode 100644
-index 0000000..7597139
-Binary files /dev/null and b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/MinuteIntervalSnappableTimePickerDialog.class differ
+index 0000000..e69de29
 diff --git a/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNConstants.class b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNConstants.class
 new file mode 100644
-index 0000000..f80cd91
-Binary files /dev/null and b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNConstants.class differ
+index 0000000..e69de29
 diff --git a/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNDate.class b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNDate.class
 new file mode 100644
-index 0000000..4e40a66
-Binary files /dev/null and b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNDate.class differ
+index 0000000..e69de29
 diff --git a/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNDatePickerDialogFragment.class b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNDatePickerDialogFragment.class
 new file mode 100644
-index 0000000..37dc659
-Binary files /dev/null and b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNDatePickerDialogFragment.class differ
+index 0000000..e69de29
 diff --git a/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNDatePickerDisplay.class b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNDatePickerDisplay.class
 new file mode 100644
-index 0000000..0dc7810
-Binary files /dev/null and b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNDatePickerDisplay.class differ
+index 0000000..e69de29
 diff --git a/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNDateTimePickerPackage.class b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNDateTimePickerPackage.class
 new file mode 100644
-index 0000000..696a7fd
-Binary files /dev/null and b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNDateTimePickerPackage.class differ
+index 0000000..e69de29
 diff --git a/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNDismissableDatePickerDialog.class b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNDismissableDatePickerDialog.class
 new file mode 100644
-index 0000000..5ce920b
-Binary files /dev/null and b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNDismissableDatePickerDialog.class differ
+index 0000000..e69de29
 diff --git a/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNDismissableTimePickerDialog.class b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNDismissableTimePickerDialog.class
 new file mode 100644
-index 0000000..9393596
-Binary files /dev/null and b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNDismissableTimePickerDialog.class differ
+index 0000000..e69de29
 diff --git a/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNMaterialInputMode.class b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNMaterialInputMode.class
 new file mode 100644
-index 0000000..7ab0d19
-Binary files /dev/null and b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNMaterialInputMode.class differ
+index 0000000..e69de29
 diff --git a/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNTimePickerDialogFragment.class b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNTimePickerDialogFragment.class
 new file mode 100644
-index 0000000..a95fb49
-Binary files /dev/null and b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNTimePickerDialogFragment.class differ
+index 0000000..e69de29
 diff --git a/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNTimePickerDisplay.class b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNTimePickerDisplay.class
 new file mode 100644
-index 0000000..3cf964c
-Binary files /dev/null and b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/RNTimePickerDisplay.class differ
+index 0000000..e69de29
 diff --git a/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/ReflectionHelper.class b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/ReflectionHelper.class
 new file mode 100644
-index 0000000..0c7590c
-Binary files /dev/null and b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/ReflectionHelper.class differ
+index 0000000..e69de29
 diff --git a/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/TimePickerModule$TimePickerDialogListener.class b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/TimePickerModule$TimePickerDialogListener.class
 new file mode 100644
-index 0000000..b5b9633
-Binary files /dev/null and b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/TimePickerModule$TimePickerDialogListener.class differ
+index 0000000..e69de29
 diff --git a/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/TimePickerModule.class b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/TimePickerModule.class
 new file mode 100644
-index 0000000..8718523
-Binary files /dev/null and b/node_modules/@react-native-community/datetimepicker/android/bin/src/main/java/com/reactcommunity/rndatetimepicker/TimePickerModule.class differ
+index 0000000..e69de29
 diff --git a/node_modules/@react-native-community/datetimepicker/android/bin/src/paper/java/com/reactcommunity/rndatetimepicker/NativeModuleDatePickerSpec.class b/node_modules/@react-native-community/datetimepicker/android/bin/src/paper/java/com/reactcommunity/rndatetimepicker/NativeModuleDatePickerSpec.class
 new file mode 100644
-index 0000000..214b65e
-Binary files /dev/null and b/node_modules/@react-native-community/datetimepicker/android/bin/src/paper/java/com/reactcommunity/rndatetimepicker/NativeModuleDatePickerSpec.class differ
+index 0000000..e69de29
 diff --git a/node_modules/@react-native-community/datetimepicker/android/bin/src/paper/java/com/reactcommunity/rndatetimepicker/NativeModuleMaterialDatePickerSpec.class b/node_modules/@react-native-community/datetimepicker/android/bin/src/paper/java/com/reactcommunity/rndatetimepicker/NativeModuleMaterialDatePickerSpec.class
 new file mode 100644
-index 0000000..e67f7bd
-Binary files /dev/null and b/node_modules/@react-native-community/datetimepicker/android/bin/src/paper/java/com/reactcommunity/rndatetimepicker/NativeModuleMaterialDatePickerSpec.class differ
+index 0000000..e69de29
 diff --git a/node_modules/@react-native-community/datetimepicker/android/bin/src/paper/java/com/reactcommunity/rndatetimepicker/NativeModuleMaterialTimePickerSpec.class b/node_modules/@react-native-community/datetimepicker/android/bin/src/paper/java/com/reactcommunity/rndatetimepicker/NativeModuleMaterialTimePickerSpec.class
 new file mode 100644
-index 0000000..58e778e
-Binary files /dev/null and b/node_modules/@react-native-community/datetimepicker/android/bin/src/paper/java/com/reactcommunity/rndatetimepicker/NativeModuleMaterialTimePickerSpec.class differ
+index 0000000..e69de29
 diff --git a/node_modules/@react-native-community/datetimepicker/android/bin/src/paper/java/com/reactcommunity/rndatetimepicker/NativeModuleTimePickerSpec.class b/node_modules/@react-native-community/datetimepicker/android/bin/src/paper/java/com/reactcommunity/rndatetimepicker/NativeModuleTimePickerSpec.class
 new file mode 100644
-index 0000000..5bb2e23
-Binary files /dev/null and b/node_modules/@react-native-community/datetimepicker/android/bin/src/paper/java/com/reactcommunity/rndatetimepicker/NativeModuleTimePickerSpec.class differ
+index 0000000..e69de29
 diff --git a/node_modules/@react-native-community/datetimepicker/android/build.gradle b/node_modules/@react-native-community/datetimepicker/android/build.gradle
-index af810e8..6b8ad4d 100644
+index af810e8..f99c9ff 100644
 --- a/node_modules/@react-native-community/datetimepicker/android/build.gradle
 +++ b/node_modules/@react-native-community/datetimepicker/android/build.gradle
-@@ -45,6 +45,7 @@ android {
-         minSdkVersion getExtOrIntegerDefault('minSdkVersion')
-         targetSdkVersion getExtOrIntegerDefault('targetSdkVersion')
-         buildConfigField "boolean", "IS_NEW_ARCHITECTURE_ENABLED", isNewArchitectureEnabled().toString()
-+        buildConfig true
+@@ -41,6 +41,10 @@ android {
+         ndkVersion rootProject.ext.ndkVersion
      }
  
-     sourceSets.main {
++    buildFeatures {
++        buildConfig true
++    }
++
+     defaultConfig {
+         minSdkVersion getExtOrIntegerDefault('minSdkVersion')
+         targetSdkVersion getExtOrIntegerDefault('targetSdkVersion')
 diff --git a/node_modules/@react-native-community/datetimepicker/android/build/intermediates/aar_metadata/debug/aar-metadata.properties b/node_modules/@react-native-community/datetimepicker/android/build/intermediates/aar_metadata/debug/aar-metadata.properties
 new file mode 100644
 index 0000000..776557e

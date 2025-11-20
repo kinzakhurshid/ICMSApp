@@ -1,4 +1,4 @@
-package com.icmsapp;
+package com.icmssapp;
 
 import com.facebook.react.ReactActivity;
 import com.facebook.react.ReactActivityDelegate;
