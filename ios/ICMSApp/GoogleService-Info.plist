@@ -2,27 +2,18 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- ⚠️ IMPORTANT: Replace this file with your actual GoogleService-Info.plist from Firebase Console -->
-	<!-- Instructions: -->
-	<!-- 1. Go to Firebase Console > Project Settings > Your apps > Apple app (ICMS APP) -->
-	<!-- 2. Click 'GoogleService-Info.plist' download link -->
-	<!-- 3. Replace this file with the downloaded GoogleService-Info.plist -->
-	<key>CLIENT_ID</key>
-	<string>REPLACE_WITH_ACTUAL_CLIENT_ID</string>
-	<key>REVERSED_CLIENT_ID</key>
-	<string>REPLACE_WITH_ACTUAL_REVERSED_CLIENT_ID</string>
 	<key>API_KEY</key>
-	<string>REPLACE_WITH_ACTUAL_API_KEY</string>
+	<string>AIzaSyD3Tzi8CjjF17R5obzqnkZsSQglK_E-KZQ</string>
 	<key>GCM_SENDER_ID</key>
-	<string>762710184263</string>
+	<string>638055188024</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.icmsapp</string>
+	<string>com.icmsApp</string>
 	<key>PROJECT_ID</key>
-	<string>icms-app-29c3f</string>
+	<string>icms-app-ab31e</string>
 	<key>STORAGE_BUCKET</key>
-	<string>icms-app-29c3f.appspot.com</string>
+	<string>icms-app-ab31e.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -34,9 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:762710184263:ios:00bf81ef798a892f8dbc62</string>
+	<string>1:638055188024:ios:d30a90ba4899e073bf08cd</string>
 </dict>
 </plist>
-
-
-

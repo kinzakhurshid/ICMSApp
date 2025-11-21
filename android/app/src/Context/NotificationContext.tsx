@@ -68,6 +68,8 @@ interface NotificationContextType {
   markAllAsRead: () => Promise<void>;
   clearAllNotifications: () => Promise<void>;
   addNotification: (notification: InboxNotification) => void;
+  openChat: (chatId: string) => void;
+  chatToOpen: string | null;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -89,6 +91,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
   const [notificationsLoading, setNotificationsLoading] = useState<boolean>(false);
+  const [chatToOpen, setChatToOpen] = useState<string | null>(null);
   const { callApi } = useAxios();
   
   // Get current user from Redux store
@@ -205,6 +208,14 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     }
   };
 
+  // Function to open a chat from anywhere (notifications, etc.)
+  const openChat = (chatId: string): void => {
+    console.log('NotificationContext: openChat called with chatId:', chatId);
+    setChatToOpen(chatId);
+    // Clear after a short delay to allow ChatContainer to pick it up
+    setTimeout(() => setChatToOpen(null), 100);
+  };
+
   const contextValue: NotificationContextType = {
     notifications,
     unreadCount,
@@ -216,6 +227,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     markAllAsRead,
     clearAllNotifications,
     addNotification,
+    openChat,
+    chatToOpen,
   };
 
   return (

@@ -17,14 +17,16 @@ import { useSocket } from '../Context/SocketContext';
 import { useNotifications } from '../Context/NotificationContext';
 import { ArrowLeft } from 'react-native-feather';
 import { Alert } from 'react-native';
+import { navigationRef } from '../Services/NavigationService';
 
 interface ChatContainerProps {
   currentUser: User;
+  initialChatId?: string;
 }
 
 const { width } = Dimensions.get('window');
 
-const ChatContainer: React.FC<ChatContainerProps> = ({ currentUser }) => {
+const ChatContainer: React.FC<ChatContainerProps> = ({ currentUser, initialChatId }) => {
   const [selectedChat, setSelectedChat] = useState<ChatWithUnread | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
@@ -34,7 +36,19 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ currentUser }) => {
   const { callApi } = useAxios();
   const { myChats, myChatLoading } = useChat();
   const { socket } = useSocket();
-  const { addNotification } = useNotifications();
+  const { addNotification, chatToOpen, openChat } = useNotifications();
+  
+  // Register openChat callback globally so NotificationService can use it
+  useEffect(() => {
+    (global as any).openChatCallback = (chatId: string) => {
+      console.log('ChatContainer: openChatCallback called with:', chatId);
+      openChat(chatId);
+    };
+    
+    return () => {
+      delete (global as any).openChatCallback;
+    };
+  }, [openChat]);
 
   useEffect(() => {
     if (myChats.length > 0) {
@@ -57,6 +71,60 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ currentUser }) => {
       setChatLastMessages(initialLastMessages);
     }
   }, [myChats]);
+
+  // Open chat from initialChatId prop (from navigation params/notifications)
+  useEffect(() => {
+    if (initialChatId && myChats.length > 0 && !selectedChat) {
+      console.log('ChatContainer: Opening chat from initialChatId:', initialChatId);
+      const chatToOpen = myChats.find(chat => chat._id === initialChatId);
+      if (chatToOpen) {
+        console.log('ChatContainer: Found chat, opening:', chatToOpen._id);
+        handleChatSelect(chatToOpen);
+      } else {
+        console.log('ChatContainer: Chat not found in myChats:', initialChatId);
+      }
+    }
+  }, [initialChatId, myChats, selectedChat]);
+
+  // Open chat from NotificationContext (from notification taps)
+  useEffect(() => {
+    if (chatToOpen && myChats.length > 0) {
+      console.log('ChatContainer: Opening chat from NotificationContext:', chatToOpen);
+      const chat = myChats.find(c => c._id === chatToOpen);
+      if (chat && (!selectedChat || selectedChat._id !== chatToOpen)) {
+        console.log('ChatContainer: Found chat from context, opening:', chat._id);
+        handleChatSelect(chat);
+      } else if (!chat) {
+        console.log('ChatContainer: Chat not found in myChats:', chatToOpen);
+      }
+    }
+  }, [chatToOpen, myChats, selectedChat]);
+  
+  // Also listen to global pendingChatId (fallback)
+  useEffect(() => {
+    const checkPendingChat = () => {
+      if ((global as any).pendingChatId && myChats.length > 0) {
+        const pendingId = (global as any).pendingChatId;
+        console.log('ChatContainer: Found pendingChatId:', pendingId);
+        const chat = myChats.find(c => c._id === pendingId);
+        if (chat && (!selectedChat || selectedChat._id !== pendingId)) {
+          console.log('ChatContainer: Opening chat from pendingChatId:', chat._id);
+          handleChatSelect(chat);
+          (global as any).pendingChatId = null; // Clear after opening
+        }
+      }
+    };
+    
+    if (myChats.length > 0) {
+      checkPendingChat();
+      // Check periodically for a short time
+      const interval = setInterval(() => {
+        checkPendingChat();
+      }, 200);
+      
+      setTimeout(() => clearInterval(interval), 2000);
+    }
+  }, [myChats, selectedChat]);
 
   const markChatAsRead = async (chatId: string) => {
     try {

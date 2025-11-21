@@ -1,6 +1,5 @@
 apply plugin: "com.android.application"
 apply plugin: "com.facebook.react"
-// Add the Google services Gradle plugin
 apply plugin: "com.google.gms.google-services"
 
 react {
@@ -15,9 +14,9 @@ android {
     ndkVersion rootProject.ext.ndkVersion
     compileSdk rootProject.ext.compileSdkVersion  // Use rootProject value
 
-    namespace "com.icmssapp"
+    namespace "com.icmsApp"
     defaultConfig {
-        applicationId "com.icmssapp"
+        applicationId "com.icmsApp"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion  // Use rootProject value
         versionCode 2
@@ -122,11 +121,6 @@ dependencies {
         exclude group: 'androidx.constraintlayout', module: 'constraintlayout'
     }
     implementation "androidx.constraintlayout:constraintlayout:2.1.4"
-    
-    // Firebase dependencies
-    implementation platform("com.google.firebase:firebase-bom:33.7.0")
-    implementation "com.google.firebase:firebase-messaging"
-    implementation "com.google.firebase:firebase-analytics"
     
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

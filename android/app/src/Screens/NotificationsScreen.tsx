@@ -16,6 +16,7 @@ import { RootState } from '../states/store';
 import { ArrowLeft, Bell, Check, MoreHorizontal, Menu } from 'react-native-feather';
 import NotificationBadge from '../components/NotificationBadge';
 import { useNotifications, InboxNotification } from '../Context/NotificationContext';
+import { navigateToTab } from '../Services/NavigationService';
 
 const { width } = Dimensions.get('window');
 
@@ -53,13 +54,79 @@ const NotificationsScreen: React.FC = () => {
     setRefreshing(false);
   }, [fetchNotifications]);
 
+  const { openChat } = useNotifications();
+  
   const handleNotificationPress = async (notification: InboxNotification) => {
     if (!notification.read) {
       await markAsRead(notification._id);
     }
-    // Navigate to chat
-    if (notification.chat?._id) {
-      navigation.navigate('ChatWindow', { chatId: notification.chat._id });
+    
+    // Check if it's a message notification
+    const isMessageNotification = notification.type === 'message';
+    
+    console.log('NotificationsScreen: Notification type:', notification.type, 'isMessage:', isMessageNotification);
+    
+    // If it's a message notification, navigate to inbox
+    if (isMessageNotification) {
+      const chatId = notification.chat?._id || notification.metadata?.chatId;
+      console.log('NotificationsScreen: Message notification, navigating to inbox. chatId:', chatId);
+      
+      // Navigate to inbox tab first
+      const inboxTabNames = ['InboxTab', 'EmployeeInboxTab'];
+      let navigated = false;
+      
+      for (const tabName of inboxTabNames) {
+        try {
+          navigateToTab(tabName);
+          navigated = true;
+          console.log('NotificationsScreen: Navigated to', tabName);
+          break;
+        } catch (error) {
+          console.log('NotificationsScreen: Failed to navigate to', tabName);
+          continue;
+        }
+      }
+      
+      // If navigation failed, try direct navigation
+      if (!navigated) {
+        try {
+          (navigation as any).navigate('InboxTab');
+        } catch (error) {
+          console.error('NotificationsScreen: Navigation failed');
+        }
+      }
+      
+      // If we have a chatId, open that specific chat
+      if (chatId) {
+        setTimeout(() => {
+          console.log('NotificationsScreen: Opening chat:', chatId);
+          openChat(chatId);
+        }, 300); // Small delay to ensure navigation completes
+      }
+    } else if (notification.chat?._id) {
+      // For non-message notifications with chat, still navigate to inbox
+      const chatId = notification.chat._id;
+      console.log('NotificationsScreen: Non-message notification with chat, navigating to inbox:', chatId);
+      
+      // Navigate to inbox tab
+      const inboxTabNames = ['InboxTab', 'EmployeeInboxTab'];
+      for (const tabName of inboxTabNames) {
+        try {
+          navigateToTab(tabName);
+          break;
+        } catch (error) {
+          continue;
+        }
+      }
+      
+      // Open the chat
+      setTimeout(() => {
+        openChat(chatId);
+      }, 300);
+    } else {
+      // For other notification types, stay on notifications screen (or navigate based on link)
+      console.log('NotificationsScreen: Non-message notification, staying on notifications screen');
+      // You can add other navigation logic here if needed
     }
   };
 

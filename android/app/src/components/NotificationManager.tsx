@@ -1,12 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { AppState, AppStateStatus, TouchableOpacity, Text } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import { useNotifications } from '../Context/NotificationContext';
 import { useSocket } from '../Context/SocketContext';
-import NotificationPopup from './NotificationPopup';
 import NotificationService from '../Services/NotificationService';
-import FirebaseMessagingService from '../Services/FirebaseMessagingService';
 import { InboxNotification } from '../Context/NotificationContext';
-import { navigationRef } from '../Services/NavigationService';
 import { UPDATE_LAST_MESSAGE } from '../constants/events';
 
 interface NotificationManagerProps {
@@ -14,15 +11,11 @@ interface NotificationManagerProps {
 }
 
 const NotificationManager: React.FC<NotificationManagerProps> = ({ children }) => {
-  const [currentNotification, setCurrentNotification] = useState<InboxNotification | null>(null);
-  const [isVisible, setIsVisible] = useState(false);
   const { socket, reconnect } = useSocket();
-  const { markAsRead, addNotification, notifications } = useNotifications();
+  const { addNotification, notifications } = useNotifications();
   const { isConnected } = useSocket();
   const appState = useRef(AppState.currentState);
-  const notificationTimeout = useRef<NodeJS.Timeout>();
   const processedNotifications = useRef<Set<string>>(new Set());
-  const fcmInitialized = useRef(false);
 
   // Deduplication function to prevent multiple notifications for same message
   const isNotificationProcessed = (notificationId: string, messageId?: string): boolean => {
@@ -46,84 +39,6 @@ const NotificationManager: React.FC<NotificationManagerProps> = ({ children }) =
     return false;
   };
 
-  // Initialize Firebase Cloud Messaging
-  useEffect(() => {
-    const initializeFCM = async () => {
-      if (fcmInitialized.current) return;
-      
-      try {
-        console.log('🔥 Initializing Firebase Cloud Messaging...');
-        await FirebaseMessagingService.initialize();
-        
-        // Get FCM token (with timeout to prevent hanging if SHA-1 not added)
-        try {
-          const token = await Promise.race([
-            FirebaseMessagingService.getToken(),
-            new Promise<null>((_, reject) => 
-              setTimeout(() => reject(new Error('Token generation timeout - SHA-1 fingerprint may be missing')), 15000)
-            )
-          ]);
-          
-          if (token) {
-            console.log('🔥 FCM Token obtained:', token);
-            // TODO: Send token to your backend to register device
-            // Example: await api.post('/users/fcm-token', { token });
-          } else {
-            console.warn('⚠️ FCM Token is null - check SHA-1 fingerprint in Firebase Console');
-          }
-        } catch (tokenError: any) {
-          console.warn('⚠️ Could not get FCM token during initialization:', tokenError.message);
-          console.warn('💡 This is normal if SHA-1 fingerprint is not added to Firebase Console');
-          console.warn('💡 Token will be generated when user manually requests it or when SHA-1 is added');
-          // Don't throw - initialization is still successful, just no token yet
-        }
-        
-        // Set up notification received callback
-        FirebaseMessagingService.onNotificationReceived((notification: InboxNotification) => {
-          console.log('🔥 FCM notification received:', notification);
-          
-          // Check for duplicates
-          if (isNotificationProcessed(notification._id, notification.relatedMessage?._id)) {
-            console.log('🔥 Duplicate FCM notification, skipping');
-            return;
-          }
-          
-          // Add to notification context
-          addNotification(notification);
-          
-          // Show popup if app is in foreground
-          if (appState.current === 'active') {
-            setCurrentNotification(notification);
-            setIsVisible(true);
-            NotificationService.showLocalNotification(notification);
-          }
-          
-          // Emit UPDATE_LAST_MESSAGE event
-          if (socket && notification.chat?._id) {
-            socket.emit(UPDATE_LAST_MESSAGE, {
-              chatId: notification.chat._id,
-              message: notification.relatedMessage,
-              unreadCount: 1
-            });
-          }
-        });
-        
-        // Set up token refresh callback
-        FirebaseMessagingService.onTokenRefresh((token: string) => {
-          console.log('🔥 FCM Token refreshed:', token);
-          // TODO: Update token on backend
-          // Example: await api.put('/users/fcm-token', { token });
-        });
-        
-        fcmInitialized.current = true;
-        console.log('🔥 Firebase Cloud Messaging initialized successfully');
-      } catch (error) {
-        console.error('🔥 Error initializing Firebase Cloud Messaging:', error);
-      }
-    };
-    
-    initializeFCM();
-  }, []);
 
   // Handle new notifications from socket
   useEffect(() => {
@@ -154,21 +69,10 @@ const NotificationManager: React.FC<NotificationManagerProps> = ({ children }) =
                 return;
               }
               
-              // Clear any existing timeout
-              if (notificationTimeout.current) {
-                clearTimeout(notificationTimeout.current);
-              }
-
-              // IMMEDIATELY show notification popup
-              console.log('🔍 NotificationManager: IMMEDIATELY showing popup');
-              setCurrentNotification(notification);
-              setIsVisible(true);
-              console.log('🔍 NotificationManager: Popup state set - currentNotification:', !!notification, 'isVisible: true');
-
               // Add to notification context for the notification screen
               addNotification(notification);
               
-              // Also show system notification
+              // Show Notifee notification (replaces popup modal)
               NotificationService.showLocalNotification(notification);
               
               // Emit UPDATE_LAST_MESSAGE event to update chat list unread count
@@ -279,11 +183,10 @@ const NotificationManager: React.FC<NotificationManagerProps> = ({ children }) =
 
               console.log('🔍 NotificationManager final message notification:', JSON.stringify(notification, null, 2));
               
-              // IMMEDIATELY show popup and add to context
-              console.log('🔍 NotificationManager: IMMEDIATELY showing popup for new message');
-              setCurrentNotification(notification);
-              setIsVisible(true);
+              // Add to notification context
               addNotification(notification);
+              
+              // Show Notifee notification (replaces popup modal)
               NotificationService.showLocalNotification(notification);
               
               // Emit UPDATE_LAST_MESSAGE event to update chat list unread count
@@ -359,75 +262,7 @@ const NotificationManager: React.FC<NotificationManagerProps> = ({ children }) =
     return () => subscription?.remove();
   }, []);
 
-  // Handle notification popup actions
-  const handleNotificationAction = (action: 'reply' | 'view' | 'mark_read') => {
-    if (!currentNotification) return;
-
-    console.log('Notification action:', action, currentNotification._id);
-
-    switch (action) {
-      case 'reply':
-        // Navigate to chat with reply mode
-        navigateToChat(currentNotification.chat._id, { reply: true });
-        break;
-      case 'view':
-        // Navigate to chat
-        navigateToChat(currentNotification.chat._id);
-        break;
-      case 'mark_read':
-        // Mark notification as read
-        markAsRead(currentNotification._id);
-        break;
-    }
-
-    // Hide notification popup
-    setIsVisible(false);
-    setCurrentNotification(null);
-  };
-
-  // Handle notification dismiss
-  const handleNotificationDismiss = () => {
-    console.log('Notification dismissed');
-    setIsVisible(false);
-    setCurrentNotification(null);
-  };
-
-  // Navigate to chat using NavigationService
-  const navigateToChat = (chatId: string, options?: { reply?: boolean }) => {
-    console.log('Navigate to chat:', chatId, options);
-    
-    try {
-      // Use NavigationService to navigate to chat
-      if (navigationRef.current) {
-        navigationRef.current.navigate('InboxMain', {
-          screen: 'ChatScreen',
-          params: { 
-            chatId, 
-            replyMode: options?.reply 
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Error navigating to chat:', error);
-    }
-  };
-
-  // Auto-dismiss notification after 5 seconds
-  useEffect(() => {
-    if (isVisible && currentNotification) {
-      notificationTimeout.current = setTimeout(() => {
-        handleNotificationDismiss();
-      }, 5000);
-    }
-
-    return () => {
-      if (notificationTimeout.current) {
-        clearTimeout(notificationTimeout.current);
-      }
-    };
-  }, [isVisible, currentNotification]);
-
-  // Watch for new notifications in context and trigger popup
+  // Watch for new notifications in context and show Notifee notification
   useEffect(() => {
     try {
       if (notifications && notifications.length > 0) {
@@ -435,28 +270,15 @@ const NotificationManager: React.FC<NotificationManagerProps> = ({ children }) =
         
         // Validate notification structure
         if (!latestNotification || !latestNotification._id) {
-          console.log('🔍 Invalid notification structure, skipping');
           return;
         }
         
         // Check if this is a new unread notification that we haven't processed
         if (!latestNotification.read && !isNotificationProcessed(latestNotification._id, latestNotification.metadata?.messageId)) {
-          console.log('🔍 ===== NEW NOTIFICATION DETECTED IN CONTEXT =====');
-          console.log('🔍 Latest notification:', JSON.stringify(latestNotification, null, 2));
+          console.log('🔍 NotificationManager: New notification detected, showing Notifee notification');
           
-          // Clear any existing timeout
-          if (notificationTimeout.current) {
-            clearTimeout(notificationTimeout.current);
-          }
-
-          // Show notification popup
-          setCurrentNotification(latestNotification);
-          setIsVisible(true);
-          
-          // Also show system notification
+          // Show Notifee notification (replaces popup modal)
           NotificationService.showLocalNotification(latestNotification);
-          
-          console.log('🔍 ===== END NEW NOTIFICATION DETECTED IN CONTEXT =====');
         }
       }
     } catch (error) {
@@ -464,27 +286,10 @@ const NotificationManager: React.FC<NotificationManagerProps> = ({ children }) =
     }
   }, [notifications]);
 
-  console.log('🔍 NotificationManager render - currentNotification:', !!currentNotification, 'isVisible:', isVisible);
   console.log('🔍 NotificationManager render - notifications count:', notifications.length);
   console.log('🔍 NotificationManager render - socket connected:', isConnected);
   
-  
-  return (
-    <>
-      {children}
-      
-      
-      {/* Real notification popup - shows when messages are received */}
-      {currentNotification && (
-        <NotificationPopup
-          notification={currentNotification}
-          visible={isVisible}
-          onDismiss={handleNotificationDismiss}
-          onAction={handleNotificationAction}
-        />
-      )}
-    </>
-  );
+  return <>{children}</>;
 };
 
 // No styles needed - using real notification system

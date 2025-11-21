@@ -13,7 +13,11 @@ import ChatContainer from '../components/ChatContainer';
 import { useSocket } from '../Context/SocketContext';
 import { RootState } from '../states/store';
 
-const InboxScreen: React.FC = () => {
+interface InboxScreenProps {
+  routeParams?: any;
+}
+
+const InboxScreen: React.FC<InboxScreenProps> = ({ routeParams }) => {
   const [loading, setLoading] = useState(true);
   
   // Get user from Redux store
@@ -79,7 +83,7 @@ const InboxScreen: React.FC = () => {
 
       {/* Chat Container */}
       {currentUser && (
-        <ChatContainer currentUser={currentUser} />
+        <ChatContainer currentUser={currentUser} initialChatId={routeParams?.chatId} />
       )}
     </View>
   );

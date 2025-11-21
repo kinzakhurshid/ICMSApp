@@ -8,7 +8,6 @@ import MeetingDashboard from '../Screens/MeetingScreen';
 import AppHeader from '../components/AppHeader';
 import NotificationsScreen from '../Screens/NotificationsScreen';
 import EmployeeProfileScreen from '../Screens/EmployeeProfileScreen';
-import FCMTokenTestScreen from '../Screens/FCMTokenTestScreen';
 import Icon from 'react-native-vector-icons/FontAwesome';
 
 export type EmployeeDrawerParamList = {
@@ -17,7 +16,6 @@ export type EmployeeDrawerParamList = {
   Meeting: undefined;
   AppSettings: undefined;
   NotificationsScreen: undefined;
-  FCMTokenTest: undefined;
 };
 
 const Drawer = createDrawerNavigator<EmployeeDrawerParamList>();
@@ -85,16 +83,6 @@ const EmployeeNavigator: React.FC = () => {
           title: 'Settings',
           drawerIcon: ({ color, size }) => (
             <Icon name="settings" size={size} color={color} />
-          ),
-        }}
-      />
-      <Drawer.Screen
-        name="FCMTokenTest"
-        component={FCMTokenTestScreen}
-        options={{
-          title: '🔥 FCM Token Test',
-          drawerIcon: ({ color, size }) => (
-            <Icon name="bug" size={size} color={color} />
           ),
         }}
       />

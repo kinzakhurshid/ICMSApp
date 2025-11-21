@@ -8,15 +8,39 @@ import { SocketProvider } from './android/app/src/Context/SocketContext';
 import NotificationManager from './android/app/src/components/NotificationManager';
 import { navigationRef } from './android/app/src/Services/NavigationService';
 import { RootState } from './android/app/src/states/store';
-import FCMTokenTestScreen from './android/app/src/Screens/FCMTokenTestScreen';
-import FirebaseMessagingService from './android/app/src/Services/FirebaseMessagingService';
+import { initializeFirebase, sendTokenToBackend, getFCMToken } from './android/app/src/Services/FirebaseService';
+import NotificationService from './android/app/src/Services/NotificationService';
 
 // Wrapper component to access Redux store and provide token to SocketProvider
 const AppWithSocket: React.FC = () => {
-  const token = useSelector((state: RootState) => state.user);
+  const userState = useSelector((state: RootState) => state.user);
+  const userToken = userState.token;
+  const isLoggedIn = userState.isLoggedIn;
+  
+  // Initialize Notifee when app starts
+  useEffect(() => {
+    NotificationService.initialize();
+  }, []);
+  
+  // Send FCM token to backend when user is logged in
+  useEffect(() => {
+    const sendFCMToken = async () => {
+      // Check if user is logged in (has token)
+      if (isLoggedIn && userToken) {
+        const fcmToken = await getFCMToken();
+        
+        if (fcmToken) {
+          console.log('App: Sending FCM token to backend...');
+          await sendTokenToBackend(userToken, fcmToken);
+        }
+      }
+    };
+
+    sendFCMToken();
+  }, [isLoggedIn, userToken]);
   
   return (
-    <SocketProvider token={token}>
+    <SocketProvider token={userState}>
       <NotificationProvider>
         <NotificationManager>
           <RootNavigator />
@@ -27,32 +51,15 @@ const AppWithSocket: React.FC = () => {
 };
 
 const App = () => {
-  // TODO: Remove this temporary flag - showing FCM test screen on load for debugging
-  const SHOW_FCM_TEST_ON_LOAD = true; // Set to false to restore normal navigation
-
   useEffect(() => {
-    // Initialize FCM when app starts
-    const initFCM = async () => {
-      const token = await FirebaseMessagingService.initialize();
-      if (token) {
-        console.log('✅ FCM ready! Token:', token);
-        // Send token to your backend here
-      } else {
-        console.log('❌ FCM failed');
-      }
-    };
-
-    initFCM();
+    // Initialize Firebase when app starts
+    initializeFirebase();
   }, []);
-  
+
   return (
     <Provider store={store}>
       <NavigationContainer ref={navigationRef}>
-        {SHOW_FCM_TEST_ON_LOAD ? (
-          <FCMTokenTestScreen />
-        ) : (
-          <AppWithSocket />
-        )}
+        <AppWithSocket />
       </NavigationContainer>
     </Provider>
   );

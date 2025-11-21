@@ -1,5 +1,8 @@
-import { Platform, Alert, Linking } from 'react-native';
+import { Platform } from 'react-native';
+import notifee, { AndroidImportance, EventType, Event } from '@notifee/react-native';
 import { InboxNotification } from '../Context/NotificationContext';
+import { navigationRef } from './NavigationService';
+import { navigateToTab } from './NavigationService';
 
 export interface LocalNotification {
   id: string;
@@ -13,162 +16,319 @@ export interface LocalNotification {
 }
 
 class NotificationService {
-  private notificationQueue: LocalNotification[] = [];
-  private isShowingNotification = false;
+  private notificationChannelId: string = 'icms_notifications';
+  private isInitialized = false;
 
-  // Show a local notification popup
-  showLocalNotification = (notification: InboxNotification): void => {
-    const localNotification: LocalNotification = {
-      id: notification._id,
-      title: this.getNotificationTitle(notification),
-      body: this.getNotificationBody(notification),
-      data: {
-        notificationId: notification._id,
-        chatId: notification.chat._id,
-        senderId: notification.sender._id,
-        type: notification.type,
-      },
-      priority: 'high',
-      sound: true,
-      vibrate: true,
-    };
+  // Initialize Notifee and create notification channel
+  initialize = async (): Promise<void> => {
+    if (this.isInitialized) return;
 
-    // Add to queue
-    this.notificationQueue.push(localNotification);
-    
-    // Process queue
-    this.processNotificationQueue();
+    try {
+      // Request permission
+      await notifee.requestPermission();
+
+      if (Platform.OS === 'android') {
+        // Create a channel for Android
+        await notifee.createChannel({
+          id: this.notificationChannelId,
+          name: 'ICMS Notifications',
+          importance: AndroidImportance.HIGH,
+          sound: 'default',
+          vibration: true,
+          vibrationPattern: [300, 500],
+        });
+      }
+
+      // Set up notification event handlers
+      this.setupEventHandlers();
+
+      this.isInitialized = true;
+      console.log('NotificationService: Notifee initialized successfully');
+    } catch (error) {
+      console.error('NotificationService: Failed to initialize Notifee:', error);
+    }
   };
 
-  // Process notification queue
-  private processNotificationQueue = (): void => {
-    if (this.isShowingNotification || this.notificationQueue.length === 0) {
+  // Set up event handlers for notification interactions
+  private setupEventHandlers = (): void => {
+    // Handle notification press (when user taps notification)
+    notifee.onForegroundEvent(async ({ type, detail }: Event) => {
+      if (type === EventType.PRESS) {
+        console.log('NotificationService: Notification pressed', detail.notification);
+        this.handleNotificationPress(detail.notification?.data);
+      } else if (type === EventType.ACTION_PRESS) {
+        console.log('NotificationService: Action pressed', detail.pressAction?.id);
+        if (detail.pressAction?.id === 'open') {
+          this.handleNotificationPress(detail.notification?.data);
+        }
+      }
+    });
+
+    // Handle background notification press
+    notifee.onBackgroundEvent(async ({ type, detail }: Event) => {
+      if (type === EventType.PRESS) {
+        console.log('NotificationService: Background notification pressed', detail.notification);
+        this.handleNotificationPress(detail.notification?.data);
+      }
+    });
+  };
+
+  // Show a local notification using Notifee
+  showLocalNotification = async (notification: InboxNotification): Promise<void> => {
+    try {
+      // Initialize if not already done
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+
+      const title = this.getNotificationTitle(notification);
+      const body = this.getNotificationBody(notification);
+      const chatId = notification.chat?._id || notification.metadata?.chatId || '';
+      const notificationId = notification._id;
+
+      // Prepare notification data - ensure chatId is always included
+      const finalChatId = chatId || notification.chat?._id || notification.metadata?.chatId || '';
+      const notificationData: any = {
+        id: notificationId,
+        title,
+        body,
+        data: {
+          notificationId,
+          chatId: finalChatId,
+          senderId: notification.sender?._id || notification.metadata?.senderId,
+          type: notification.type || 'message',
+          link: notification.link || (finalChatId ? `/ChatWindow?chatId=${finalChatId}` : ''),
+          // Include nested data for easier access
+          metadata: {
+            ...notification.metadata,
+            chatId: finalChatId,
+          },
+        },
+      };
+
+      // Android-specific settings
+      if (Platform.OS === 'android') {
+        notificationData.android = {
+          channelId: this.notificationChannelId,
+          importance: AndroidImportance.HIGH,
+          pressAction: {
+            id: 'open',
+          },
+          // Use notification icon from drawable (required by Android)
+          // This is a white bell icon on transparent background
+          smallIcon: 'ic_notification',
+          largeIcon: notification.sender?.profilePic || notification.metadata?.senderAvatar,
+          sound: 'default',
+          vibrationPattern: [300, 500],
+        };
+      }
+
+      // iOS-specific settings
+      if (Platform.OS === 'ios') {
+        notificationData.ios = {
+          sound: 'default',
+          foregroundPresentationOptions: {
+            alert: true,
+            badge: true,
+            sound: true,
+          },
+        };
+      }
+
+      // Display the notification
+      await notifee.displayNotification(notificationData);
+      console.log('NotificationService: Notification displayed:', notificationId);
+    } catch (error) {
+      console.error('NotificationService: Failed to show notification:', error);
+    }
+  };
+
+  // Handle notification press/tap
+  private handleNotificationPress = (data?: any): void => {
+    if (!data) {
+      console.log('NotificationService: No data in notification');
       return;
     }
 
-    const notification = this.notificationQueue.shift();
-    if (!notification) return;
+    console.log('NotificationService: Handling notification press with data:', JSON.stringify(data, null, 2));
 
-    this.isShowingNotification = true;
-    this.displayNotification(notification);
-  };
+    // Extract chatId from various possible locations
+    const chatId = data.chatId || 
+                   data.metadata?.chatId || 
+                   data.chat?._id ||
+                   data.chat?.id;
+    const link = data.link;
+    const type = data.type || data.metadata?.type;
+    const body = data.body || data.notification?.body || '';
 
-  // Display the actual notification
-  private displayNotification = (notification: LocalNotification): void => {
-    if (Platform.OS === 'android') {
-      this.showAndroidNotification(notification);
-    } else {
-      this.showIOSNotification(notification);
-    }
-  };
+    console.log('NotificationService: Extracted chatId:', chatId, 'type:', type);
 
-  // Show notification for Android
-  private showAndroidNotification = (notification: LocalNotification): void => {
-    // Create a professional WhatsApp-like notification
-    Alert.alert(
-      notification.title,
-      notification.body,
-      [
-        {
-          text: 'Reply',
-          onPress: () => this.handleNotificationAction(notification, 'reply'),
-          style: 'default',
-        },
-        {
-          text: 'Mark as Read',
-          onPress: () => this.handleNotificationAction(notification, 'mark_read'),
-          style: 'default',
-        },
-        {
-          text: 'View',
-          onPress: () => this.handleNotificationAction(notification, 'view'),
-          style: 'default',
-        },
-        {
-          text: 'Dismiss',
-          onPress: () => this.handleNotificationDismiss(notification),
-          style: 'cancel',
-        },
-      ],
-      {
-        cancelable: true,
-        onDismiss: () => this.handleNotificationDismiss(notification),
-      }
-    );
-  };
-
-  // Show notification for iOS
-  private showIOSNotification = (notification: LocalNotification): void => {
-    Alert.alert(
-      notification.title,
-      notification.body,
-      [
-        {
-          text: 'Reply',
-          onPress: () => this.handleNotificationAction(notification, 'reply'),
-        },
-        {
-          text: 'View',
-          onPress: () => this.handleNotificationAction(notification, 'view'),
-        },
-        {
-          text: 'Dismiss',
-          onPress: () => this.handleNotificationDismiss(notification),
-          style: 'cancel',
-        },
-      ],
-      {
-        cancelable: true,
-        onDismiss: () => this.handleNotificationDismiss(notification),
-      }
-    );
-  };
-
-  // Handle notification action
-  private handleNotificationAction = (
-    notification: LocalNotification,
-    action: 'reply' | 'view' | 'mark_read'
-  ): void => {
-    switch (action) {
-      case 'reply':
-        this.navigateToChat(notification.data.chatId, { reply: true });
-        break;
-      case 'view':
-        this.navigateToChat(notification.data.chatId);
-        break;
-      case 'mark_read':
-        this.markNotificationAsRead(notification.id);
-        break;
-    }
+    // If it's a message notification, ALWAYS navigate to inbox
+    // This handles notifications like "You have a new message from [Sender Name]"
+    const isMessageNotification = type === 'message' || data.type === 'message';
     
-    this.isShowingNotification = false;
-    this.processNotificationQueue();
+    if (isMessageNotification) {
+      console.log('NotificationService: Message notification detected, navigating to inbox');
+      if (chatId) {
+        console.log('NotificationService: Opening specific chat in inbox:', chatId);
+        this.navigateToChat(chatId);
+      } else {
+        console.log('NotificationService: Navigating to inbox (no specific chat)');
+        this.navigateToInbox();
+      }
+    } else if (chatId) {
+      // If we have a chatId (even if not explicitly message type), navigate to that chat
+      console.log('NotificationService: Has chatId, navigating to inbox:', chatId);
+      this.navigateToChat(chatId);
+    } else if (link) {
+      // Try to parse link
+      this.navigateFromLink(link, data);
+    } else {
+      // Default: Navigate to notifications screen
+      console.log('NotificationService: No chatId or link, navigating to notifications');
+      this.navigateToNotifications();
+    }
   };
 
-  // Handle notification dismiss
-  private handleNotificationDismiss = (notification: LocalNotification): void => {
-    this.isShowingNotification = false;
-    this.processNotificationQueue();
+  // Navigate to inbox tab (without opening specific chat)
+  private navigateToInbox = (): void => {
+    if (!navigationRef.isReady()) {
+      setTimeout(() => this.navigateToInbox(), 500);
+      return;
+    }
+
+    try {
+      console.log('NotificationService: Navigating to inbox tab');
+      
+      // Try different inbox tab names based on user role
+      const inboxTabNames = ['InboxTab', 'EmployeeInboxTab'];
+      let navigated = false;
+      
+      for (const tabName of inboxTabNames) {
+        try {
+          navigateToTab(tabName);
+          navigated = true;
+          console.log('NotificationService: Successfully navigated to', tabName);
+          break;
+        } catch (error) {
+          console.log('NotificationService: Failed to navigate to', tabName);
+          continue;
+        }
+      }
+      
+      // If navigation failed, try direct navigation
+      if (!navigated) {
+        try {
+          navigationRef.navigate('InboxTab' as never);
+          console.log('NotificationService: Navigated to InboxTab directly');
+        } catch (error) {
+          console.error('NotificationService: All navigation methods failed');
+        }
+      }
+    } catch (error) {
+      console.error('NotificationService: Error navigating to inbox:', error);
+    }
   };
 
   // Navigate to chat
-  private navigateToChat = (chatId: string, options?: { reply?: boolean }): void => {
-    // You can implement deep linking here or use navigation
-    console.log('Navigate to chat:', chatId, options);
-    
-    // For now, we'll use a simple approach
-    // In a real app, you'd use React Navigation or deep linking
-    if (options?.reply) {
-      console.log('Open chat with reply mode');
-    } else {
-      console.log('Open chat');
+  private navigateToChat = (chatId: string): void => {
+    if (!navigationRef.isReady()) {
+      setTimeout(() => this.navigateToChat(chatId), 500);
+      return;
+    }
+
+    try {
+      console.log('NotificationService: Navigating to inbox with chat:', chatId);
+      
+      // Navigate to inbox tab first
+      const inboxTabNames = ['InboxTab', 'EmployeeInboxTab'];
+      let navigated = false;
+      
+      for (const tabName of inboxTabNames) {
+        try {
+          navigateToTab(tabName);
+          navigated = true;
+          console.log('NotificationService: Navigated to', tabName);
+          break;
+        } catch (error) {
+          console.log('NotificationService: Failed to navigate to', tabName);
+          continue;
+        }
+      }
+      
+      // If navigation failed, try direct navigation
+      if (!navigated) {
+        try {
+          navigationRef.navigate('InboxTab' as never);
+        } catch (error) {
+          console.error('NotificationService: All navigation methods failed');
+        }
+      }
+      
+      // Use global callback to open the chat
+      setTimeout(() => {
+        (global as any).pendingChatId = chatId;
+        console.log('NotificationService: Set pendingChatId:', chatId);
+        
+        // Also try to trigger via NotificationContext if possible
+        if ((global as any).openChatCallback) {
+          (global as any).openChatCallback(chatId);
+          console.log('NotificationService: Called openChatCallback');
+        }
+      }, 500); // Delay to ensure navigation completes
+      
+    } catch (error) {
+      console.error('NotificationService: Error navigating to chat:', error);
     }
   };
 
-  // Mark notification as read
-  private markNotificationAsRead = (notificationId: string): void => {
-    console.log('Mark notification as read:', notificationId);
-    // This will be handled by the NotificationContext
+  // Navigate from link
+  private navigateFromLink = (link: string, data: any): void => {
+    if (!navigationRef.isReady()) {
+      setTimeout(() => this.navigateFromLink(link, data), 500);
+      return;
+    }
+
+    try {
+      // Parse link format: "/PM/tasks/123" or "/HR/leave" or "/ChatWindow?chatId=123"
+      const parts = link.split('/').filter(Boolean);
+      
+      if (parts.length === 0) {
+        this.navigateToNotifications();
+        return;
+      }
+
+      const [module, screen, ...params] = parts;
+      
+      if (screen === 'ChatWindow' || data.chatId) {
+        this.navigateToChat(data.chatId || params[0]);
+      } else if (module === 'PM' && screen === 'tasks') {
+        navigationRef.navigate('TaskDetail' as never, { taskId: params[0] } as never);
+      } else if (module === 'HR' && screen === 'leave') {
+        navigationRef.navigate('LeaveScreen' as never);
+      } else if (module === 'PM' && screen === 'projects') {
+        navigationRef.navigate('ProjectDetail' as never, { projectId: params[0] } as never);
+      } else {
+        this.navigateToNotifications();
+      }
+    } catch (error) {
+      console.error('NotificationService: Error navigating from link:', error);
+      this.navigateToNotifications();
+    }
+  };
+
+  // Navigate to notifications screen
+  private navigateToNotifications = (): void => {
+    if (!navigationRef.isReady()) {
+      setTimeout(() => this.navigateToNotifications(), 500);
+      return;
+    }
+
+    try {
+      navigationRef.navigate('NotificationsScreen' as never);
+    } catch (error) {
+      console.error('NotificationService: Error navigating to notifications:', error);
+    }
   };
 
   // Get notification title
@@ -207,15 +367,34 @@ class NotificationService {
     return notification.body || 'New notification';
   };
 
-  // Clear notification queue
-  clearQueue = (): void => {
-    this.notificationQueue = [];
-    this.isShowingNotification = false;
+  // Cancel a notification
+  cancelNotification = async (notificationId: string): Promise<void> => {
+    try {
+      await notifee.cancelNotification(notificationId);
+      console.log('NotificationService: Notification cancelled:', notificationId);
+    } catch (error) {
+      console.error('NotificationService: Failed to cancel notification:', error);
+    }
   };
 
-  // Get queue length
-  getQueueLength = (): number => {
-    return this.notificationQueue.length;
+  // Cancel all notifications
+  cancelAllNotifications = async (): Promise<void> => {
+    try {
+      await notifee.cancelAllNotifications();
+      console.log('NotificationService: All notifications cancelled');
+    } catch (error) {
+      console.error('NotificationService: Failed to cancel all notifications:', error);
+    }
+  };
+
+  // Get displayed notifications
+  getDisplayedNotifications = async (): Promise<any[]> => {
+    try {
+      return await notifee.getDisplayedNotifications();
+    } catch (error) {
+      console.error('NotificationService: Failed to get displayed notifications:', error);
+      return [];
+    }
   };
 }
 

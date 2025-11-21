@@ -1,51 +1,26 @@
 {
   "project_info": {
-    "project_number": "762710184263",
-    "project_id": "icms-app-29c3f",
-    "storage_bucket": "icms-app-29c3f.firebasestorage.app"
+    "project_number": "638055188024",
+    "project_id": "icms-app-ab31e",
+    "storage_bucket": "icms-app-ab31e.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:762710184263:android:76fd0650a9c4a2058dbc62",
+        "mobilesdk_app_id": "1:638055188024:android:5fb68de449b6fd50bf08cd",
         "android_client_info": {
-          "package_name": "com.icmssapp"
+          "package_name": "com.icmsApp"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "762710184263-jedb0r2cq2kgrfbqpv5tka1ig7j786rn.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.icmssapp",
-            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
-          }
-        },
-        {
-          "client_id": "762710184263-lu62srm3rfffrffbdcrfr50fceslkv3t.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyATJiU0vpGZvWDA_gO_ULH8XQlEIQQL3ts"
+          "current_key": "AIzaSyC3oHB2uv-l_idzG6wFeYl7uoC5QyCGpuM"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "762710184263-aqal0jnktdenq3ah7mdofcj5cf2sjfd3.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "762710184263-4j0il5tdqbdn4jrlp6flp25p1uo68485.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.icmsapp"
-              }
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }
