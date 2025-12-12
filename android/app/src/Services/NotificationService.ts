@@ -24,28 +24,50 @@ class NotificationService {
     if (this.isInitialized) return;
 
     try {
-      // Request permission
-      await notifee.requestPermission();
+      // Check if notifee is available
+      if (!notifee) {
+        console.warn('NotificationService: Notifee is not available');
+        return;
+      }
+
+      // Request permission - wrap in try-catch for iOS
+      try {
+        await notifee.requestPermission();
+      } catch (permError) {
+        console.error('NotificationService: Error requesting permission:', permError);
+        // Continue anyway - permissions might already be granted
+      }
 
       if (Platform.OS === 'android') {
         // Create a channel for Android
-        await notifee.createChannel({
-          id: this.notificationChannelId,
-          name: 'ICMS Notifications',
-          importance: AndroidImportance.HIGH,
-          sound: 'default',
-          vibration: true,
-          vibrationPattern: [300, 500],
-        });
+        try {
+          await notifee.createChannel({
+            id: this.notificationChannelId,
+            name: 'ICMS Notifications',
+            importance: AndroidImportance.HIGH,
+            sound: 'default',
+            vibration: true,
+            vibrationPattern: [300, 500],
+          });
+        } catch (channelError) {
+          console.error('NotificationService: Error creating channel:', channelError);
+          // Continue anyway - channel might already exist
+        }
       }
 
       // Set up notification event handlers
-      this.setupEventHandlers();
+      try {
+        this.setupEventHandlers();
+      } catch (handlerError) {
+        console.error('NotificationService: Error setting up handlers:', handlerError);
+        // Continue anyway
+      }
 
       this.isInitialized = true;
       console.log('NotificationService: Notifee initialized successfully');
     } catch (error) {
       console.error('NotificationService: Failed to initialize Notifee:', error);
+      // Don't crash - app should continue without Notifee
     }
   };
 
@@ -108,6 +130,15 @@ class NotificationService {
 
       // Android-specific settings
       if (Platform.OS === 'android') {
+        // Notifee expects largeIcon to be either a valid URL string or omitted.
+        const rawLargeIcon =
+          (notification as any)?.sender?.profilePic ||
+          (notification as any)?.metadata?.senderAvatar;
+        const largeIcon =
+          typeof rawLargeIcon === 'string' && rawLargeIcon.startsWith('http')
+            ? rawLargeIcon
+            : undefined;
+
         notificationData.android = {
           channelId: this.notificationChannelId,
           importance: AndroidImportance.HIGH,
@@ -117,7 +148,7 @@ class NotificationService {
           // Use notification icon from drawable (required by Android)
           // This is a white bell icon on transparent background
           smallIcon: 'ic_notification',
-          largeIcon: notification.sender?.profilePic || notification.metadata?.senderAvatar,
+          ...(largeIcon ? { largeIcon } : {}),
           sound: 'default',
           vibrationPattern: [300, 500],
         };

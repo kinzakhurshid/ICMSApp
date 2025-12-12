@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import useAxios from '../hooks/useAxios';
 
 type Dept = { _id: string; name: any; description?: any; admin?: any };
 
 const DepartmentTable: React.FC = () => {
+  const navigation = useNavigation();
   const { callApi } = useAxios();
   const [depts, setDepts] = useState<Dept[]>([]);
   const [q, setQ] = useState('');
@@ -45,11 +47,18 @@ const DepartmentTable: React.FC = () => {
             <Text style={[styles.th, { width: 120 }]}>ADMIN</Text>
           </View>
           {filtered.map(d => (
-            <View key={d._id} style={styles.tr}>
+            <TouchableOpacity
+              key={d._id}
+              style={styles.tr}
+              onPress={() => {
+                (navigation as any).navigate('DepartmentDetail', { departmentId: d._id });
+              }}
+              activeOpacity={0.7}
+            >
               <Text style={[styles.td, { width: 280 }]}>{safeText(d.name)}</Text>
               <Text style={[styles.td, { width: 300 }]}>{safeText(d.description)}</Text>
               <Text style={[styles.td, { width: 120 }]}>{adminLabel(d.admin)}</Text>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
       </ScrollView>

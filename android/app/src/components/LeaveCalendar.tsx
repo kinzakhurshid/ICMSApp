@@ -1,26 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
+import useAxios from '../hooks/useAxios';
+import { useSelector } from 'react-redux';
+import { RootState } from '../states/store';
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, addDays } from 'date-fns';
+
+interface LeaveData {
+  employeeId: string;
+  employeeName: string;
+  leaves: Record<string, { type: string; status: string }>;
+}
 
 const LeaveCalendar: React.FC = () => {
+  const { callApi } = useAxios();
+  const { currentUser } = useSelector((state: RootState) => state.user);
   const [currentWeek, setCurrentWeek] = useState(new Date());
-  
-  // Mock data - replace with actual data from API
-  const teamMembers = ['Maira Bilal', 'Kinza Khurshid', 'Mamoona Sh...'];
+  const [loading, setLoading] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<LeaveData[]>([]);
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   const getWeekDates = (date: Date) => {
-    const startOfWeek = new Date(date);
-    startOfWeek.setDate(date.getDate() - date.getDay());
+    const weekStart = startOfWeek(date, { weekStartsOn: 0 });
     const dates = [];
     for (let i = 0; i < 7; i++) {
-      const day = new Date(startOfWeek);
-      day.setDate(startOfWeek.getDate() + i);
+      const day = addDays(weekStart, i);
       dates.push(day.getDate());
     }
     return dates;
@@ -29,12 +39,8 @@ const LeaveCalendar: React.FC = () => {
   const weekDates = getWeekDates(currentWeek);
 
   const formatWeekRange = (date: Date) => {
-    const startOfWeek = new Date(date);
-    startOfWeek.setDate(date.getDate() - date.getDay());
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    
-    return `Week of ${startOfWeek.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
+    const weekStart = startOfWeek(date, { weekStartsOn: 0 });
+    return `Week of ${format(weekStart, 'MMMM d, yyyy')}`;
   };
 
   const navigateWeek = (direction: 'prev' | 'next') => {
@@ -43,18 +49,97 @@ const LeaveCalendar: React.FC = () => {
     setCurrentWeek(newWeek);
   };
 
-  const getWeekData = (weekStart: Date) => {
-    // Different data based on week - replace with actual API call
-    const weekKey = weekStart.toISOString().split('T')[0];
-    // Mock different data for different weeks
-    return {
-      'Maira Bilal': ['Weeke...', 'Weeke...', 'Weeke...', 'Weeke...', 'Weeke...', 'Weeke...', 'Weeke...'],
-      'Kinza Khurshid': ['Weeke...', 'Weeke...', 'Weeke...', 'Weeke...', 'Weeke...', 'Weeke...', 'Weeke...'],
-      'Mamoona Sh...': ['Weeke...', 'Weeke...', 'Weeke...', 'Weeke...', 'Weeke...', 'Weeke...', 'Weeke...'],
-    };
+  const fetchLeaves = async () => {
+    if (!currentUser?.organization) return;
+    
+    setLoading(true);
+    try {
+      const weekStart = startOfWeek(currentWeek, { weekStartsOn: 0 });
+      const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 0 });
+
+      // Fetch all employees first
+      const employeesResponse = await callApi({
+        method: 'GET',
+        url: '/employee',
+        params: {
+          organizationId: currentUser.organization,
+          page: 1,
+          limit: 1000,
+        },
+      });
+
+      // Fetch leaves for the week
+      const leavesResponse = await callApi({
+        method: 'GET',
+        url: '/leave',
+        params: {
+          startDate: format(weekStart, 'yyyy-MM-dd'),
+          endDate: format(weekEnd, 'yyyy-MM-dd'),
+          organizationId: currentUser.organization,
+          page: 1,
+          limit: 1000,
+        },
+      });
+
+      // Get all employees
+      const employeesData = employeesResponse?.data || employeesResponse || [];
+      const allEmployees = Array.isArray(employeesData) ? employeesData : [];
+
+      // Process leaves to group by employee
+      const leavesData = leavesResponse?.data || leavesResponse || [];
+      const leavesMap = new Map<string, Record<string, { type: string; status: string }>>();
+
+      leavesData.forEach((leave: any) => {
+        const employeeId = leave.employeeId?._id || leave.employeeId || leave.employee?._id || '';
+        
+        if (!employeeId) return;
+
+        if (!leavesMap.has(employeeId)) {
+          leavesMap.set(employeeId, {});
+        }
+
+        const employeeLeaves = leavesMap.get(employeeId)!;
+        
+        // Add leave for each day in the date range
+        const startDate = new Date(leave.startDate);
+        const endDate = new Date(leave.endDate);
+        const days = eachDayOfInterval({ start: startDate, end: endDate });
+
+        days.forEach(day => {
+          const dateKey = format(day, 'yyyy-MM-dd');
+          employeeLeaves[dateKey] = {
+            type: leave.type || leave.leaveType || 'Leave',
+            status: leave.status || 'Pending',
+          };
+        });
+      });
+
+      // Create LeaveData for all employees, including those without leaves
+      const teamMembersData: LeaveData[] = allEmployees.map((employee: any) => {
+        const employeeId = employee._id || employee.id || '';
+        const employeeName = employee.fullName || 
+                            (employee.firstName && employee.lastName 
+                              ? `${employee.firstName} ${employee.lastName}` 
+                              : employee.name || 'Unknown');
+
+        return {
+          employeeId,
+          employeeName,
+          leaves: leavesMap.get(employeeId) || {},
+        };
+      });
+
+      setTeamMembers(teamMembersData);
+    } catch (error) {
+      console.error('Failed to fetch leaves:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const weekData = getWeekData(currentWeek);
+  useEffect(() => {
+    fetchLeaves();
+  }, [currentWeek, currentUser?.organization]);
 
   return (
     <View style={styles.container}>
@@ -99,18 +184,74 @@ const LeaveCalendar: React.FC = () => {
           </View>
 
           {/* Team Member Rows */}
-          {teamMembers.map((member, memberIndex) => (
-            <View key={memberIndex} style={styles.memberRow}>
-              <View style={styles.nameColumn}>
-                <Text style={styles.memberName}>{member}</Text>
-              </View>
-              {weekDays.map((day, dayIndex) => (
-                <View key={dayIndex} style={styles.dayCell}>
-                  <Text style={styles.dayStatus}>{weekData[member]?.[dayIndex] || 'Weeke...'}</Text>
-                </View>
-              ))}
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#FF6B35" />
+              <Text style={styles.loadingText}>Loading leaves...</Text>
             </View>
-          ))}
+          ) : teamMembers.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No leaves found for this week</Text>
+            </View>
+          ) : (
+            teamMembers.map((member, memberIndex) => {
+              const weekStart = startOfWeek(currentWeek, { weekStartsOn: 0 });
+              const weekDates = Array.from({ length: 7 }, (_, i) => 
+                format(addDays(weekStart, i), 'yyyy-MM-dd')
+              );
+
+              return (
+                <View key={member.employeeId || memberIndex} style={styles.memberRow}>
+                  <View style={styles.nameColumn}>
+                    <Text style={styles.memberName} numberOfLines={1}>
+                      {member.employeeName}
+                    </Text>
+                  </View>
+                  {weekDates.map((dateKey, dayIndex) => {
+                    const leave = member.leaves[dateKey];
+                    const leaveType = leave?.type || '';
+                    const leaveStatus = leave?.status || '';
+                    
+                    // Determine display text and color
+                    let displayText = '';
+                    let backgroundColor = 'transparent';
+                    
+                    if (leave) {
+                      if (leaveType.toLowerCase().includes('sick')) {
+                        displayText = 'Sick';
+                        backgroundColor = '#FFB6C1';
+                      } else if (leaveType.toLowerCase().includes('annual') || leaveType.toLowerCase().includes('vacation')) {
+                        displayText = 'Annual';
+                        backgroundColor = '#ADD8E6';
+                      } else if (leaveType.toLowerCase().includes('holiday')) {
+                        displayText = 'Holiday';
+                        backgroundColor = '#DDA0DD';
+                      } else {
+                        displayText = leaveType.substring(0, 5);
+                        backgroundColor = '#FFFFE0';
+                      }
+                    }
+
+                    return (
+                      <View 
+                        key={dayIndex} 
+                        style={[
+                          styles.dayCell,
+                          leave && { backgroundColor }
+                        ]}
+                      >
+                        {leave && (
+                          <Text style={styles.dayStatus} numberOfLines={1}>
+                            {displayText}
+                          </Text>
+                        )}
+                      </View>
+                    );
+                  })}
+                </View>
+              );
+            })
+          )}
         </View>
       </ScrollView>
 
@@ -252,6 +393,23 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 10,
     color: '#666',
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#666',
+  },
+  emptyContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 12,
+    color: '#999',
   },
 });
 

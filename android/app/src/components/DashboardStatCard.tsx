@@ -36,8 +36,14 @@ const DashboardStatCard: React.FC<Props> = ({ title, value, subtitleLeft, subtit
         )}
       </View>
       <View style={styles.footerRow}>
-        {subtitleLeft ? <Text style={[styles.badge, styles.badgeGreen]}>{subtitleLeft}</Text> : <View />}
-        {subtitleRight ? <Text style={[styles.badge, styles.badgeGray]}>{subtitleRight}</Text> : null}
+        {subtitleLeft ? (
+          <View style={styles.footerContent}>
+            <Text style={[styles.badge, styles.badgeGreen]}>{subtitleLeft}</Text>
+            {subtitleRight ? <Text style={[styles.badge, styles.badgeGray, styles.badgeNextLine]}>{subtitleRight}</Text> : null}
+          </View>
+        ) : (
+          subtitleRight ? <Text style={[styles.badge, styles.badgeGray]}>{subtitleRight}</Text> : <View />
+        )}
       </View>
     </View>
   );
@@ -77,8 +83,12 @@ const styles = StyleSheet.create({
   },
   footerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
+  },
+  footerContent: {
+    flexDirection: 'column',
+    gap: 4,
   },
   badge: {
     paddingVertical: 4,
@@ -86,6 +96,10 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     fontSize: 11,
     overflow: 'hidden',
+    alignSelf: 'flex-start',
+  },
+  badgeNextLine: {
+    marginTop: 4,
   },
   badgeGreen: {
     backgroundColor: 'rgba(34,197,94,0.15)',

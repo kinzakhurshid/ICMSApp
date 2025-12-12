@@ -9,6 +9,7 @@ import EmployeeLeavePage from '../Screens/EmployeeLeavePage';
 import RequestLeaveScreen from '../Screens/RequestLeaveScreen';
 import InboxWrapper from '../Screens/InboxWrapper';
 import CallScreen from '../Screens/CallScreen';
+import TaskDetailScreen from '../Screens/TaskDetailScreen';
 import AppHeader from '../components/AppHeader';
 
 // Define parameter lists
@@ -18,6 +19,7 @@ export type EmployeeHomeStackParamList = {
 
 export type EmployeeTaskStackParamList = {
   EmployeeTaskMain: undefined;
+  TaskDetail: { taskId: string };
 };
 
 export type EmployeeLeaveStackParamList = {
@@ -64,6 +66,11 @@ const EmployeeTaskStackNavigator = () => (
     <EmployeeTaskStack.Screen
       name="EmployeeTaskMain"
       component={EmployeeTasksScreen}
+      options={{ headerShown: false }}
+    />
+    <EmployeeTaskStack.Screen
+      name="TaskDetail"
+      component={TaskDetailScreen}
       options={{ headerShown: false }}
     />
   </EmployeeTaskStack.Navigator>

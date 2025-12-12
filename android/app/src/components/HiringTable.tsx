@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { useNavigation } from '@react-navigation/native';
 import SearchableSelect from './SearchableSelect';
 
 interface Hiring {
@@ -61,6 +62,7 @@ const HiringTable: React.FC<HiringTableProps> = ({
   onView,
 }) => {
   const [showFilters, setShowFilters] = useState(false);
+  const navigation = useNavigation();
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -125,6 +127,17 @@ const HiringTable: React.FC<HiringTableProps> = ({
             />
           </View>
         </View>
+      </View>
+
+      {/* New Job button row */}
+      <View style={styles.newJobRow}>
+        <TouchableOpacity
+          style={styles.newJobButton}
+          onPress={() => (navigation as any).navigate('CreateJob')}
+        >
+          <Icon name="add" size={18} color="#FFFFFF" />
+          <Text style={styles.newJobButtonText}>New Job</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Filters */}
@@ -326,6 +339,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  newJobRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 8,
+  },
+  newJobButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FF6B35',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  newJobButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   searchContainer: {
     flexDirection: 'row',

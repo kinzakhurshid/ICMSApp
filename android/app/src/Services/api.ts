@@ -1,9 +1,8 @@
 // src/services/api.ts
 import axios from 'axios';
-import { Alert } from 'react-native';
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
 
-// Configuration - Use production server
+// Configuration - Use deployed server for all environments
 const BASE_URL = 'https://intelgency.com/api';
 
 // Create axios instance with interceptors

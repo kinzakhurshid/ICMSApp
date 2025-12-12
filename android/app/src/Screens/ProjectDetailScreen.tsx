@@ -10,16 +10,27 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  TextInput,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useSelector } from 'react-redux';
 import { RootState } from '../states/store';
 import useAxios from '../hooks/useAxios';
+import { CommonActions } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
 // Define types for project data
+type Sprint = {
+  _id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  completed?: boolean;
+  status?: string;
+};
+
 type Project = {
   _id: string;
   name: string;
@@ -40,11 +51,13 @@ type Project = {
   projectManager?: {
     _id: string;
     fullName: string;
+    email?: string;
     profilePic?: string;
   };
   teamMembers: Array<{
     _id: string;
     fullName: string;
+    email?: string;
     profilePic?: string;
   }>;
 };
@@ -66,16 +79,17 @@ type TaskDetails = {
 export default function ProjectDetailScreen({ navigation, route }: { navigation: any; route: any }) {
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<TaskDetails[]>([]);
+  const [sprints, setSprints] = useState<Sprint[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [taskLoading, setTaskLoading] = useState<boolean>(true);
+  const [sprintLoading, setSprintLoading] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'details' | 'tasks'>('details');
-  const [expanded, setExpanded] = useState(false);
+  const [viewMode, setViewMode] = useState<'board' | 'list'>('board'); // Default to board view as per design
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { callApi } = useAxios();
   const { currentUser } = useSelector((state: RootState) => state.user);
   const projectId = route.params?.projectId;
-
-  const toggleExpanded = () => setExpanded(!expanded);
 
   const handleEditProject = () => {
     // Navigate to edit project screen
@@ -83,8 +97,34 @@ export default function ProjectDetailScreen({ navigation, route }: { navigation:
   };
 
   const handleTaskClick = (taskId: string) => {
-    // Navigate to task details screen
-    navigation.navigate('TaskDetails', { taskId });
+    // Navigate to task details screen - need to navigate across sibling stacks
+    // ProjectDetail is in ProjectStack, TaskDetail is in TaskStack
+    // Both are children of PMTabNavigator
+    try {
+      // Try to navigate through parent tab navigator
+      const parent = navigation.getParent();
+      if (parent) {
+        parent.navigate('TasksTab', {
+          screen: 'TaskDetail',
+          params: { taskId }
+        });
+      } else {
+        // Fallback: use CommonActions to navigate
+        navigation.dispatch(
+          CommonActions.navigate({
+            name: 'TasksTab',
+            params: {
+              screen: 'TaskDetail',
+              params: { taskId }
+            }
+          })
+        );
+      }
+    } catch (error) {
+      console.error('Navigation error:', error);
+      // Final fallback: try direct navigation
+      navigation.navigate('TaskDetail' as never, { taskId } as never);
+    }
   };
 
   const handleDownload = async () => {
@@ -95,7 +135,7 @@ export default function ProjectDetailScreen({ navigation, route }: { navigation:
 
     try {
       // For React Native, we'll open the file URL directly
-      if (project.fileUrl.startsWith('http')) {
+      if (project.fileUrl?.startsWith('http')) {
         const supported = await Linking.canOpenURL(project.fileUrl);
         if (supported) {
           await Linking.openURL(project.fileUrl);
@@ -212,24 +252,121 @@ export default function ProjectDetailScreen({ navigation, route }: { navigation:
           url: `/task?projectId=${projectId}`,
         });
         console.log('Tasks response:', response);
-        setTasks(response.data?.tasks || []);
+        // Handle different response formats
+        const tasksData = response?.data?.tasks || response?.data || response?.tasks || response || [];
+        setTasks(Array.isArray(tasksData) ? tasksData : []);
+        console.log('Tasks set:', Array.isArray(tasksData) ? tasksData.length : 0, 'tasks');
       } catch (err) {
         console.error('Error fetching tasks:', err);
-        Alert.alert('Error', 'Failed to load tasks');
+        // Don't show alert, just set empty array
+        setTasks([]);
       } finally {
         setTaskLoading(false);
+      }
+    };
+
+    const fetchSprints = async () => {
+      try {
+        setSprintLoading(true);
+        const response = await callApi({
+          method: 'GET',
+          url: `/sprints/project/${projectId}`,
+        });
+        console.log('Sprints response:', response);
+        // Handle different response formats
+        const sprintsData = response?.data || response?.sprints || response || [];
+        setSprints(Array.isArray(sprintsData) ? sprintsData : []);
+      } catch (err) {
+        console.error('Error fetching sprints:', err);
+        // Don't show alert for sprints as it's optional
+        setSprints([]);
+      } finally {
+        setSprintLoading(false);
       }
     };
 
     if (projectId) {
       fetchProjectDetails();
       fetchTasks();
+      fetchSprints();
     }
   }, [projectId]);
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
   };
+
+  const calculateDuration = (startDate: string, endDate: string) => {
+    if (!startDate || !endDate) return 0;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  const getInitials = (name: string) => {
+    if (!name) return 'U';
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+
+  // Ensure tasks is always an array to prevent undefined errors
+  const safeTasks = Array.isArray(tasks) ? tasks : [];
+
+  // Normalize status for filtering - handle different status formats
+  const normalizeStatus = (status: string) => {
+    if (!status) return '';
+    return status.toLowerCase().replace(/\s+/g, '_');
+  };
+
+  // Filter tasks based on search
+  const filteredTasks = safeTasks.filter(task => 
+    task?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    task?.description?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Calculate task statistics
+  const taskStats = {
+    total: safeTasks.length,
+    completed: safeTasks.filter(t => normalizeStatus(t?.status) === 'completed').length,
+    completionRate: safeTasks.length > 0 
+      ? ((safeTasks.filter(t => normalizeStatus(t?.status) === 'completed').length / safeTasks.length) * 100).toFixed(1)
+      : '0.0',
+    teamMembers: (project?.teamMembers?.length || 0) + (project?.projectManager ? 1 : 0),
+  };
+
+  // Task counts by status - normalize status values for comparison
+  const taskCountsByStatus = {
+    todo: safeTasks.filter(t => normalizeStatus(t?.status) === 'todo').length,
+    in_progress: safeTasks.filter(t => {
+      const status = normalizeStatus(t?.status);
+      return status === 'in_progress' || status === 'inprogress';
+    }).length,
+    in_review: safeTasks.filter(t => {
+      const status = normalizeStatus(t?.status);
+      return status === 'in_review' || status === 'inreview';
+    }).length,
+    completed: safeTasks.filter(t => normalizeStatus(t?.status) === 'completed').length,
+    blocked: safeTasks.filter(t => normalizeStatus(t?.status) === 'blocked').length,
+  };
+
+  // Debug logging
+  console.log('📊 [ProjectDetailScreen] Task Stats:', {
+    total: taskStats.total,
+    viewMode,
+    taskCountsByStatus,
+    filteredTasksCount: filteredTasks?.length || 0
+  });
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -288,16 +425,15 @@ export default function ProjectDetailScreen({ navigation, route }: { navigation:
       return (
         <Image
           source={{ uri: user.profilePic }}
-          style={styles.avatar}
-          defaultSource={{ uri: 'https://randomuser.me/api/portraits/women/44.jpg' }}
+          style={styles.teamAvatar}
         />
       );
     }
     
     return (
-      <View style={styles.avatarPlaceholder}>
+      <View style={[styles.teamAvatar, styles.avatarPlaceholder]}>
         <Text style={styles.avatarText}>
-          {user.fullName?.charAt(0)?.toUpperCase() || 'U'}
+          {getInitials(user.fullName || 'U')}
         </Text>
       </View>
     );
@@ -331,9 +467,6 @@ export default function ProjectDetailScreen({ navigation, route }: { navigation:
     );
   }
 
-  const isLong = project.description?.length > 200;
-  const displayText = expanded ? project.description : project.description?.slice(0, 200);
-
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -345,16 +478,23 @@ export default function ProjectDetailScreen({ navigation, route }: { navigation:
             </TouchableOpacity>
             <View style={styles.headerTextContainer}>
               <Text style={styles.headerTitle}>Project Overview</Text>
-              <Text style={styles.headerSubtitle} numberOfLines={2}>{project.name}</Text>
+              <Text style={styles.headerSubtitle} numberOfLines={2}>{project?.name || 'Loading...'}</Text>
             </View>
           </View>
 
           <View style={styles.actionButtons}>
-            {project.status === 'In Progress' && (
-              <TouchableOpacity onPress={handleMarkCompleted} style={styles.markCompleteButton}>
-                <Text style={styles.markCompleteButtonText}>Mark Completed</Text>
+            <TouchableOpacity 
+              style={styles.createTaskButton}
+              onPress={() => navigation.navigate('CreateTask', { projectId })}
+            >
+              <Ionicons name="add" size={18} color="#fff" />
+              <Text style={styles.createTaskButtonText}>Task</Text>
               </TouchableOpacity>
-            )}
+            
+            <View style={styles.statusDropdown}>
+              <Text style={styles.statusDropdownText}>{project?.status || 'Not Started'}</Text>
+              <Ionicons name="chevron-down" size={16} color="#6B7280" />
+            </View>
             
             <TouchableOpacity onPress={handleEditProject} style={styles.editButton}>
               <Ionicons name="create-outline" size={16} color="#374151" />
@@ -368,31 +508,65 @@ export default function ProjectDetailScreen({ navigation, route }: { navigation:
         </View>
 
         <View style={styles.content}>
-          {/* Project Header */}
-          <View style={styles.projectHeader}>
-            <View style={styles.projectInfo}>
-              <View style={styles.projectMeta}>
-                <Text style={styles.priorityText}>{project.priority} Priority</Text>
-                <View style={[styles.statusBadge, { backgroundColor: getStatusColor(project.status) + '20' }]}>
-                  <Text style={[styles.statusText, { color: getStatusColor(project.status) }]}>
-                    {project.status}
-                  </Text>
+          {/* Key Metrics Cards */}
+          <View style={styles.metricsContainer}>
+            <View style={styles.metricCard}>
+              <Ionicons name="bar-chart-outline" size={24} color="#3b82f6" />
+              <View style={styles.metricContent}>
+                <Text style={styles.metricLabel}>Total Tasks</Text>
+                <Text style={styles.metricValue}>{taskStats.total}</Text>
                 </View>
               </View>
               
-              <Text style={styles.projectTitle}>{project.name}</Text>
-              
-              <Text style={styles.projectDescription}>
-                {displayText}
-                {isLong && !expanded && '... '}
-                {isLong && (
-                  <TouchableOpacity onPress={toggleExpanded}>
-                    <Text style={styles.readMoreText}>
-                      {expanded ? 'Show less' : 'Read more'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </Text>
+            <View style={styles.metricCard}>
+              <Ionicons name="bar-chart-outline" size={24} color="#10b981" />
+              <View style={styles.metricContent}>
+                <Text style={styles.metricLabel}>Completed</Text>
+                <Text style={styles.metricValue}>{taskStats.completed}</Text>
+              </View>
+            </View>
+
+            <View style={styles.metricCard}>
+              <Ionicons name="bar-chart-outline" size={24} color="#8b5cf6" />
+              <View style={styles.metricContent}>
+                <Text style={styles.metricLabel}>Completion Rate</Text>
+                <Text style={styles.metricValue}>{taskStats.completionRate}%</Text>
+              </View>
+            </View>
+
+            <View style={styles.metricCard}>
+              <Ionicons name="people-outline" size={24} color="#f97316" />
+              <View style={styles.metricContent}>
+                <Text style={styles.metricLabel}>Team Members</Text>
+                <Text style={styles.metricValue}>{taskStats.teamMembers}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Task Status Breakdown */}
+          <View style={styles.statusBreakdownContainer}>
+            <Text style={styles.statusBreakdownTitle}>Task Status Breakdown</Text>
+            <View style={styles.statusBreakdownCards}>
+              <View style={[styles.statusCard, styles.statusCardTodo]}>
+                <Text style={styles.statusCardLabel}>To Do</Text>
+                <Text style={styles.statusCardValue}>{taskCountsByStatus.todo}</Text>
+              </View>
+              <View style={[styles.statusCard, styles.statusCardInProgress]}>
+                <Text style={styles.statusCardLabel}>In Progress</Text>
+                <Text style={styles.statusCardValue}>{taskCountsByStatus.in_progress}</Text>
+              </View>
+              <View style={[styles.statusCard, styles.statusCardInReview]}>
+                <Text style={styles.statusCardLabel}>In Review</Text>
+                <Text style={styles.statusCardValue}>{taskCountsByStatus.in_review}</Text>
+              </View>
+              <View style={[styles.statusCard, styles.statusCardCompleted]}>
+                <Text style={styles.statusCardLabel}>Completed</Text>
+                <Text style={styles.statusCardValue}>{taskCountsByStatus.completed}</Text>
+              </View>
+              <View style={[styles.statusCard, styles.statusCardBlocked]}>
+                <Text style={styles.statusCardLabel}>Blocked</Text>
+                <Text style={styles.statusCardValue}>{taskCountsByStatus.blocked}</Text>
+              </View>
             </View>
           </View>
 
@@ -414,191 +588,239 @@ export default function ProjectDetailScreen({ navigation, route }: { navigation:
             >
               <Ionicons name="list-outline" size={16} color={activeTab === 'tasks' ? '#FF6B00' : '#6B7280'} />
               <Text style={[styles.tabText, activeTab === 'tasks' && styles.activeTabText]}>
-                Tasks ({tasks.length})
+                Tasks ({safeTasks.length})
               </Text>
             </TouchableOpacity>
           </View>
 
           {/* Tab Content */}
           {activeTab === 'details' ? (
-            <>
-              {/* Stats Cards */}
-              <View style={styles.statsContainer}>
-                <View style={styles.statCard}>
-                  <View style={styles.statIconContainer}>
-                    <Ionicons name="cash-outline" size={24} color="#FF6B00" />
+            <View style={styles.detailsGrid}>
+              {/* Top Row - Two Columns */}
+              <View style={styles.topRow}>
+                {/* Project Details Card (Left) */}
+                <View style={styles.detailCard}>
+                  {/* Priority and Status Badges */}
+                  <View style={styles.badgesContainer}>
+                    <View style={[styles.priorityBadge, { backgroundColor: project?.priority === 'High' ? '#FEE2E2' : project?.priority === 'Medium' ? '#FEF3C7' : '#D1FAE5' }]}>
+                      <Text style={[styles.badgeText, { color: project?.priority === 'High' ? '#DC2626' : project?.priority === 'Medium' ? '#D97706' : '#059669' }]}>
+                        {project?.priority || 'Medium'} Priority
+                      </Text>
                   </View>
-                  <View style={styles.statInfo}>
-                    <Text style={styles.statLabel}>Total Budget</Text>
-                    <Text style={styles.statValue}>{formatCurrency(project.budget)}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.statCard}>
-                  <View style={[styles.statIconContainer, { backgroundColor: '#10B98120' }]}>
-                    <Ionicons name="cash-outline" size={24} color="#10B981" />
-                  </View>
-                  <View style={styles.statInfo}>
-                    <Text style={styles.statLabel}>Amount Spent</Text>
-                    <Text style={styles.statValue}>{formatCurrency(project.spent)}</Text>
+                    <View style={[styles.statusBadge, { backgroundColor: project?.status === 'In Progress' ? '#DBEAFE' : project?.status === 'Completed' ? '#D1FAE5' : '#F3F4F6' }]}>
+                      <Text style={[styles.badgeText, { color: project?.status === 'In Progress' ? '#2563EB' : project?.status === 'Completed' ? '#059669' : '#6B7280' }]}>
+                        {project?.status || 'Not Started'}
+                      </Text>
                   </View>
                 </View>
 
-                <View style={styles.statCard}>
-                  <View style={[styles.statIconContainer, { backgroundColor: '#3B82F620' }]}>
-                    <Ionicons name="people-outline" size={24} color="#3B82F6" />
-                  </View>
-                  <View style={styles.statInfo}>
-                    <Text style={styles.statLabel}>Team Members</Text>
-                    <Text style={styles.statValue}>{project.teamMembers.length + 1}</Text>
+                  <Text style={styles.cardTitle}>{project?.name || 'Project'}</Text>
+                  
+                  <View style={styles.detailItem}>
+                    <Ionicons name="calendar-outline" size={20} color="#f97316" />
+                    <View style={styles.detailContent}>
+                      <Text style={styles.detailLabel}>Start Date</Text>
+                      <Text style={styles.detailValue}>{formatDate(project?.startDate)}</Text>
                   </View>
                 </View>
 
-                <View style={styles.statCard}>
-                  <View style={[styles.statIconContainer, { backgroundColor: '#8B5CF620' }]}>
-                    <Ionicons name="trending-up-outline" size={24} color="#8B5CF6" />
+                  <View style={styles.detailItem}>
+                    <Ionicons name="calendar-outline" size={20} color="#f97316" />
+                    <View style={styles.detailContent}>
+                      <Text style={styles.detailLabel}>End Date</Text>
+                      <Text style={styles.detailValue}>{formatDate(project?.endDate)}</Text>
                   </View>
-                  <View style={styles.statInfo}>
-                    <Text style={styles.statLabel}>Budget Utilization</Text>
-                    <Text style={styles.statValue}>
-                      {Math.round((project.spent / project.budget) * 100)}%
-                    </Text>
-                  </View>
+                </View>
+
+                  <View style={styles.descriptionSection}>
+                    <Text style={styles.detailLabel}>Description</Text>
+                    <Text style={styles.descriptionText}>{project?.description || 'No description provided'}</Text>
                 </View>
               </View>
 
-              {/* Bottom Section */}
-              <View style={styles.bottomSection}>
-                {/* Team Section */}
-                <View style={styles.teamSection}>
-                  <Text style={styles.sectionTitle}>Project Team</Text>
+                {/* Project Team Card (Right) */}
+                <View style={styles.teamCard}>
+                  <Text style={styles.cardTitle}>Project Team</Text>
 
                   {/* Project Manager */}
-                  {project.projectManager && (
-                    <View style={styles.pmSection}>
-                      <Text style={styles.sectionSubtitle}>Project Manager</Text>
-                      <View style={styles.pmCard}>
-                        {renderEmployeeAvatar(project.projectManager)}
-                        <Text style={styles.pmName}>{project.projectManager.fullName}</Text>
+                  {project?.projectManager && (
+                    <View style={styles.teamMemberItem}>
+                      <Text style={styles.teamSubtitle}>Project Manager</Text>
+                      <View style={styles.teamMemberRow}>
+                        {project.projectManager.profilePic ? (
+                          <Image
+                            source={{ uri: project.projectManager.profilePic }}
+                            style={styles.teamAvatar}
+                          />
+                        ) : (
+                          <View style={[styles.teamAvatar, styles.avatarPlaceholder]}>
+                            <Text style={styles.avatarText}>
+                              {getInitials(project.projectManager.fullName)}
+                            </Text>
+                          </View>
+                        )}
+                        <View style={styles.teamMemberInfo}>
+                          <Text style={styles.teamMemberName}>{project.projectManager.fullName}</Text>
+                          {project.projectManager.email && (
+                            <Text style={styles.teamMemberEmail}>{project.projectManager.email}</Text>
+                          )}
+                        </View>
                       </View>
                     </View>
                   )}
 
                   {/* Team Members */}
-                  {project.teamMembers && project.teamMembers.length > 0 && (
-                    <View style={styles.membersSection}>
-                      <Text style={styles.sectionSubtitle}>Team Members</Text>
+                  {project?.teamMembers && project.teamMembers.length > 0 && (
+                    <View style={styles.teamMemberItem}>
+                      <Text style={styles.teamSubtitle}>Team Members ({project.teamMembers.length})</Text>
                       {project.teamMembers.map((member) => (
-                        <View key={member._id} style={styles.memberCard}>
-                          {renderEmployeeAvatar(member)}
-                          <Text style={styles.memberName}>{member.fullName}</Text>
-                        </View>
-                      ))}
+                        <View key={member._id} style={styles.teamMemberRow}>
+                          {member.profilePic ? (
+                            <Image
+                              source={{ uri: member.profilePic }}
+                              style={styles.teamAvatar}
+                            />
+                          ) : (
+                            <View style={[styles.teamAvatar, styles.avatarPlaceholder]}>
+                              <Text style={styles.avatarText}>
+                                {getInitials(member.fullName)}
+                              </Text>
                     </View>
+                          )}
+                          <View style={styles.teamMemberInfo}>
+                            <Text style={styles.teamMemberName}>{member.fullName}</Text>
+                            {member.email && (
+                              <Text style={styles.teamMemberEmail}>{member.email}</Text>
+                  )}
+                </View>
+                    </View>
+                      ))}
+                  </View>
+                  )}
+                    </View>
+                  </View>
+
+              {/* Bottom Row - Two Columns */}
+              <View style={styles.bottomRow}>
+                {/* Project Sprints Card (Left) */}
+                <View style={styles.sprintsCard}>
+                  <Text style={styles.cardTitle}>
+                    Project Sprints {(sprints?.length || 0) > 0 && `(${sprints.length})`}
+                  </Text>
+                  
+                  {sprintLoading ? (
+                    <ActivityIndicator size="small" color="#f97316" />
+                  ) : (sprints?.length || 0) > 0 ? (
+                    (sprints || []).map((sprint) => (
+                      <View key={sprint._id} style={styles.sprintItem}>
+                        <View style={styles.sprintInfo}>
+                          <Text style={styles.sprintName}>{sprint.name}</Text>
+                          <Text style={styles.sprintDates}>
+                            {formatDate(sprint.startDate)} - {formatDate(sprint.endDate)}
+                      </Text>
+                    </View>
+                        <View style={[
+                          styles.sprintStatusBadge,
+                          { backgroundColor: sprint.completed ? '#10b981' : '#f97316' }
+                        ]}>
+                          <Text style={styles.sprintStatusText}>
+                            {sprint.completed ? 'Completed' : 'Active'}
+                          </Text>
+                  </View>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.noSprintsText}>No sprints found</Text>
                   )}
                 </View>
 
-                {/* Client Info */}
-                <View style={styles.clientSection}>
-                  <Text style={styles.sectionTitle}>Client Information</Text>
+                {/* Documents & Details Card (Right) */}
+                <View style={styles.documentsCard}>
+                  <Text style={styles.cardTitle}>Documents & Details</Text>
                   
-                  <View style={styles.infoCard}>
-                    <Ionicons name="business-outline" size={16} color="#6B7280" />
-                    <View style={styles.infoContent}>
-                      <Text style={styles.infoLabel}>Company</Text>
-                      <Text style={styles.infoValue}>{project.client}</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.infoCard}>
-                    <Ionicons name="call-outline" size={16} color="#6B7280" />
-                    <View style={styles.infoContent}>
-                      <Text style={styles.infoLabel}>Contact</Text>
-                      <Text style={styles.infoValue}>{project.clientContact}</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.infoCard}>
-                    <Ionicons name="mail-outline" size={16} color="#6B7280" />
-                    <View style={styles.infoContent}>
-                      <Text style={styles.infoLabel}>Email</Text>
-                      <Text style={styles.infoValue}>{project.clientEmail}</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.infoCard}>
-                    <Ionicons name="calendar-outline" size={16} color="#6B7280" />
-                    <View style={styles.infoContent}>
-                      <Text style={styles.infoLabel}>Timeline</Text>
-                      <Text style={styles.infoValue}>
-                        {formatDate(project.startDate)} - {formatDate(project.endDate)}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Project Files & Details */}
-                <View style={styles.detailsSection}>
-                  <Text style={styles.sectionTitle}>Documents & Details</Text>
-
-                  {/* File */}
-                  {project.fileUrl && (
-                    <View style={styles.fileCard}>
-                      <View style={styles.fileInfo}>
-                        <View style={styles.fileIconContainer}>
-                          <Ionicons name="document-text-outline" size={20} color="#FF6B00" />
-                        </View>
-                        <View style={styles.fileDetails}>
-                          <Text style={styles.fileName}>Project Document</Text>
-                          <Text style={styles.fileType}>File Attachment</Text>
+                  {/* File Attachment */}
+                  {project?.fileUrl && (
+                    <View style={styles.documentItem}>
+                      <View style={styles.documentInfo}>
+                        <Ionicons name="document-text-outline" size={20} color="#f97316" />
+                        <View style={styles.documentDetails}>
+                          <Text style={styles.documentName}>Project Document</Text>
+                          <Text style={styles.documentType}>File Attachment</Text>
                         </View>
                       </View>
                       <TouchableOpacity onPress={handleDownload} style={styles.downloadButton}>
-                        <Ionicons name="download-outline" size={16} color="#FF6B00" />
+                        <Ionicons name="download-outline" size={20} color="#f97316" />
                       </TouchableOpacity>
                     </View>
                   )}
 
-                  {/* Project Details */}
-                  <View style={styles.detailsList}>
-                    <View style={styles.detailRow}>
+                  {/* Created Date */}
+                  <View style={styles.detailItem}>
                       <Text style={styles.detailLabel}>Created</Text>
-                      <Text style={styles.detailValue}>{formatDate(project.createdAt)}</Text>
+                    <Text style={styles.detailValue}>{formatDate(project?.createdAt)}</Text>
                     </View>
-
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Last Updated</Text>
-                      <Text style={styles.detailValue}>{formatDate(project.updatedAt)}</Text>
                     </View>
-
-                    {project.status === 'Completed' && (
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Completed on</Text>
-                        <Text style={styles.detailValue}>{formatDate(project.completeDate || '')}</Text>
                       </View>
-                    )}
-
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Priority</Text>
-                      <Text style={styles.detailValue}>{project.priority}</Text>
                     </View>
-
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Status</Text>
-                      <Text style={styles.detailValue}>{project.status}</Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-            </>
           ) : (
             /* Tasks Tab Content */
             <View style={styles.tasksContainer}>
+              {/* Tasks Header */}
+              <View style={styles.tasksHeader}>
+                <View style={styles.tasksHeaderLeft}>
+                  <Text style={styles.tasksTitle}>Project Tasks</Text>
+                  <View style={styles.taskCountBadge}>
+                    <Text style={styles.taskCountText}>{filteredTasks.length} tasks</Text>
+                    </View>
+                  </View>
+                </View>
+
+              {/* Search and View Controls */}
+              <View style={styles.tasksControls}>
+                <View style={styles.searchContainer}>
+                  <Ionicons name="search" size={18} color="#9CA3AF" style={styles.searchIcon} />
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Search tasks..."
+                    placeholderTextColor="#9CA3AF"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                  />
+              </View>
+                <View style={styles.viewControls}>
+                  <TouchableOpacity
+                    style={[styles.viewButton, viewMode === 'board' && styles.viewButtonActive]}
+                    onPress={() => setViewMode('board')}
+                  >
+                    <Text style={[styles.viewButtonText, viewMode === 'board' && styles.viewButtonTextActive]}>
+                      Board View
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.viewButton, viewMode === 'list' && styles.viewButtonActive]}
+                    onPress={() => setViewMode('list')}
+                  >
+                    <Text style={[styles.viewButtonText, viewMode === 'list' && styles.viewButtonTextActive]}>
+                      List View
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.createTaskButtonLarge}
+                    onPress={() => navigation.navigate('CreateTask', { projectId })}
+                  >
+                    <Ionicons name="add" size={20} color="#fff" />
+                    <Text style={styles.createTaskButtonLargeText}>Create Task</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
               {taskLoading ? (
                 <View style={styles.loadingContainer}>
                   <ActivityIndicator size="large" color="#FF6B00" />
                 </View>
-              ) : tasks.length === 0 ? (
+              ) : viewMode === 'list' ? (
+                /* List View */
+                filteredTasks.length === 0 ? (
                 <View style={styles.emptyState}>
                   <Text style={styles.emptyStateText}>No tasks found for this project</Text>
                 </View>
@@ -615,8 +837,8 @@ export default function ProjectDetailScreen({ navigation, route }: { navigation:
                   </View>
 
                   {/* Table Rows */}
-                  {tasks.map((task) => (
-                    <View key={task._id} style={styles.tableRow}>
+                    {filteredTasks.map((task, index) => (
+                      <View key={task._id} style={[styles.tableRow, index === filteredTasks.length - 1 && { borderBottomWidth: 0, marginBottom: 0 }]}>
                       <View style={[styles.tableCell, { flex: 2 }]}>
                         <Text style={styles.taskTitle} numberOfLines={1}>{task.title}</Text>
                         <Text style={styles.taskDescription} numberOfLines={1}>{task.description}</Text>
@@ -667,6 +889,217 @@ export default function ProjectDetailScreen({ navigation, route }: { navigation:
                       </View>
                     </View>
                   ))}
+                </View>
+                )
+              ) : (
+                /* Board View */
+                <View style={styles.boardContainer}>
+                  <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false} 
+                    style={styles.boardScroll}
+                    contentContainerStyle={{ paddingRight: 16 }}
+                  >
+                    {/* To Do Column */}
+                    <View style={styles.boardColumn}>
+                      <View style={styles.columnHeader}>
+                        <Ionicons name="radio-button-off" size={16} color="#6B7280" />
+                        <Text style={styles.columnTitle}>To Do</Text>
+                        <Text style={styles.columnCount}>{taskCountsByStatus.todo}</Text>
+                      </View>
+                      <ScrollView 
+                        style={styles.columnContent}
+                        nestedScrollEnabled={true}
+                        showsVerticalScrollIndicator={false}
+                      >
+                        {filteredTasks.filter(t => normalizeStatus(t.status) === 'todo').map((task) => (
+                          <TouchableOpacity
+                            key={task._id}
+                            style={styles.taskCard}
+                            onPress={() => handleTaskClick(task._id)}
+                          >
+                            <Text style={styles.taskCardTitle} numberOfLines={2}>{task.title}</Text>
+                            {task.description && (
+                              <Text style={styles.taskCardDescription} numberOfLines={2}>
+                                {task.description}
+                              </Text>
+                            )}
+                            <View style={styles.taskCardFooter}>
+                              <Text style={styles.taskCardDueDate}>
+                                {formatDate(task.dueDate)}
+                              </Text>
+                              {getPriorityIcon(task.priority)}
+                            </View>
+                          </TouchableOpacity>
+                        ))}
+                        {filteredTasks.filter(t => normalizeStatus(t.status) === 'todo').length === 0 && (
+                          <View style={styles.emptyColumn}>
+                            <Text style={styles.emptyColumnText}>Drop tasks here</Text>
+            </View>
+          )}
+                      </ScrollView>
+                    </View>
+
+                    {/* In Progress Column */}
+                    <View style={styles.boardColumn}>
+                      <View style={styles.columnHeader}>
+                        <Ionicons name="radio-button-on" size={16} color="#F59E0B" />
+                        <Text style={styles.columnTitle}>In Progress</Text>
+                        <Text style={styles.columnCount}>{taskCountsByStatus.in_progress}</Text>
+                      </View>
+                      <ScrollView 
+                        style={styles.columnContent}
+                        nestedScrollEnabled={true}
+                        showsVerticalScrollIndicator={false}
+                      >
+                        {filteredTasks.filter(t => normalizeStatus(t.status) === 'in_progress' || normalizeStatus(t.status) === 'inprogress').map((task) => (
+                          <TouchableOpacity
+                            key={task._id}
+                            style={styles.taskCard}
+                            onPress={() => handleTaskClick(task._id)}
+                          >
+                            <Text style={styles.taskCardTitle} numberOfLines={2}>{task.title}</Text>
+                            {task.description && (
+                              <Text style={styles.taskCardDescription} numberOfLines={2}>
+                                {task.description}
+                              </Text>
+                            )}
+                            <View style={styles.taskCardFooter}>
+                              <Text style={styles.taskCardDueDate}>
+                                {formatDate(task.dueDate)}
+                              </Text>
+                              {getPriorityIcon(task.priority)}
+                            </View>
+                          </TouchableOpacity>
+                        ))}
+                        {filteredTasks.filter(t => normalizeStatus(t.status) === 'in_progress' || normalizeStatus(t.status) === 'inprogress').length === 0 && (
+                          <View style={styles.emptyColumn}>
+                            <Text style={styles.emptyColumnText}>Drop tasks here</Text>
+                          </View>
+                        )}
+                      </ScrollView>
+                    </View>
+
+                    {/* In Review Column */}
+                    <View style={styles.boardColumn}>
+                      <View style={styles.columnHeader}>
+                        <Ionicons name="radio-button-on" size={16} color="#3B82F6" />
+                        <Text style={styles.columnTitle}>In Review</Text>
+                        <Text style={styles.columnCount}>{taskCountsByStatus.in_review}</Text>
+                      </View>
+                      <ScrollView 
+                        style={styles.columnContent}
+                        nestedScrollEnabled={true}
+                        showsVerticalScrollIndicator={false}
+                      >
+                        {filteredTasks.filter(t => normalizeStatus(t.status) === 'in_review' || normalizeStatus(t.status) === 'inreview').map((task) => (
+                          <TouchableOpacity
+                            key={task._id}
+                            style={styles.taskCard}
+                            onPress={() => handleTaskClick(task._id)}
+                          >
+                            <Text style={styles.taskCardTitle} numberOfLines={2}>{task.title}</Text>
+                            {task.description && (
+                              <Text style={styles.taskCardDescription} numberOfLines={2}>
+                                {task.description}
+                              </Text>
+                            )}
+                            <View style={styles.taskCardFooter}>
+                              <Text style={styles.taskCardDueDate}>
+                                {formatDate(task.dueDate)}
+                              </Text>
+                              {getPriorityIcon(task.priority)}
+                            </View>
+                          </TouchableOpacity>
+                        ))}
+                        {filteredTasks.filter(t => normalizeStatus(t.status) === 'in_review' || normalizeStatus(t.status) === 'inreview').length === 0 && (
+                          <View style={styles.emptyColumn}>
+                            <Text style={styles.emptyColumnText}>Drop tasks here</Text>
+                          </View>
+                        )}
+                      </ScrollView>
+                    </View>
+
+                    {/* Completed Column */}
+                    <View style={styles.boardColumn}>
+                      <View style={styles.columnHeader}>
+                        <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                        <Text style={styles.columnTitle}>Completed</Text>
+                        <Text style={styles.columnCount}>{taskCountsByStatus.completed}</Text>
+                      </View>
+                      <ScrollView 
+                        style={styles.columnContent}
+                        nestedScrollEnabled={true}
+                        showsVerticalScrollIndicator={false}
+                      >
+                        {filteredTasks.filter(t => normalizeStatus(t.status) === 'completed').map((task) => (
+                          <TouchableOpacity
+                            key={task._id}
+                            style={styles.taskCard}
+                            onPress={() => handleTaskClick(task._id)}
+                          >
+                            <Text style={styles.taskCardTitle} numberOfLines={2}>{task.title}</Text>
+                            {task.description && (
+                              <Text style={styles.taskCardDescription} numberOfLines={2}>
+                                {task.description}
+                              </Text>
+                            )}
+                            <View style={styles.taskCardFooter}>
+                              <Text style={styles.taskCardDueDate}>
+                                {formatDate(task.dueDate)}
+                              </Text>
+                              {getPriorityIcon(task.priority)}
+                            </View>
+                          </TouchableOpacity>
+                        ))}
+                        {filteredTasks.filter(t => normalizeStatus(t.status) === 'completed').length === 0 && (
+                          <View style={styles.emptyColumn}>
+                            <Text style={styles.emptyColumnText}>Drop tasks here</Text>
+                          </View>
+                        )}
+                      </ScrollView>
+                    </View>
+
+                    {/* Blocked Column */}
+                    <View style={styles.boardColumn}>
+                      <View style={styles.columnHeader}>
+                        <Ionicons name="ban" size={16} color="#EF4444" />
+                        <Text style={styles.columnTitle}>Blocked</Text>
+                        <Text style={styles.columnCount}>{taskCountsByStatus.blocked}</Text>
+                      </View>
+                      <ScrollView 
+                        style={styles.columnContent}
+                        nestedScrollEnabled={true}
+                        showsVerticalScrollIndicator={false}
+                      >
+                        {filteredTasks.filter(t => normalizeStatus(t.status) === 'blocked').map((task) => (
+                          <TouchableOpacity
+                            key={task._id}
+                            style={styles.taskCard}
+                            onPress={() => handleTaskClick(task._id)}
+                          >
+                            <Text style={styles.taskCardTitle} numberOfLines={2}>{task.title}</Text>
+                            {task.description && (
+                              <Text style={styles.taskCardDescription} numberOfLines={2}>
+                                {task.description}
+                              </Text>
+                            )}
+                            <View style={styles.taskCardFooter}>
+                              <Text style={styles.taskCardDueDate}>
+                                {formatDate(task.dueDate)}
+                              </Text>
+                              {getPriorityIcon(task.priority)}
+                            </View>
+                          </TouchableOpacity>
+                        ))}
+                        {filteredTasks.filter(t => normalizeStatus(t.status) === 'blocked').length === 0 && (
+                          <View style={styles.emptyColumn}>
+                            <Text style={styles.emptyColumnText}>Drop tasks here</Text>
+                          </View>
+                        )}
+                      </ScrollView>
+                    </View>
+                  </ScrollView>
                 </View>
               )}
             </View>
@@ -749,18 +1182,50 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
-  markCompleteButton: {
-    backgroundColor: '#FF6B00',
-    paddingHorizontal: 16,
+  createTaskButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f97316',
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
+    gap: 4,
   },
-  markCompleteButtonText: {
+  createTaskButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
+  },
+  createTaskButtonLarge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f97316',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 6,
+  },
+  createTaskButtonLargeText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  statusDropdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    gap: 6,
+  },
+  statusDropdownText: {
+    color: '#374151',
+    fontSize: 14,
+    fontWeight: '500',
   },
   editButton: {
     flexDirection: 'row',
@@ -785,6 +1250,256 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
+  },
+  metricsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 24,
+  },
+  metricCard: {
+    flex: 1,
+    minWidth: width * 0.42,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  metricContent: {
+    flex: 1,
+  },
+  metricLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  metricValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  statusBreakdownContainer: {
+    marginBottom: 24,
+  },
+  statusBreakdownTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  statusBreakdownCards: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  statusCard: {
+    flex: 1,
+    minWidth: width * 0.18,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  statusCardTodo: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  statusCardInProgress: {
+    backgroundColor: '#FEF3C7',
+  },
+  statusCardInReview: {
+    backgroundColor: '#DBEAFE',
+  },
+  statusCardCompleted: {
+    backgroundColor: '#D1FAE5',
+  },
+  statusCardBlocked: {
+    backgroundColor: '#FEE2E2',
+  },
+  statusCardLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  statusCardValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  tasksHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  tasksHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  tasksTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  taskCountBadge: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  taskCountText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  tasksControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  searchContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    minWidth: 200,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#1F2937',
+  },
+  viewControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  viewButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+    minWidth: 100,
+  },
+  viewButtonActive: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#f97316',
+  },
+  viewButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  viewButtonTextActive: {
+    color: '#f97316',
+    fontWeight: '600',
+  },
+  boardContainer: {
+    marginTop: 8,
+    minHeight: 500,
+    width: '100%',
+  },
+  boardScroll: {
+    flexGrow: 0,
+  },
+  boardColumn: {
+    width: 280,
+    marginRight: 16,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 12,
+    minHeight: 450,
+    flexShrink: 0,
+  },
+  columnHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  columnTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+    flex: 1,
+  },
+  columnCount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  columnContent: {
+    flex: 1,
+    minHeight: 350,
+  },
+  taskCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  taskCardTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  taskCardDescription: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  taskCardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  taskCardDueDate: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  emptyColumn: {
+    padding: 24,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 100,
+  },
+  emptyColumnText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    fontStyle: 'italic',
   },
   projectHeader: {
     backgroundColor: '#FFFFFF',
@@ -858,190 +1573,209 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: '#FF6B00',
   },
-  statsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 24,
+  detailsGrid: {
+    gap: 16,
   },
-  statCard: {
+  topRow: {
+    flexDirection: width < 768 ? 'column' : 'row',
+    gap: 16,
+  },
+  bottomRow: {
+    flexDirection: width < 768 ? 'column' : 'row',
+    gap: 16,
+  },
+  detailCard: {
     flex: 1,
-    minWidth: width * 0.4,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    padding: 16,
+    padding: 20,
+    minHeight: 300,
+  },
+  badgesContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  statIconContainer: {
-    width: 48,
-    height: 48,
-    backgroundColor: '#FFF7ED',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statInfo: {
-    flex: 1,
-  },
-  statLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1F2937',
-  },
-  bottomSection: {
-    gap: 24,
-  },
-  teamSection: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
+    gap: 8,
     marginBottom: 16,
   },
-  sectionSubtitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6B7280',
-    marginBottom: 12,
+  priorityBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
-  pmSection: {
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  teamCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 20,
+    minHeight: 300,
+  },
+  sprintsCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 20,
+    minHeight: 200,
+  },
+  documentsCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 20,
+    minHeight: 200,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
     marginBottom: 20,
   },
-  pmCard: {
+  detailItem: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#FFF7ED',
-    borderRadius: 8,
+    alignItems: 'flex-start',
+    marginBottom: 20,
     gap: 12,
   },
-  pmName: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1F2937',
-  },
-  membersSection: {
-    gap: 8,
-  },
-  memberCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 8,
-    borderRadius: 8,
-    gap: 12,
-  },
-  memberName: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1F2937',
-  },
-  clientSection: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 16,
-  },
-  infoCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    gap: 12,
-    marginBottom: 12,
-  },
-  infoContent: {
+  detailContent: {
     flex: 1,
   },
-  infoLabel: {
+  detailLabel: {
     fontSize: 12,
-    fontWeight: '500',
-    color: '#6B7280',
+    color: '#6b7280',
+    marginBottom: 4,
+  },
+  detailValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  descriptionSection: {
+    marginTop: 8,
+  },
+  descriptionText: {
+    fontSize: 14,
+    color: '#6b7280',
+    lineHeight: 20,
+    marginTop: 4,
+  },
+  teamSubtitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  teamMemberItem: {
+    marginBottom: 16,
+  },
+  teamMemberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 12,
+  },
+  teamAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  teamMemberInfo: {
+    flex: 1,
+  },
+  teamMemberName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
     marginBottom: 2,
   },
-  infoValue: {
+  teamMemberEmail: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  sprintItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#f9fafb',
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  sprintInfo: {
+    flex: 1,
+  },
+  sprintName: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#1F2937',
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
   },
-  detailsSection: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 16,
+  sprintDates: {
+    fontSize: 12,
+    color: '#6b7280',
   },
-  fileCard: {
+  sprintStatusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  sprintStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  noSprintsText: {
+    fontSize: 14,
+    color: '#9ca3af',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+  documentItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 12,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#f9fafb',
     borderRadius: 8,
     marginBottom: 16,
   },
-  fileInfo: {
+  documentInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     flex: 1,
   },
-  fileIconContainer: {
-    width: 32,
-    height: 32,
-    backgroundColor: '#FFF7ED',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  fileDetails: {
+  documentDetails: {
     flex: 1,
   },
-  fileName: {
+  documentName: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1F2937',
+    color: '#111827',
+    marginBottom: 2,
   },
-  fileType: {
+  documentType: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#6b7280',
   },
   downloadButton: {
     padding: 8,
-  },
-  detailsList: {
-    gap: 12,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  detailLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  detailValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1F2937',
   },
   tasksContainer: {
     backgroundColor: '#FFFFFF',
@@ -1059,15 +1793,18 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   tasksTable: {
-    gap: 0,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
   },
   tableHeader: {
     flexDirection: 'row',
     backgroundColor: '#F9FAFB',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
     borderRadius: 8,
-    marginBottom: 8,
+    marginBottom: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: '#E5E7EB',
   },
   tableHeaderText: {
     fontSize: 12,
@@ -1078,24 +1815,32 @@ const styles = StyleSheet.create({
   },
   tableRow: {
     flexDirection: 'row',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    paddingVertical: 18,
+    paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-    alignItems: 'center',
+    borderBottomColor: '#E5E7EB',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+    minHeight: 70,
+    backgroundColor: '#FFFFFF',
   },
   tableCell: {
     paddingHorizontal: 8,
+    paddingVertical: 6,
+    justifyContent: 'center',
   },
   taskTitle: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#1F2937',
-    marginBottom: 2,
+    marginBottom: 6,
+    lineHeight: 20,
   },
   taskDescription: {
     fontSize: 12,
     color: '#6B7280',
+    marginTop: 0,
+    lineHeight: 16,
   },
   assigneeContainer: {
     flexDirection: 'row',
@@ -1132,16 +1877,29 @@ const styles = StyleSheet.create({
   priorityContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
+    flexWrap: 'wrap',
   },
   statusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
+    flexWrap: 'wrap',
   },
   dueDateText: {
     fontSize: 12,
     color: '#6B7280',
+    lineHeight: 16,
+  },
+  priorityText: {
+    fontSize: 12,
+    color: '#6B7280',
+    lineHeight: 16,
+  },
+  statusText: {
+    fontSize: 12,
+    color: '#6B7280',
+    lineHeight: 16,
   },
   viewButton: {
     flexDirection: 'row',
@@ -1153,22 +1911,14 @@ const styles = StyleSheet.create({
     color: '#FF6B00',
     fontWeight: '500',
   },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-  },
   avatarPlaceholder: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#f97316',
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#fff',
   },
 });

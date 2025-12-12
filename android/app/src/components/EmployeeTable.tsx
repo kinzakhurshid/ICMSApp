@@ -9,8 +9,10 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import useAxios from '../hooks/useAxios';
+import { exportToCsv } from '../utills/utills';
 
 interface Employee {
   _id: string;
@@ -19,12 +21,15 @@ interface Employee {
   email: string;
   position: string;
   contact: string;
+  contactNumber?: string;
   joiningDate: string;
+  hireDate?: string;
   gender: string;
   avatar?: string;
 }
 
 const EmployeeTable: React.FC = () => {
+  const navigation = useNavigation();
   const { callApi } = useAxios();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,10 +47,45 @@ const EmployeeTable: React.FC = () => {
         method: 'GET',
         url: '/employee',
       });
-      setEmployees(response || []);
+      
+      // Handle different response structures
+      let employeesData = [];
+      if (Array.isArray(response)) {
+        employeesData = response;
+      } else if (response && Array.isArray(response.data)) {
+        employeesData = response.data;
+      } else if (response && response.data && Array.isArray(response.data.data)) {
+        employeesData = response.data.data;
+      } else if (response && response.data) {
+        employeesData = response.data;
+      }
+      
+      console.log('Employee API Response:', response);
+      console.log('Parsed Employees Data:', employeesData);
+      console.log('Number of employees:', employeesData.length);
+      
+      // Map API response to Employee interface
+      const mappedEmployees: Employee[] = employeesData.map((emp: any) => ({
+        _id: emp._id || emp.id || '',
+        firstName: emp.firstName || emp.fullName?.split(' ')[0] || '',
+        lastName: emp.lastName || emp.fullName?.split(' ').slice(1).join(' ') || '',
+        email: emp.email || 'N/A',
+        position: emp.position || emp.designation || 'N/A',
+        contact: emp.contactNumber || emp.contact || emp.phone || 'N/A',
+        contactNumber: emp.contactNumber || emp.contact || emp.phone,
+        joiningDate: emp.hireDate || emp.joiningDate || emp.createdAt || '',
+        hireDate: emp.hireDate || emp.joiningDate || emp.createdAt,
+        gender: emp.gender || 'N/A',
+        avatar: emp.avatar || emp.profileImage || emp.profilePicture,
+      }));
+      
+      console.log('Mapped Employees:', mappedEmployees);
+      console.log('Mapped Employees Count:', mappedEmployees.length);
+      setEmployees(mappedEmployees);
     } catch (error) {
       console.error('Error fetching employees:', error);
       Alert.alert('Error', 'Failed to load employees');
+      setEmployees([]);
     } finally {
       setLoading(false);
     }
@@ -89,12 +129,27 @@ const EmployeeTable: React.FC = () => {
     }
   };
 
-  const filteredEmployees = employees.filter(emp =>
-    emp.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.position.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleEditEmployee = (id: string) => {
+    (navigation as any).navigate('EditEmployee', { employeeId: id });
+  };
+
+  const handleViewEmployee = (id: string) => {
+    (navigation as any).navigate('EmployeeDetail', { employeeId: id });
+  };
+
+  const filteredEmployees = employees.filter(emp => {
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      (emp.firstName || '').toLowerCase().includes(search) ||
+      (emp.lastName || '').toLowerCase().includes(search) ||
+      (emp.email || '').toLowerCase().includes(search) ||
+      (emp.position || '').toLowerCase().includes(search)
+    );
+  });
+  
+  console.log('Filtered Employees Count:', filteredEmployees.length);
+  console.log('Search Term:', searchTerm);
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
@@ -152,12 +207,42 @@ const EmployeeTable: React.FC = () => {
             <Icon name="filter-list" size={20} color="#666" />
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.exportButton}>
+          <TouchableOpacity
+            style={styles.exportButton}
+            onPress={() => {
+              if (!employees.length) {
+                Alert.alert('Export', 'No employees to export.');
+                return;
+              }
+              exportToCsv({
+                filename: 'employees.csv',
+                columns: [
+                  { key: 'name', header: 'Name' },
+                  { key: 'email', header: 'Email' },
+                  { key: 'position', header: 'Position' },
+                  { key: 'contact', header: 'Contact' },
+                  { key: 'joiningDate', header: 'Joining Date' },
+                  { key: 'gender', header: 'Gender' },
+                ],
+                rows: employees.map(emp => ({
+                  name: `${emp.firstName} ${emp.lastName}`,
+                  email: emp.email,
+                  position: emp.position,
+                  contact: emp.contactNumber || emp.contact || 'N/A',
+                  joiningDate: emp.hireDate || emp.joiningDate || 'N/A',
+                  gender: emp.gender,
+                })),
+              });
+            }}
+          >
             <Icon name="download" size={16} color="white" />
             <Text style={styles.exportText}>Export All</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.addButton}>
+          <TouchableOpacity 
+            style={styles.addButton}
+            onPress={() => (navigation as any).navigate('CreateEmployee')}
+          >
             <Icon name="add" size={16} color="white" />
             <Text style={styles.addText}>+ Add</Text>
           </TouchableOpacity>
@@ -165,7 +250,12 @@ const EmployeeTable: React.FC = () => {
       </View>
 
       {/* Table */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableScrollContainer}>
+      <ScrollView
+        showsVerticalScrollIndicator={true}
+        horizontal
+        showsHorizontalScrollIndicator={true}
+        style={styles.tableScrollContainer}
+      >
         <View style={styles.tableContainer}>
           {/* Table Header */}
           <View style={styles.tableHeader}>
@@ -187,52 +277,73 @@ const EmployeeTable: React.FC = () => {
           </View>
 
           {/* Table Rows */}
-          {filteredEmployees.map((employee, index) => (
-            <View key={employee._id} style={styles.tableRow}>
-              <TouchableOpacity 
-                style={styles.checkboxCell}
-                onPress={() => handleSelectEmployee(employee._id)}
-              >
-                <Icon 
-                  name={selectedIds.includes(employee._id) ? "check-box" : "check-box-outline-blank"} 
-                  size={20} 
-                  color="#666" 
-                />
-              </TouchableOpacity>
-              
-              <Text style={[styles.cellText, styles.srCol]}>{index + 1}</Text>
-              
-              <View style={styles.nameCell}>
-                <View style={styles.avatarContainer}>
-                  {employee.avatar ? (
-                    <View style={styles.avatar}>
-                      <Text style={styles.avatarText}>IMG</Text>
-                    </View>
-                  ) : (
-                    <View style={styles.avatar}>
-                      <Text style={styles.avatarText}>{getInitials(employee.firstName, employee.lastName)}</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={styles.nameText}>{employee.firstName} {employee.lastName}</Text>
-              </View>
-              
-              <Text style={[styles.cellText, styles.emailCol]}>{employee.email}</Text>
-              <Text style={[styles.cellText, styles.positionCol]}>{employee.position}</Text>
-              <Text style={[styles.cellText, styles.contactCol]}>{employee.contact}</Text>
-              <Text style={[styles.cellText, styles.joiningCol]}>{formatDate(employee.joiningDate)}</Text>
-              <Text style={[styles.cellText, styles.genderCol]}>{employee.gender}</Text>
-              
-              <View style={styles.actionsContainer}>
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() => handleDeleteEmployee(employee._id)}
-                >
-                  <Icon name="more-vert" size={16} color="#4CAF50" />
-                </TouchableOpacity>
-              </View>
+          {filteredEmployees.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>
+                {employees.length === 0 
+                  ? 'No employees found' 
+                  : `No employees match "${searchTerm}"`}
+              </Text>
             </View>
-          ))}
+          ) : (
+            filteredEmployees.map((employee, index) => (
+              <TouchableOpacity
+                key={employee._id}
+                style={styles.tableRow}
+                activeOpacity={0.7}
+                onPress={() => handleViewEmployee(employee._id)}
+              >
+                <TouchableOpacity 
+                  style={styles.checkboxCell}
+                  onPress={() => handleSelectEmployee(employee._id)}
+                >
+                  <Icon 
+                    name={selectedIds.includes(employee._id) ? "check-box" : "check-box-outline-blank"} 
+                    size={20} 
+                    color="#666" 
+                  />
+                </TouchableOpacity>
+                
+                <Text style={[styles.cellText, styles.srCol]}>{index + 1}</Text>
+                
+                <View style={styles.nameCell}>
+                  <View style={styles.avatarContainer}>
+                    {employee.avatar ? (
+                      <View style={styles.avatar}>
+                        <Text style={styles.avatarText}>IMG</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.avatar}>
+                        <Text style={styles.avatarText}>{getInitials(employee.firstName, employee.lastName)}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.nameText}>{employee.firstName} {employee.lastName}</Text>
+                </View>
+                
+                <Text style={[styles.cellText, styles.emailCol]}>{employee.email}</Text>
+                <Text style={[styles.cellText, styles.positionCol]}>{employee.position}</Text>
+                <Text style={[styles.cellText, styles.contactCol]}>{employee.contactNumber || employee.contact || 'N/A'}</Text>
+                <Text style={[styles.cellText, styles.joiningCol]}>{formatDate(employee.hireDate || employee.joiningDate)}</Text>
+                <Text style={[styles.cellText, styles.genderCol]}>{employee.gender}</Text>
+                
+                <View style={styles.actionsContainer}>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => handleEditEmployee(employee._id)}
+                  >
+                    <Icon name="edit" size={16} color="#4CAF50" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => handleDeleteEmployee(employee._id)}
+                  >
+                    <Icon name="delete" size={16} color="#F44336" />
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            ))
+          )}
         </View>
       </ScrollView>
     </View>
@@ -329,7 +440,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   tableScrollContainer: {
-    maxHeight: 400,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -420,6 +530,16 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: 4,
     backgroundColor: '#F5F5F5',
+  },
+  emptyContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
   },
 });
 

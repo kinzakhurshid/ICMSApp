@@ -15,7 +15,6 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import useAxios from '../hooks/useAxios';
 import SearchableSelect from '../components/SearchableSelect';
-import AppHeader from '../components/AppHeader';
 
 const { width } = Dimensions.get('window');
 
@@ -147,13 +146,34 @@ const HRAttendanceScreen: React.FC = () => {
       const today = new Date();
       const startDate = new Date();
 
+      // Overview filter (Day/Week/Month) only affects overview stats, not the list
+      // The list uses customStart/customEnd or employee filter
       if (!customStart && !customEnd) {
         if (selectedTab === 'Week') startDate.setDate(today.getDate() - 7);
         else if (selectedTab === 'Month') startDate.setMonth(today.getMonth() - 1);
         else startDate.setDate(today.getDate());
       }
 
-      const response = await callApi({
+      // Fetch overview stats (controlled by selectedTab)
+      const overviewStartDate = new Date();
+      if (selectedTab === 'Week') overviewStartDate.setDate(today.getDate() - 7);
+      else if (selectedTab === 'Month') overviewStartDate.setMonth(today.getMonth() - 1);
+      else overviewStartDate.setDate(today.getDate());
+
+      // Fetch overview stats separately
+      const overviewResponse = await callApi({
+        method: 'GET',
+        url: '/attendance/date-range',
+        params: {
+          startDate: overviewStartDate.toISOString().split('T')[0],
+          endDate: today.toISOString().split('T')[0],
+          page: 1,
+          limit: 1, // Just to get stats
+        },
+      });
+
+      // Fetch attendance list (controlled by employee filter and custom dates)
+      const listResponse = await callApi({
         method: 'GET',
         url: '/attendance/date-range',
         params: {
@@ -165,15 +185,16 @@ const HRAttendanceScreen: React.FC = () => {
         },
       });
 
-      console.log("🔍 API Response:", response);
+      console.log("🔍 API Response:", listResponse);
 
-      if (response.success && response.data) {
-        setStats(response.stats || { onTime: 0, late: 0, absent: 0, halfDay: 0, onLeave: 0 });
-        setAttendanceData(response.data);
-        setTotalPages(response.pagination?.totalPages || 1);
+      if (listResponse.success && listResponse.data) {
+        // Use overview stats from overview response
+        setStats(overviewResponse.stats || overviewResponse.data?.stats || { onTime: 0, late: 0, absent: 0, halfDay: 0, onLeave: 0 });
+        setAttendanceData(listResponse.data);
+        setTotalPages(listResponse.pagination?.totalPages || 1);
       } else {
         setAttendanceData([]);
-        setStats({ onTime: 0, late: 0, absent: 0, halfDay: 0, onLeave: 0 });
+        setStats(overviewResponse.stats || { onTime: 0, late: 0, absent: 0, halfDay: 0, onLeave: 0 });
       }
       setLoading(false);
     } catch (error: any) {
@@ -198,6 +219,34 @@ const HRAttendanceScreen: React.FC = () => {
     </View>
   );
 
+  const handleDeleteAttendance = async (record: AttendanceRecord) => {
+    const id = record._id || record.id;
+    if (!id) return;
+
+    Alert.alert(
+      'Delete Attendance',
+      'Are you sure you want to delete this attendance record?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await callApi({ method: 'DELETE', url: `/attendance/${id}` });
+              Alert.alert('Success', 'Attendance record deleted');
+              fetchAttendance();
+            } catch (error: any) {
+              console.error('Error deleting attendance:', error);
+              Alert.alert('Error', error?.response?.data?.message || 'Failed to delete attendance record');
+            }
+          },
+        },
+      ],
+      { cancelable: true },
+    );
+  };
+
   const renderAttendanceRow = (record: AttendanceRecord, index: number) => {
     const employeeName = record.employeeName || `${record.firstName || ''} ${record.lastName || ''}`.trim() || 'Unknown';
     const timeIn = record.timeIn || record.checkIn || '-';
@@ -221,7 +270,31 @@ const HRAttendanceScreen: React.FC = () => {
           <Text style={styles.arrivalText}>{arrivalStatus}</Text>
         </View>
         <View style={styles.optionsButton}>
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() =>
+              Alert.alert(
+                'Options',
+                '',
+                [
+                  {
+                    text: 'Edit',
+                    onPress: () =>
+                      (navigation as any).navigate('EditAttendanceRecord', {
+                        record,
+                      }),
+                  },
+                  {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: () => handleDeleteAttendance(record),
+                  },
+                  { text: 'Cancel', style: 'cancel' },
+                ],
+                { cancelable: true },
+              )
+            }
+          >
             <Icon name="more-vert" size={20} color="#666" />
           </TouchableOpacity>
         </View>
@@ -240,15 +313,23 @@ const HRAttendanceScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <AppHeader navigation={navigation as any} />
       <ScrollView style={styles.scrollContainer}>
       {/* Breadcrumb */}
       <View style={styles.breadcrumb}>
         <Text style={styles.breadcrumbText}>Dashboard / Attendance</Text>
       </View>
 
-      {/* Page Title */}
-      <Text style={styles.pageTitle}>Attendance management</Text>
+      {/* Page Title and Add Button */}
+      <View style={styles.titleRow}>
+        <Text style={styles.pageTitle}>Attendance management</Text>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => (navigation as any).navigate('AddAttendanceRecord')}
+        >
+          <Icon name="add" size={18} color="white" />
+          <Text style={styles.addText}>Add</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Attendance Overview */}
       <View style={styles.overviewCard}>
@@ -296,6 +377,8 @@ const HRAttendanceScreen: React.FC = () => {
             <Text style={styles.exportText}>Export All</Text>
           </TouchableOpacity>
         </View>
+        {/* Spacer to prevent date overlap with header */}
+        <View style={{ height: 12, marginBottom: 4 }} />
         
         {/* Filters Row */}
         <View style={styles.filtersContainer}>
@@ -455,12 +538,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
   pageTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
-    paddingHorizontal: 16,
-    marginBottom: 16,
+    flex: 1,
   },
   overviewCard: {
     backgroundColor: 'white',
@@ -684,15 +773,19 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#FF6B35',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 8,
+    gap: 6,
   },
   addText: {
     color: 'white',
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   tableScrollContainer: {
     maxHeight: 500,
@@ -767,22 +860,25 @@ const styles = StyleSheet.create({
   attendanceSr: {
     fontSize: 13,
     color: '#6B7280',
-    width: 40,
+    width: 50,
     textAlign: 'center',
     fontWeight: '500',
+    marginRight: 10,
   },
   attendanceEmployee: {
     fontSize: 14,
     color: '#374151',
-    width: 180,
+    width: 200,
     fontWeight: '600',
     marginLeft: 8,
+    marginRight: 10,
   },
   attendanceDate: {
     fontSize: 13,
     color: '#6B7280',
-    width: 100,
+    width: 120,
     textAlign: 'center',
+    marginRight: 10,
     fontWeight: '500',
   },
   statusBadge: {
@@ -807,7 +903,8 @@ const styles = StyleSheet.create({
   attendanceTimeOut: {
     fontSize: 13,
     color: '#6B7280',
-    width: 140,
+    width: 160,
+    marginRight: 10,
     textAlign: 'center',
     fontWeight: '500',
   },

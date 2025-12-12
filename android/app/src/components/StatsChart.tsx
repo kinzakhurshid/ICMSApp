@@ -6,6 +6,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   Dimensions,
+  Modal,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import useAxios from '../hooks/useAxios';
 import { ChevronDown } from 'lucide-react-native';
@@ -110,7 +112,8 @@ const StatsChart = ({
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>{title}</Text>
-        <View style={styles.dropdownContainer}>
+        <View style={styles.dropdownWrapper}>
+          <View style={styles.dropdownContainer}>
           <TouchableOpacity
             style={styles.dropdownButton}
             onPress={() => setShowDropdown(!showDropdown)}
@@ -119,26 +122,41 @@ const StatsChart = ({
             <ChevronDown size={16} color="#374151" />
           </TouchableOpacity>
           {showDropdown && (
-            <View style={styles.dropdownMenu}>
-              {timeOptions.map((option) => (
-                <TouchableOpacity
-                  key={option}
-                  style={styles.dropdownItem}
-                  onPress={() => {
-                    setTimeFilter(option as any);
-                    setShowDropdown(false);
-                  }}
-                >
-                  <Text style={styles.dropdownItemText}>{option}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <>
+              <View style={styles.dropdownMenu}>
+                {timeOptions.map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    style={[
+                      styles.dropdownItem,
+                      timeFilter === option && styles.dropdownItemSelected
+                    ]}
+                    onPress={() => {
+                      setTimeFilter(option as any);
+                      setShowDropdown(false);
+                    }}
+                  >
+                    <Text style={[
+                      styles.dropdownItemText,
+                      timeFilter === option && styles.dropdownItemTextSelected
+                    ]}>{option}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TouchableWithoutFeedback onPress={() => setShowDropdown(false)}>
+                <View style={styles.dropdownBackdrop} />
+              </TouchableWithoutFeedback>
+            </>
           )}
+          </View>
         </View>
       </View>
 
-      {/* Content */}
-      <View style={styles.content}>
+      {/* Content - Add extra spacing when dropdown is open to prevent overlap */}
+      <View style={[
+        styles.content, 
+        showDropdown ? styles.contentWithDropdown : null
+      ]}>
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#3B82F6" />
@@ -157,7 +175,7 @@ const StatsChart = ({
                       legendFontSize: 12,
                     }))}
                     width={screenWidth - 80}
-                    height={150}
+                    height={160}
                     chartConfig={chartConfig}
                     accessor="population"
                     backgroundColor="transparent"
@@ -166,26 +184,36 @@ const StatsChart = ({
                   />
                 </View>
 
-                {/* Legends */}
+                {/* Legends - Remove duplicates */}
                 <View style={styles.legendContainer}>
-                  {chartData.labels.map((label: string, index: number) => {
-                    const value = chartData.values[index];
-                    const total = chartData.values.reduce((a: number, b: number) => a + b, 0);
-                    const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                  {(() => {
+                    // Remove duplicate labels to fix TC_14
+                    const uniqueLabels = new Map<string, number>();
+                    chartData.labels.forEach((label: string, index: number) => {
+                      if (!uniqueLabels.has(label)) {
+                        uniqueLabels.set(label, index);
+                      }
+                    });
 
-                    return (
-                      <View key={label} style={styles.legendItem}>
-                        <View
-                          style={[
-                            styles.legendColor,
-                            { backgroundColor: chartData.colors[index] },
-                          ]}
-                        />
-                        <Text style={styles.legendLabel}>{label}</Text>
-                        <Text style={styles.legendPercentage}>{percentage}%</Text>
-                      </View>
-                    );
-                  })}
+                    return Array.from(uniqueLabels.entries()).map(([label, index]) => {
+                      const value = chartData.values[index];
+                      const total = chartData.values.reduce((a: number, b: number) => a + b, 0);
+                      const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+
+                      return (
+                        <View key={`${label}-${index}`} style={styles.legendItem}>
+                          <View
+                            style={[
+                              styles.legendColor,
+                              { backgroundColor: chartData.colors[index] },
+                            ]}
+                          />
+                          <Text style={styles.legendLabel}>{label}</Text>
+                          <Text style={styles.legendPercentage}>{percentage}%</Text>
+                        </View>
+                      );
+                    });
+                  })()}
                 </View>
               </>
             )}
@@ -200,23 +228,38 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    padding: 16,
+    padding: 20,
+    paddingBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2,
+    marginBottom: 16,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
+    paddingBottom: 12,
+    paddingTop: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    minHeight: 48,
+    position: 'relative',
+    zIndex: 1,
   },
   title: {
     fontSize: 16,
     fontWeight: '600',
     color: '#111827',
+    flex: 1,
+    marginRight: 12,
+  },
+  dropdownWrapper: {
+    position: 'relative',
+    zIndex: 100,
   },
   dropdownContainer: {
     position: 'relative',
@@ -229,13 +272,23 @@ const styles = StyleSheet.create({
     borderColor: '#D1D5DB',
     borderRadius: 6,
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    minWidth: 120,
+    paddingVertical: 8,
+    minWidth: 130,
+    justifyContent: 'space-between',
   },
   dropdownText: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#374151',
-    marginRight: 4,
+    marginRight: 6,
+    fontWeight: '500',
+  },
+  dropdownBackdrop: {
+    position: 'absolute',
+    top: -10000,
+    left: -10000,
+    right: -10000,
+    bottom: -10000,
+    zIndex: 998,
   },
   dropdownMenu: {
     position: 'absolute',
@@ -244,56 +297,93 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    borderRadius: 6,
-    marginTop: 4,
-    minWidth: 120,
-    zIndex: 10,
+    borderRadius: 8,
+    marginTop: 6,
+    minWidth: 130,
+    zIndex: 1001,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 10,
+    overflow: 'hidden',
   },
   dropdownItem: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
+  },
+  dropdownItemSelected: {
+    backgroundColor: '#FFF7ED',
   },
   dropdownItemText: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#374151',
+    fontWeight: '500',
+  },
+  dropdownItemTextSelected: {
+    color: '#F97316',
+    fontWeight: '600',
   },
   content: {
     alignItems: 'center',
+    paddingTop: 8,
+    position: 'relative',
+    zIndex: 0,
+  },
+  contentWithDropdown: {
+    paddingTop: 150,
+    marginTop: 0,
   },
   loadingContainer: {
     height: 150,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: 20,
   },
   chartContainer: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
+    marginTop: 12,
+    minHeight: 160,
+    paddingVertical: 8,
+    width: '100%',
   },
   legendContainer: {
     width: '100%',
+    paddingTop: 8,
+    paddingBottom: 4,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 4,
   },
   legendColor: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 8,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    marginRight: 12,
+    flexShrink: 0,
   },
   legendLabel: {
     flex: 1,
     fontSize: 14,
     color: '#374151',
+    marginRight: 12,
+    lineHeight: 20,
   },
   legendPercentage: {
     fontSize: 14,
     fontWeight: '600',
     color: '#111827',
+    minWidth: 40,
+    textAlign: 'right',
+    lineHeight: 20,
   },
 });
 

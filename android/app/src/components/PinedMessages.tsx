@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
 import { X } from 'react-native-feather';
 import { Message } from '../types/chattypes';
-import MessageBubble from './MessageBubbles';
+import MessageBubble from './MessageBubble';
 
 interface PinnedMessagesProps {
   pinnedMessages: Message[];

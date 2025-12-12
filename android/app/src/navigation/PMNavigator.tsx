@@ -6,7 +6,13 @@ import PMTabNavigator from './PMTabNavigator';
 import SettingsScreen from '../Screens/SettingScreen';
 import SprintScreen from '../Screens/SprintScreen';
 import SprintDetailScreen from '../Screens/SprintDetailScreen';
+import SprintDetailScreenNew from '../Screens/SprintDetailScreenNew';
+import EditSprintScreen from '../Screens/EditSprintScreen';
 import MeetingDashboard from '../Screens/MeetingScreen';
+import CreateMeetingScreen from '../Screens/CreateMeetingScreen';
+import EditMeetingScreen from '../Screens/EditMeetingScreen';
+import EmployeeLeavePage from '../Screens/EmployeeLeavePage';
+import CreateSprintScreen from '../Screens/CreateSprintScreen';
 import AppHeader from '../components/AppHeader';
 import NotificationsScreen from '../Screens/NotificationsScreen';
 import Icon from 'react-native-vector-icons/FontAwesome';
@@ -15,7 +21,13 @@ export type PMDrawerParamList = {
   MainTabs: undefined;
   SprintBoard: undefined;
   SprintDetail: { sprintId: string };
+  SprintDetailNew: { sprintId: string };
+  EditSprint: { sprintId: string };
+  CreateSprint: undefined;
   Meeting: undefined;
+  CreateMeeting: undefined;
+  EditMeeting: { meetingId: string };
+  Attendance: undefined;
   AppSettings: undefined;
   NotificationsScreen: undefined;
 };
@@ -67,12 +79,62 @@ const PMNavigator: React.FC = () => {
         }}
       />
       <Drawer.Screen
+        name="SprintDetailNew"
+        component={SprintDetailScreenNew}
+        options={{
+          title: 'Sprint Overview',
+          drawerItemStyle: { display: 'none' },
+        }}
+      />
+      <Drawer.Screen
+        name="EditSprint"
+        component={EditSprintScreen}
+        options={{
+          title: 'Edit Sprint',
+          drawerItemStyle: { display: 'none' },
+        }}
+      />
+      <Drawer.Screen
+        name="CreateSprint"
+        component={CreateSprintScreen}
+        options={{
+          title: 'Create Sprint',
+          drawerItemStyle: { display: 'none' },
+        }}
+      />
+      <Drawer.Screen
         name="Meeting"
         component={MeetingDashboard}
         options={{
           title: 'Meetings',
           drawerIcon: ({ color, size }) => (
             <Icon name="calendar" size={size} color={color} />
+          ),
+        }}
+      />
+      <Drawer.Screen
+        name="CreateMeeting"
+        component={CreateMeetingScreen}
+        options={{
+          title: 'Create Meeting',
+          drawerItemStyle: { display: 'none' },
+        }}
+      />
+      <Drawer.Screen
+        name="EditMeeting"
+        component={EditMeetingScreen}
+        options={{
+          title: 'Edit Meeting',
+          drawerItemStyle: { display: 'none' },
+        }}
+      />
+      <Drawer.Screen
+        name="Attendance"
+        component={EmployeeLeavePage}
+        options={{
+          title: 'Attendance',
+          drawerIcon: ({ color, size }) => (
+            <Icon name="calendar-check-o" size={size} color={color} />
           ),
         }}
       />

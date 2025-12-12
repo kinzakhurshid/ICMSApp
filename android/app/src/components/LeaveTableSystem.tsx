@@ -7,16 +7,21 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import useAxios from '../hooks/useAxios';
+import { exportToCsv } from '../utills/utills';
 
 const LeaveTableSystem: React.FC = () => {
+  const navigation = useNavigation();
   const { callApi } = useAxios();
   const [leaves, setLeaves] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [processingStatus, setProcessingStatus] = useState<string | null>(null);
 
   // Mock data - replace with actual API call
   const mockLeaves = [
@@ -70,26 +75,70 @@ const LeaveTableSystem: React.FC = () => {
     loadLeaves();
   }, []);
 
+  const getEmployeeName = (leave: any): string => {
+    // Try multiple possible locations/fields for employee name
+    const emp =
+      leave.employee ||
+      leave.employeeId ||
+      leave.EmployeeId || // API returns EmployeeId with capital E
+      leave.emp ||
+      leave.user ||
+      {};
+    const directName =
+      leave.employeeName ||
+      leave.employee_name ||
+      leave.userName ||
+      leave.username ||
+      leave.name;
+
+    const fullName =
+      emp.fullName ||
+      emp.full_name ||
+      (emp.firstName && emp.lastName ? `${emp.firstName} ${emp.lastName}` : undefined);
+
+    return (
+      emp.name ||
+      fullName ||
+      directName ||
+      'N/A'
+    );
+  };
+
   const loadLeaves = async () => {
     try {
       setLoading(true);
-      // Replace with actual API call
-      // const response = await callApi({ method: 'GET', url: '/leaves' });
-      // setLeaves(response?.data || []);
-      setLeaves(mockLeaves);
+      const response = await callApi({
+        method: 'GET',
+        url: '/leave',
+        params: {
+          page: 1,
+          limit: 100,
+        },
+      });
+      const leavesData = response?.data || response || [];
+      const normalized = Array.isArray(leavesData) ? leavesData : [];
+      if (normalized.length > 0) {
+        console.log('Sample leave record:', JSON.stringify(normalized[0], null, 2));
+      }
+      setLeaves(normalized);
     } catch (error) {
       console.error('Error loading leaves:', error);
-      Alert.alert('Error', 'Failed to load leave records');
+      // Fallback to mock data if API fails
+      setLeaves(mockLeaves);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredLeaves = leaves.filter(leave =>
-    leave.employee?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    leave.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    leave.reason?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredLeaves = leaves.filter(leave => {
+    const term = searchTerm.toLowerCase();
+    const employeeName = getEmployeeName(leave).toLowerCase();
+    return (
+      employeeName.includes(term) ||
+      leave.type?.toLowerCase().includes(term) ||
+      leave.reason?.toLowerCase().includes(term)
+    );
+  });
 
   const handleSelectLeave = (id: string) => {
     setSelectedIds(prev => 
@@ -107,34 +156,123 @@ const LeaveTableSystem: React.FC = () => {
     }
   };
 
-  const handleDeleteLeave = (id: string) => {
+  const handleDeleteLeave = async (id: string) => {
     Alert.alert(
       'Delete Leave Record',
       'Are you sure you want to delete this leave record?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => {
-          const updatedLeaves = leaves.filter(leave => leave._id !== id);
-          setLeaves(updatedLeaves);
-          Alert.alert('Success', 'Leave record deleted successfully');
-        }},
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await callApi({
+                method: 'DELETE',
+                url: `/leave/${id}`,
+              });
+              setLeaves(leaves.filter(leave => leave._id !== id));
+              Alert.alert('Success', 'Leave record deleted successfully');
+            } catch (error) {
+              console.error('Error deleting leave:', error);
+              Alert.alert('Error', 'Failed to delete leave record');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleApproveLeave = async (id: string) => {
+    try {
+      setProcessingStatus(id);
+      await callApi({
+        method: 'PUT',
+        url: `/leave/${id}/status`,
+        data: { status: 'Approved' },
+      });
+      setLeaves(leaves.map(leave =>
+        leave._id === id ? { ...leave, status: 'Approved' } : leave
+      ));
+      Alert.alert('Success', 'Leave approved successfully');
+    } catch (error) {
+      console.error('Error approving leave:', error);
+      Alert.alert('Error', 'Failed to approve leave');
+    } finally {
+      setProcessingStatus(null);
+    }
+  };
+
+  const handleRejectLeave = async (id: string) => {
+    Alert.alert(
+      'Reject Leave',
+      'Are you sure you want to reject this leave?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reject',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setProcessingStatus(id);
+              await callApi({
+                method: 'PUT',
+                url: `/leave/${id}/status`,
+                data: { status: 'Rejected' },
+              });
+              setLeaves(leaves.map(leave =>
+                leave._id === id ? { ...leave, status: 'Rejected' } : leave
+              ));
+              Alert.alert('Success', 'Leave rejected successfully');
+            } catch (error) {
+              console.error('Error rejecting leave:', error);
+              Alert.alert('Error', 'Failed to reject leave');
+            } finally {
+              setProcessingStatus(null);
+            }
+          },
+        },
       ]
     );
   };
 
   const handleEditLeave = (leave: any) => {
-    Alert.alert('Edit Leave', `Edit ${leave.employee?.name}'s leave functionality will be implemented`);
+    (navigation as any).navigate('HREditLeave', { leaveId: leave._id });
   };
 
   const handleExport = () => {
-    Alert.alert('Export', 'Export functionality will be implemented');
+    if (!leaves.length) {
+      Alert.alert('Export', 'No leave records to export.');
+      return;
+    }
+    exportToCsv({
+      filename: 'leaves.csv',
+      columns: [
+        { key: 'employeeName', header: 'Employee' },
+        { key: 'type', header: 'Type' },
+        { key: 'duration', header: 'Duration' },
+        { key: 'from', header: 'From' },
+        { key: 'to', header: 'To' },
+        { key: 'reason', header: 'Reason' },
+        { key: 'status', header: 'Status' },
+      ],
+      rows: leaves.map(leave => ({
+        employeeName: getEmployeeName(leave),
+        type: leave.type,
+        duration: leave.duration,
+        from: leave.startDate || leave.from,
+        to: leave.endDate || leave.to,
+        reason: leave.reason,
+        status: leave.status,
+      })),
+    });
   };
 
   const handleAddLeave = () => {
     Alert.alert('Add Leave', 'Add leave functionality will be implemented');
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString?: string) => {
     if (!dateString) return 'N/A';
     try {
       const date = new Date(dateString);
@@ -182,7 +320,10 @@ const LeaveTableSystem: React.FC = () => {
             <Text style={styles.exportText}>Export All</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.addButton} onPress={handleAddLeave}>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => (navigation as any).navigate('HRCreateLeave')}
+          >
             <Text style={styles.addText}>+</Text>
           </TouchableOpacity>
         </View>
@@ -225,23 +366,87 @@ const LeaveTableSystem: React.FC = () => {
                 />
               </TouchableOpacity>
               
-              <Text style={[styles.cellText, styles.employeeCol]}>{leave.employee?.name || 'N/A'}</Text>
+              <Text style={[styles.cellText, styles.employeeCol]}>{getEmployeeName(leave)}</Text>
               <Text style={[styles.cellText, styles.typeCol]}>{leave.type || 'N/A'}</Text>
-              <Text style={[styles.cellText, styles.durationCol]}>{leave.duration || 'N/A'}</Text>
-              <Text style={[styles.cellText, styles.fromCol]}>{formatDate(leave.from)}</Text>
-              <Text style={[styles.cellText, styles.toCol]}>{formatDate(leave.to)}</Text>
+              <Text style={[styles.cellText, styles.durationCol]}>
+                {leave.isHalfDay
+                  ? leave.halfDayType === 'first'
+                    ? 'First Half'
+                    : leave.halfDayType === 'second'
+                    ? 'Second Half'
+                    : 'Half Day'
+                  : typeof leave.duration === 'number'
+                  ? `${leave.duration} day${leave.duration === 1 ? '' : 's'}`
+                  : leave.duration || 'N/A'}
+              </Text>
+              <Text style={[styles.cellText, styles.fromCol]}>
+                {formatDate(leave.startDate || leave.from)}
+              </Text>
+              <Text style={[styles.cellText, styles.toCol]}>
+                {formatDate(leave.endDate || leave.to)}
+              </Text>
               <Text style={[styles.cellText, styles.reasonCol]}>{leave.reason || 'N/A'}</Text>
               <Text style={[styles.cellText, styles.fileCol]}>{leave.file ? 'File' : '-'}</Text>
               
               <View style={styles.statusContainer}>
-                <View style={[styles.statusBadge, { backgroundColor: '#D4EDDA' }]}>
-                  <Text style={[styles.statusText, { color: '#155724' }]}>
-                    {leave.status || 'Approved'}
+                <View
+                  style={[
+                    styles.statusBadge,
+                    {
+                      backgroundColor:
+                        leave.status === 'Approved'
+                          ? '#D4EDDA'
+                          : leave.status === 'Rejected'
+                          ? '#F8D7DA'
+                          : '#FFF3CD',
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.statusText,
+                      {
+                        color:
+                          leave.status === 'Approved'
+                            ? '#155724'
+                            : leave.status === 'Rejected'
+                            ? '#721C24'
+                            : '#856404',
+                      },
+                    ]}
+                  >
+                    {leave.status || 'Pending'}
                   </Text>
                 </View>
               </View>
-              
+
               <View style={styles.actionsContainer}>
+                {leave.status === 'Pending' && (
+                  <>
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.approveButton]}
+                      onPress={() => handleApproveLeave(leave._id)}
+                      disabled={processingStatus === leave._id}
+                    >
+                      {processingStatus === leave._id ? (
+                        <ActivityIndicator size="small" color="#4CAF50" />
+                      ) : (
+                        <Icon name="check" size={16} color="#4CAF50" />
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.rejectButton]}
+                      onPress={() => handleRejectLeave(leave._id)}
+                      disabled={processingStatus === leave._id}
+                    >
+                      {processingStatus === leave._id ? (
+                        <ActivityIndicator size="small" color="#DC3545" />
+                      ) : (
+                        <Icon name="close" size={16} color="#DC3545" />
+                      )}
+                    </TouchableOpacity>
+                  </>
+                )}
                 <TouchableOpacity
                   style={styles.actionButton}
                   onPress={() => handleEditLeave(leave)}
@@ -352,7 +557,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   tableContainer: {
-    minWidth: 1200,
+    minWidth: 1260,
     backgroundColor: 'white',
   },
   tableHeader: {
@@ -384,7 +589,7 @@ const styles = StyleSheet.create({
   reasonCol: { width: 200 },
   fileCol: { width: 80 },
   statusCol: { width: 100 },
-  actionsCol: { width: 100 },
+  actionsCol: { width: 160 },
   tableRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -427,6 +632,12 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: 4,
     backgroundColor: '#F5F5F5',
+  },
+  approveButton: {
+    backgroundColor: '#E8F5E9',
+  },
+  rejectButton: {
+    backgroundColor: '#FFEBEE',
   },
 });
 

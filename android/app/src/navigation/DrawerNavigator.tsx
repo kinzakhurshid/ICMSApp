@@ -10,15 +10,33 @@ import SettingsScreen from '../Screens/SettingScreen';
 import SprintScreen from '../Screens/SprintScreen';
 import SprintDetailScreen from '../Screens/SprintDetailScreen';
 import MeetingDashboard from '../Screens/MeetingScreen';
+import CreateMeetingScreen from '../Screens/CreateMeetingScreen';
 import AppHeader from '../components/AppHeader';
 import HomeScreen from '../Screens/HomeScreen';
 import NotificationsScreen from '../Screens/NotificationsScreen';
 import HREmployeesScreen from '../Screens/HREmployeesScreen';
+import CreateEmployeeScreen from '../Screens/CreateEmployeeScreen';
+import EditEmployeeScreen from '../Screens/EditEmployeeScreen';
+import EmployeeDetailScreen from '../Screens/EmployeeDetailScreen';
+import CreateJobScreen from '../Screens/CreateJobScreen';
 import HRAttendanceScreen from '../Screens/HRAttendanceScreen';
+import EmployeeProfileScreen from '../Screens/EmployeeProfileScreen';
+import AddAttendanceRecordScreen from '../Screens/AddAttendanceRecordScreen';
+import AddIdleTimeScreen from '../Screens/AddIdleTimeScreen';
+import AddIdleTimePresetScreen from '../Screens/AddIdleTimePresetScreen';
+import AddHolidayScreen from '../Screens/AddHolidayScreen';
+import HRCreateLeaveScreen from '../Screens/HRCreateLeaveScreen';
+import HREditLeaveScreen from '../Screens/HREditLeaveScreen';
+import AssignAccessoryScreen from '../Screens/AssignAccessoryScreen';
+import ReturnAccessoryScreen from '../Screens/ReturnAccessoryScreen';
+import TerminateEmployeeScreen from '../Screens/TerminateEmployeeScreen';
 import ResignationScreen from '../Screens/ResignationScreen';
 import PayrollScreen from '../Screens/PayrollScreen';
 import LeavesScreen from '../Screens/LeavesScreen';
+import EditAttendanceRecordScreen from '../Screens/EditAttendanceRecordScreen';
 import AccessoriesScreen from '../Screens/AccessoriesScreen';
+import CreateAccessoryScreen from '../Screens/CreateAccessoryScreen';
+import EditAccessoryScreen from '../Screens/EditAccessoryScreen';
 import DepartmentsScreen from '../Screens/DepartmentsScreen';
 import ProjectScreen from '../Screens/ProjectScreen';
 import OrgAdminProjectsScreen from '../Screens/OrgAdminProjectsScreen';
@@ -26,24 +44,47 @@ import OrgAdminActivitiesScreen from '../Screens/OrgAdminActivitiesScreen';
 import AttendanceScreen from '../Screens/AttendanceScreen';
 import HrIdleTimeScreen from '../Screens/HrIdleTimeScreen';
 import HrQueriesScreen from '../Screens/HrQueriesScreen';
+import DepartmentDetailScreen from '../Screens/DepartmentDetailScreen';
+import CreateDepartmentScreen from '../Screens/CreateDepartmentScreen';
+import EditDepartmentScreen from '../Screens/EditDepartmentScreen';
 
 export type DrawerParamList = {
   MainTabs: undefined;
   SprintBoard: undefined;
   SprintDetail: { sprintId: string };
   Meeting: undefined;
+  CreateMeeting: undefined;
   AppSettings: undefined;
   DeveloperTools: undefined;
   NotificationsScreen: undefined;
   HREmployees: undefined;
+  CreateEmployee: undefined;
+  EditEmployee: { employeeId: string } | undefined;
+  EmployeeDetail: { employeeId: string } | undefined;
   HRAttendance: undefined;
+  AddAttendanceRecord: undefined;
+  AddIdleTime: undefined;
+  AddIdleTimePreset: undefined;
+  AddHoliday: undefined;
+  HRCreateLeave: undefined;
+  AssignAccessory: undefined;
+  ReturnAccessory: { assignmentId?: string; accessoryId?: string } | undefined;
+  TerminateEmployee: undefined;
   HRIdleTime: undefined;
   HRQueries: undefined;
   ResignationScreen: undefined;
   PayrollScreen: undefined;
   LeavesScreen: undefined;
+  EditAttendanceRecord: { record: any } | undefined;
   AccessoriesScreen: undefined;
+  CreateAccessory: undefined;
+  EditAccessory: { accessoryId: string } | undefined;
   SettingsScreen: undefined;
+  HREditLeave: { leaveId: string };
+  DepartmentDetail: { departmentId: string };
+  CreateDepartment: undefined;
+  EditDepartment: { departmentId: string };
+  OrgAdminProfile: undefined;
 };
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
@@ -99,6 +140,15 @@ const DrawerNavigator: React.FC = () => {
         options={{ title: 'Meeting' }}
       />
 
+      <Drawer.Screen
+        name="CreateMeeting"
+        component={CreateMeetingScreen}
+        options={{ 
+          title: 'Create Meeting',
+          drawerItemStyle: { display: 'none' }, // Hide from drawer, only accessible via navigation
+        }}
+      />
+
       {/* Org Admin specific routes */}
       <Drawer.Screen
         name="Departments"
@@ -107,6 +157,30 @@ const DrawerNavigator: React.FC = () => {
           title: 'Departments',
           headerShown: true,
           drawerItemStyle: isOrgAdmin ? {} : { display: 'none' },
+        }}
+      />
+      <Drawer.Screen
+        name="DepartmentDetail"
+        component={DepartmentDetailScreen}
+        options={{
+          title: 'Department Details',
+          drawerItemStyle: { display: 'none' }, // Hide from drawer, only accessible via navigation
+        }}
+      />
+      <Drawer.Screen
+        name="CreateDepartment"
+        component={CreateDepartmentScreen}
+        options={{
+          title: 'Create Department',
+          drawerItemStyle: { display: 'none' }, // Hide from drawer, only accessible via navigation
+        }}
+      />
+      <Drawer.Screen
+        name="EditDepartment"
+        component={EditDepartmentScreen}
+        options={{
+          title: 'Edit Department',
+          drawerItemStyle: { display: 'none' }, // Hide from drawer, only accessible via navigation
         }}
       />
       <Drawer.Screen
@@ -172,6 +246,49 @@ const DrawerNavigator: React.FC = () => {
                 }}
               />
               
+              {/* Create Employee Screen */}
+              <Drawer.Screen
+                name="CreateEmployee"
+                component={CreateEmployeeScreen}
+                options={{ 
+                  title: 'Create Employee',
+                  headerShown: false,
+                  drawerItemStyle: { display: 'none' },
+                }}
+              />
+              
+              {/* Edit Employee Screen */}
+              <Drawer.Screen
+                name="EditEmployee"
+                component={EditEmployeeScreen}
+                options={{ 
+                  title: 'Edit Employee',
+                  headerShown: false,
+                  drawerItemStyle: { display: 'none' },
+                }}
+              />
+              {/* Employee Detail Screen */}
+              <Drawer.Screen
+                name="EmployeeDetail"
+                component={EmployeeDetailScreen}
+                options={{ 
+                  title: 'Employee Details',
+                  headerShown: true,
+                  drawerItemStyle: { display: 'none' },
+                }}
+              />
+              
+              {/* Create Job Screen */}
+              <Drawer.Screen
+                name="CreateJob"
+                component={CreateJobScreen}
+                options={{ 
+                  title: 'Create Job Opening',
+                  headerShown: false,
+                  drawerItemStyle: { display: 'none' },
+                }}
+              />
+              
               {/* HR Attendance Screen */}
               <Drawer.Screen
                 name="HRAttendance"
@@ -180,6 +297,137 @@ const DrawerNavigator: React.FC = () => {
                   title: 'Attendance',
                   headerShown: true,
                   drawerItemStyle: ((user as any)?.role === 'HR' || (user as any)?.role === 'hr') ? {} : { display: 'none' },
+                }}
+              />
+              
+              {/* Edit Attendance Record Screen */}
+              <Drawer.Screen
+                name="EditAttendanceRecord"
+                component={EditAttendanceRecordScreen}
+                options={{ 
+                  title: 'Edit Attendance Record',
+                  headerShown: false,
+                  drawerItemStyle: { display: 'none' },
+                }}
+              />
+              
+              {/* Add Attendance Record Screen */}
+              <Drawer.Screen
+                name="AddAttendanceRecord"
+                component={AddAttendanceRecordScreen}
+                options={{ 
+                  title: 'Add Attendance Record',
+                  headerShown: false,
+                  drawerItemStyle: { display: 'none' },
+                }}
+              />
+              
+              {/* Add Idle Time Screen */}
+              <Drawer.Screen
+                name="AddIdleTime"
+                component={AddIdleTimeScreen}
+                options={{ 
+                  title: 'Add Idle Time',
+                  headerShown: false,
+                  drawerItemStyle: { display: 'none' },
+                }}
+              />
+              
+              {/* Add Idle Time Preset Screen */}
+              <Drawer.Screen
+                name="AddIdleTimePreset"
+                component={AddIdleTimePresetScreen}
+                options={{ 
+                  title: 'Add Idle Time Preset',
+                  headerShown: false,
+                  drawerItemStyle: { display: 'none' },
+                }}
+              />
+              
+              {/* Add Holiday Screen */}
+              <Drawer.Screen
+                name="AddHoliday"
+                component={AddHolidayScreen}
+                options={{ 
+                  title: 'Add Holiday',
+                  headerShown: false,
+                  drawerItemStyle: { display: 'none' },
+                }}
+              />
+              
+              {/* HR Create Leave Screen */}
+              <Drawer.Screen
+                name="HRCreateLeave"
+                component={HRCreateLeaveScreen}
+                options={{ 
+                  title: 'Create Leave',
+                  headerShown: false,
+                  drawerItemStyle: { display: 'none' },
+                }}
+              />
+              {/* HR Edit Leave Screen */}
+              <Drawer.Screen
+                name="HREditLeave"
+                component={HREditLeaveScreen}
+                options={{ 
+                  title: 'Edit Leave',
+                  headerShown: false,
+                  drawerItemStyle: { display: 'none' },
+                }}
+              />
+              
+              {/* Assign Accessory Screen */}
+              <Drawer.Screen
+                name="AssignAccessory"
+                component={AssignAccessoryScreen}
+                options={{ 
+                  title: 'Assign Accessory',
+                  headerShown: false,
+                  drawerItemStyle: { display: 'none' },
+                }}
+              />
+              
+              {/* Return Accessory Screen */}
+              <Drawer.Screen
+                name="ReturnAccessory"
+                component={ReturnAccessoryScreen}
+                options={{ 
+                  title: 'Return Accessory',
+                  headerShown: false,
+                  drawerItemStyle: { display: 'none' },
+                }}
+              />
+              
+              {/* Create Accessory Screen */}
+              <Drawer.Screen
+                name="CreateAccessory"
+                component={CreateAccessoryScreen}
+                options={{ 
+                  title: 'Add Accessory',
+                  headerShown: false,
+                  drawerItemStyle: { display: 'none' },
+                }}
+              />
+              
+              {/* Edit Accessory Screen */}
+              <Drawer.Screen
+                name="EditAccessory"
+                component={EditAccessoryScreen}
+                options={{ 
+                  title: 'Edit Accessory',
+                  headerShown: false,
+                  drawerItemStyle: { display: 'none' },
+                }}
+              />
+              
+              {/* Terminate Employee Screen */}
+              <Drawer.Screen
+                name="TerminateEmployee"
+                component={TerminateEmployeeScreen}
+                options={{ 
+                  title: 'Terminate Employee',
+                  headerShown: false,
+                  drawerItemStyle: { display: 'none' },
                 }}
               />
               
@@ -257,6 +505,17 @@ const DrawerNavigator: React.FC = () => {
                   title: 'Settings',
                   headerShown: true,
                   drawerItemStyle: ((user as any)?.role === 'HR' || (user as any)?.role === 'hr') ? {} : { display: 'none' },
+                }}
+              />
+              
+              {/* OrgAdmin Profile Screen */}
+              <Drawer.Screen
+                name="OrgAdminProfile"
+                component={EmployeeProfileScreen}
+                options={{ 
+                  title: 'Profile',
+                  headerShown: true,
+                  drawerItemStyle: isOrgAdmin ? {} : { display: 'none' },
                 }}
               />
             </Drawer.Navigator>

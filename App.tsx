@@ -1,7 +1,10 @@
 import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { Provider, useSelector } from 'react-redux';
-import { store } from './android/app/src/states/store';
+import { PersistGate } from 'redux-persist/integration/react';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
+// All source code is in android/app/src - these paths work for both iOS and Android
+import { store, persistor } from './android/app/src/states/store';
 import RootNavigator from './android/app/src/navigation/AppNavigator';
 import { NotificationProvider } from './android/app/src/Context/NotificationContext';
 import { SocketProvider } from './android/app/src/Context/SocketContext';
@@ -17,9 +20,18 @@ const AppWithSocket: React.FC = () => {
   const userToken = userState.token;
   const isLoggedIn = userState.isLoggedIn;
   
-  // Initialize Notifee when app starts
+  // Initialize Notifee when app starts - wrap in try-catch to prevent crashes
   useEffect(() => {
-    NotificationService.initialize();
+    const initNotifee = async () => {
+      try {
+        await NotificationService.initialize();
+      } catch (error) {
+        console.error('App: Error initializing Notifee:', error);
+        // Don't crash the app - continue without Notifee
+      }
+    };
+    
+    initNotifee();
   }, []);
   
   // Send FCM token to backend when user is logged in
@@ -52,17 +64,43 @@ const AppWithSocket: React.FC = () => {
 
 const App = () => {
   useEffect(() => {
-    // Initialize Firebase when app starts
-    initializeFirebase();
+    // Initialize Firebase when app starts - wrap in try-catch to prevent crashes
+    const initFirebase = async () => {
+      try {
+        await initializeFirebase();
+      } catch (error) {
+        console.error('App: Error initializing Firebase:', error);
+        // Don't crash the app - continue without Firebase
+      }
+    };
+    
+    initFirebase();
   }, []);
+
+  const LoadingScreen = () => (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color="#F09819" />
+    </View>
+  );
 
   return (
     <Provider store={store}>
-      <NavigationContainer ref={navigationRef}>
-        <AppWithSocket />
-      </NavigationContainer>
+      <PersistGate loading={<LoadingScreen />} persistor={persistor}>
+        <NavigationContainer ref={navigationRef}>
+          <AppWithSocket />
+        </NavigationContainer>
+      </PersistGate>
     </Provider>
   );
 };
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+});
 
 export default App;

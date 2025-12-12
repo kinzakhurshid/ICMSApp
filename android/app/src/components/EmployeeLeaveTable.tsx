@@ -227,7 +227,8 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   requestButton: {
-    backgroundColor: '#3B82F6',
+    // Match PM dashboard primary orange for actions
+    backgroundColor: '#FB923C',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,

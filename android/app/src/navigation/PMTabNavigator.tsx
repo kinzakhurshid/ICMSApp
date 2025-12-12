@@ -8,9 +8,18 @@ import InboxWrapper from '../Screens/InboxWrapper';
 import ProjectScreen from '../Screens/ProjectScreen';
 import ProjectDetailScreen from '../Screens/ProjectDetailScreen';
 import TaskScreen from '../Screens/TasksScreen';
+import SprintDetailScreenNew from '../Screens/SprintDetailScreenNew';
+import EditSprintScreen from '../Screens/EditSprintScreen';
+import TaskDetailScreen from '../Screens/TaskDetailScreen';
+import EditTaskScreen from '../Screens/EditTaskScreen';
+import CreateTaskScreen from '../Screens/CreateTaskScreen';
 import CallScreen from '../Screens/CallScreen';
 import AppHeader from '../components/AppHeader';
 import RequestLeaveScreen from '../Screens/RequestLeaveScreen';
+import CreateMeetingScreen from '../Screens/CreateMeetingScreen';
+import EditMeetingScreen from '../Screens/EditMeetingScreen';
+import CreateProjectScreen from '../Screens/CreateProjectScreen';
+import CreateSprintScreen from '../Screens/CreateSprintScreen';
 
 // Define parameter lists
 export type HomeStackParamList = {
@@ -21,10 +30,14 @@ export type HomeStackParamList = {
 export type ProjectStackParamList = {
   ProjectList: undefined;
   ProjectDetail: { projectId: string };
+  CreateProject: undefined;
 };
 
 export type TaskStackParamList = {
   TaskList: undefined;
+  TaskDetail: { taskId: string };
+  EditTask: { taskId: string };
+  CreateTask: undefined;
 };
 
 export type InboxStackParamList = {
@@ -79,6 +92,11 @@ const ProjectStackNavigator = () => (
       component={ProjectDetailScreen}
       options={{ headerShown: false }}
     />
+    <ProjectStack.Screen
+      name="CreateProject"
+      component={CreateProjectScreen}
+      options={{ headerShown: false }}
+    />
   </ProjectStack.Navigator>
 );
 
@@ -87,6 +105,21 @@ const TaskStackNavigator = () => (
     <TaskStack.Screen
       name="TaskList"
       component={TaskScreen}
+      options={{ headerShown: false }}
+    />
+    <TaskStack.Screen
+      name="TaskDetail"
+      component={TaskDetailScreen}
+      options={{ headerShown: false }}
+    />
+    <TaskStack.Screen
+      name="EditTask"
+      component={EditTaskScreen}
+      options={{ headerShown: false }}
+    />
+    <TaskStack.Screen
+      name="CreateTask"
+      component={CreateTaskScreen}
       options={{ headerShown: false }}
     />
   </TaskStack.Navigator>

@@ -26,6 +26,7 @@ const NotificationIcon: React.FC<NotificationIconProps> = ({
       style={styles.container}
       onPress={handlePress}
       activeOpacity={0.7}
+      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
     >
       <Bell size={size} color={color} />
       {unreadCount > 0 && (
@@ -44,6 +45,10 @@ const styles = StyleSheet.create({
   container: {
     position: 'relative',
     padding: 8,
+    minWidth: 40,
+    minHeight: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   badge: {
     position: 'absolute',

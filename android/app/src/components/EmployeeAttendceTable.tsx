@@ -11,6 +11,7 @@ import {
 import { useSelector } from 'react-redux';
 import useAxios from '../hooks/useAxios';
 import { RootState } from '../states/store';  
+import { formatTimeForDisplay } from '../utills/utills';
 interface AttendanceRecord {
   _id: string;
   date: string;
@@ -22,14 +23,12 @@ interface AttendanceRecord {
 const EmployeeAttendanceTable = () => {
   const { callApi } = useAxios();
   const { currentUser } = useSelector((state: RootState) => state.user);
-  const employeeId = currentUser?.id;
 
   const [data, setData] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null);
 
   const fetchData = async () => {
-    if (!employeeId) return;
     setLoading(true);
     try {
       const res = await callApi({
@@ -42,11 +41,22 @@ const EmployeeAttendanceTable = () => {
         },
       });
 
-      setData(res?.data || []);
+      console.log('My Attendance API raw response:', JSON.stringify(res, null, 2));
+
+      // Web contract for My Attendance:
+      // { success, data: AttendanceRecord[], pagination? }
+      const success = (res as any)?.success;
+      const records: AttendanceRecord[] = success && Array.isArray((res as any)?.data)
+        ? (res as any).data
+        : Array.isArray((res as any))
+          ? (res as any)
+          : [];
+
+      setData(records);
       
       // Check today's record
       const today = new Date().toISOString().split('T')[0];
-      const todayRec = res?.data?.find(
+      const todayRec = records.find(
         (r: AttendanceRecord) => new Date(r.date).toISOString().split('T')[0] === today
       );
       setTodayRecord(todayRec || null);
@@ -57,9 +67,11 @@ const EmployeeAttendanceTable = () => {
     }
   };
 
+  // Fetch attendance once user is available (matches PM web behavior)
   useEffect(() => {
+    if (!currentUser) return;
     fetchData();
-  }, [employeeId]);
+  }, [currentUser]);
 
   const handleCheckIn = async () => {
     Alert.alert(
@@ -106,11 +118,13 @@ const EmployeeAttendanceTable = () => {
       <View style={styles.header}>
         <Text style={styles.title}>My Attendance</Text>
         {!todayRecord ? (
-          <TouchableOpacity style={styles.checkInButton} onPress={handleCheckIn}>
+          // No record yet today → Check-in
+          <TouchableOpacity style={styles.checkButton} onPress={handleCheckIn}>
             <Text style={styles.buttonText}>Check-in</Text>
           </TouchableOpacity>
         ) : !todayRecord.checkOut ? (
-          <TouchableOpacity style={styles.checkOutButton} onPress={handleCheckOut}>
+          // Checked-in, no check-out → primary action is Check-out
+          <TouchableOpacity style={styles.checkButton} onPress={handleCheckOut}>
             <Text style={styles.buttonText}>Check-out</Text>
           </TouchableOpacity>
         ) : null}
@@ -196,17 +210,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#111827',
   },
-  checkInButton: {
-    backgroundColor: '#10B981',
+  // Unified orange button style for Check-in / Check-out (PM dashboard)
+  checkButton: {
+    backgroundColor: '#FB923C',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 6,
-  },
-  checkOutButton: {
-    backgroundColor: '#EF4444',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
+    borderRadius: 999,
   },
   buttonText: {
     color: '#FFFFFF',

@@ -5,8 +5,10 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 
 const HolidayChart: React.FC = () => {
+  const navigation = useNavigation();
   // Mock data - replace with actual data from API
   const upcomingHolidays = []; // Empty for now
 
@@ -31,7 +33,10 @@ const HolidayChart: React.FC = () => {
         )}
       </View>
 
-      <TouchableOpacity style={styles.addButton}>
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={() => (navigation as any).navigate('AddHoliday')}
+      >
         <Text style={styles.addButtonText}>+ Add New Holiday</Text>
       </TouchableOpacity>
     </View>

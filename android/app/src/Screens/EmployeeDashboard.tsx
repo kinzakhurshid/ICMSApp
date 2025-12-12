@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Dimensions } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import useAxios from '../hooks/useAxios';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import EmployeeAttendanceTable from '../components/EmployeeAttendceTable';
 
 const { width } = Dimensions.get('window');
 
@@ -57,13 +59,14 @@ export default function EmployeeDashboardScreen() {
   }, []);
 
   if (loading) return (
-    <View style={styles.centered}>
+    <SafeAreaView style={styles.centered} edges={['top', 'bottom']}>
       <ActivityIndicator size="large" color="#f97316" />
       <Text style={styles.loadingText}>Loading dashboard...</Text>
-    </View>
+    </SafeAreaView>
   );
 
   return (
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Stats Cards */}
       <View style={styles.statsContainer}>
@@ -144,7 +147,14 @@ export default function EmployeeDashboardScreen() {
           <Text style={styles.errorText}>{error}</Text>
         </View>
       ) : null}
-    </ScrollView>
+
+      {/* Attendance List Section */}
+      <View style={styles.attendanceSection}>
+        <Text style={styles.sectionTitle}>My Attendance</Text>
+        <EmployeeAttendanceTable />
+      </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -164,6 +174,10 @@ function DashboardCard({ label, value, icon, iconColor, buttonColor, textColor }
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
   container: { 
     flex: 1, 
     backgroundColor: '#F8FAFC',
@@ -293,5 +307,16 @@ const styles = StyleSheet.create({
     color: '#DC2626',
     textAlign: 'center',
     fontSize: 14,
+  },
+  attendanceSection: {
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1E293B',
+    marginBottom: 16,
+    paddingHorizontal: 4,
   },
 });

@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import Feather from 'react-native-vector-icons/Feather';
 import { useSelector } from 'react-redux';
 import { RootState } from '../states/store';
@@ -25,6 +26,7 @@ import IdleTimePresetsCard from '../components/IdleTimePresetsCard';
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 const HrIdleTimeScreen: React.FC = () => {
+  const navigation = useNavigation();
   const token = useSelector((state: RootState) => state.user.token) || '';
 
   const [metrics, setMetrics] = useState<IdleTimeMetrics | null>(null);
@@ -175,7 +177,8 @@ const HrIdleTimeScreen: React.FC = () => {
   const canNext = page < totalPages;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <View style={styles.container}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
       <View style={styles.metricsRow}>
         <View style={styles.metricCard}>
           <IdleMetricCard
@@ -223,7 +226,16 @@ const HrIdleTimeScreen: React.FC = () => {
 
       <View style={styles.tableCard}>
         <View style={styles.tableHeader}>
-          <Text style={styles.sectionTitle}>Idle Time Records</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.sectionTitle}>Idle Time Records</Text>
+            <TouchableOpacity 
+              style={styles.addIdleTimeButton}
+              onPress={() => (navigation as any).navigate('AddIdleTime')}
+            >
+              <Feather name="plus" size={18} color="#fff" />
+              <Text style={styles.addIdleTimeText}>Add Idle Time</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.headerActions}>
             <TextInput
               value={search}
@@ -238,9 +250,6 @@ const HrIdleTimeScreen: React.FC = () => {
             <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilters(prev => !prev)}>
               <Feather name="filter" size={18} color="#FB923C" />
               <Text style={styles.filterText}>Filters</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.addButton}>
-              <Feather name="plus" size={18} color="#fff" />
             </TouchableOpacity>
           </View>
         </View>
@@ -366,12 +375,14 @@ const HrIdleTimeScreen: React.FC = () => {
       ) : (
         <IdleTimePresetsCard data={presets} />
       )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F3F4F6' },
+  scrollView: { flex: 1 },
   content: { padding: 16, gap: 18, paddingBottom: 32 },
   metricsRow: {
     flexDirection: 'row',
@@ -392,6 +403,9 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   tableHeader: {
+    gap: 12,
+  },
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -432,6 +446,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#FB923C',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  addIdleTimeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#FB923C',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  addIdleTimeText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 13,
   },
   filterPanel: {
     backgroundColor: '#FFF7ED',

@@ -52,9 +52,53 @@ export async function deleteIdleTimeRecord(id: string, token: string): Promise<b
   return !!(res.data?.success ?? (res.status >= 200 && res.status < 300));
 }
 
-export async function fetchIdleTimePresets(token: string): Promise<IdleTimePreset[]> {
-  const res = await api.get('/idle-time/presets', authHeader(token));
-  return res.data?.data ?? res.data ?? [];
+export interface FetchIdleTimePresetsParams {
+  page?: number;
+  limit?: number;
+  token: string;
+}
+
+export async function fetchIdleTimePresets(
+  token: string,
+  params?: { page?: number; limit?: number }
+): Promise<IdleTimePreset[]> {
+  try {
+    const page = params?.page ?? 1;
+    const limit = params?.limit ?? 10;
+
+    // Use the correct endpoint: /idle-preset with pagination
+    const res = await api.get('/idle-preset', {
+      ...authHeader(token),
+      params: {
+        page,
+        limit,
+      },
+    });
+
+    // API returns: { data: [...], total, page, totalPages }
+    const apiData = res.data?.data ?? [];
+    
+    if (!Array.isArray(apiData)) {
+      console.warn('Invalid response format from idle-preset endpoint');
+      return [];
+    }
+
+    // Map API response fields to match IdleTimePreset interface
+    // API has: startTime, endTime, daysOfWeek, isActive
+    // Interface expects: start, end, days, active
+    return apiData.map((preset: any) => ({
+      _id: preset._id,
+      name: preset.name,
+      start: preset.startTime || preset.start || '',
+      end: preset.endTime || preset.end || '',
+      days: preset.daysOfWeek || preset.days || [],
+      active: preset.isActive ?? preset.active ?? false,
+      autoApply: preset.autoApply ?? false,
+    }));
+  } catch (error: any) {
+    console.warn('Failed to fetch idle time presets:', error?.response?.data || error?.message || 'Unknown error');
+    return [];
+  }
 }
 
 

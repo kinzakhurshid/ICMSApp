@@ -1,634 +1,1942 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Image, Platform, Modal, Pressable } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Image,
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  Dimensions,
+  Platform,
+} from 'react-native';
 import useAxios from '../hooks/useAxios';
 import { useSelector } from 'react-redux';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import Feather from 'react-native-vector-icons/Feather';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { useSocket } from '../Context/SocketContext';
+import { ONLINE_USERS } from '../constants/events';
+import { formatDate, formatTimeForDisplay } from '../utills/utills';
+import { BarChart, PieChart } from 'react-native-chart-kit';
 
-type Employee = { _id: string; firstName: string; lastName: string };
-type Activity = { _id: string; type: string; status: string; createdAt: string; employee: { _id: string; firstName: string; lastName: string } };
+const { width } = Dimensions.get('window');
+
+type Employee = {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  position: string;
+  role: string;
+  profileImage?: string;
+  user?: string | { _id: string };
+};
+
+type EmployeeOverview = {
+  today?: {
+    appUsage?: Array<{
+      appName: string;
+      totalDurationMinutes: number;
+    }>;
+    idleTime?: {
+      totalIdleTimeMinutes: number;
+      sessionCount: number;
+    };
+  };
+  performance?: {
+    summaries?: {
+      '60'?: {
+        performancePercent: number;
+      };
+    };
+  };
+};
+
+type ScreenshotActivity = {
+  _id: string;
+  screenshot?: string;
+  appName?: string;
+  timestamp?: string;
+  createdAt?: string;
+  windowTitle?: string;
+};
 
 const OrgAdminActivitiesScreen: React.FC = () => {
   const { callApi } = useAxios();
+  const { socket } = useSocket();
   const currentUser = useSelector((s: any) => s.user.currentUser);
-  const [activeTab, setActiveTab] = useState<'overview'|'activities'|'screenshots'>('overview');
+  const orgId = currentUser?.organization;
+
+  // State
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [total, setTotal] = useState(0);
-  const [todayStats, setTodayStats] = useState({ totalToday: 0, activeEmployeesToday: 0 });
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'screenshots'>('overview');
+  const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
+  const [employeeOverviews, setEmployeeOverviews] = useState<Map<string, EmployeeOverview>>(new Map());
+  const [loading, setLoading] = useState(true);
+  const [loadingOverview, setLoadingOverview] = useState(false);
+  const [weekHistory, setWeekHistory] = useState<any>(null);
+  const [monthHistory, setMonthHistory] = useState<any>(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
   // Screenshots state
-  const [shots, setShots] = useState<Array<{ _id: string; url: string; appName?: string; timestamp: string }>>([]);
-  const [shotDate, setShotDate] = useState<string>(new Date().toISOString().slice(0,10));
+  const [screenshots, setScreenshots] = useState<ScreenshotActivity[]>([]);
+  const [shotDate, setShotDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [shotApp, setShotApp] = useState<string>('all');
   const [shotPage, setShotPage] = useState<number>(1);
   const [shotTotalPages, setShotTotalPages] = useState<number>(1);
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
-  const [showStartPicker, setShowStartPicker] = useState(false);
-  const [showEndPicker, setShowEndPicker] = useState(false);
-  const [iosPicker, setIosPicker] = useState<{ visible: boolean; type: 'start' | 'end'; value: Date }>({
+  const [loadingScreenshots, setLoadingScreenshots] = useState(false);
+  const [loadingMoreScreenshots, setLoadingMoreScreenshots] = useState(false);
+  const [selectedScreenshot, setSelectedScreenshot] = useState<ScreenshotActivity | null>(null);
+
+  // Date picker state
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [iosPicker, setIosPicker] = useState<{ visible: boolean; value: Date }>({
     visible: false,
-    type: 'start',
     value: new Date(),
   });
-  const orgId = currentUser?.organization;
 
-  useEffect(() => { (async () => {
-    try { const list = await callApi({ method: 'GET', url: '/employee' }); setEmployees(list || []); } catch (e) {}
-  })(); }, []);
+  // Employee dropdown state
+  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+  const [employeeSearchQuery, setEmployeeSearchQuery] = useState('');
 
-  const fetchActivities = async (page = 1) => {
+  // Fetch all employees
+  const fetchEmployees = async () => {
     try {
-      const res = await callApi({
+      const list = (await callApi({
+        method: 'GET',
+        url: '/employee',
+      })) as Employee[];
+      setEmployees(list || []);
+    } catch (e) {
+      console.error('Failed to load employees', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch employee overview
+  const fetchEmployeeOverview = async (employeeId: string, employee: Employee) => {
+    if (!orgId) return;
+    try {
+      setLoadingOverview(true);
+      const timezoneOffsetMinutes = -new Date().getTimezoneOffset();
+      const overviewParams: any = {
+        organizationId: orgId,
+        windowMinutes: 60,
+        windows: '30,60,120',
+        timezoneOffsetMinutes,
+      };
+      const overviewRes = (await callApi({
+        method: 'GET',
+        url: `/activities/user-overview/${employeeId}`,
+        params: overviewParams,
+      })) as any;
+
+      setEmployeeOverviews((prev) => {
+        const updated = new Map(prev);
+        updated.set(employeeId, overviewRes.success ? overviewRes : null);
+        return updated;
+      });
+    } catch (e: any) {
+      console.error('Failed to load overview', e);
+      setEmployeeOverviews((prev) => {
+        const updated = new Map(prev);
+        updated.set(employeeId, null);
+        return updated;
+      });
+    } finally {
+      setLoadingOverview(false);
+    }
+  };
+
+  // Fetch employee history (week and month)
+  const fetchEmployeeHistory = async (employeeId: string) => {
+    if (!orgId || !selectedEmployee) return;
+    try {
+      setLoadingHistory(true);
+      const userId = getEmployeeUserId(selectedEmployee);
+      if (!userId) {
+        console.error('No user ID found for employee');
+        return;
+      }
+      const [weekRes, monthRes] = await Promise.all([
+        callApi({
+          method: 'GET',
+          url: `/activities/history/employee/${userId}`,
+          params: { organizationId: orgId, range: 'week' },
+        }),
+        callApi({
+          method: 'GET',
+          url: `/activities/history/employee/${userId}`,
+          params: { organizationId: orgId, range: 'month' },
+        }),
+      ]);
+      setWeekHistory(weekRes);
+      setMonthHistory(monthRes);
+    } catch (e: any) {
+      console.error('Failed to load history', e);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  // Fetch screenshots
+  const fetchScreenshots = async (page = 1) => {
+    if (!orgId) return;
+    try {
+      page === 1 ? setLoadingScreenshots(true) : setLoadingMoreScreenshots(true);
+      const params: any = {
+        page,
+        limit: 12,
+        hasScreenshot: 'true',
+      };
+      if (selectedEmployee) {
+        params.employeeId = selectedEmployee._id;
+      }
+      if (shotDate) {
+        params.date = shotDate;
+      }
+      if (shotApp !== 'all') {
+        params.appName = shotApp;
+      }
+
+      const response: any = await callApi({
         method: 'GET',
         url: `/activities/org/${orgId}`,
-        params: {
-          page,
-          limit: 10,
-          employeeId: selectedEmployeeId || undefined,
-          startDate: startDate || undefined,
-          endDate: endDate || undefined,
-        },
+        params,
       });
-      setActivities(res?.activities || []); setTotal(res?.total || 0);
-    } catch {}
+
+      const screenshotActivities = response.activities || [];
+      if (page === 1) {
+        setScreenshots(screenshotActivities);
+    } else {
+        setScreenshots((prev) => [...prev, ...screenshotActivities]);
+      }
+      setShotTotalPages(Math.ceil((response.total || 0) / 12));
+      setShotPage(page);
+    } catch (err) {
+      console.error('Failed to fetch screenshots', err);
+    } finally {
+      setLoadingScreenshots(false);
+      setLoadingMoreScreenshots(false);
+    }
   };
 
-  const fetchToday = async () => {
+  // Socket listener for online users
+  const onlineUsersListener = useCallback((data: any) => {
     try {
-      const today = new Date().toISOString().slice(0,10);
-      const res = await callApi({
-        method: 'GET',
-        url: `/activities/org/${orgId}`,
-        params: {
-          date: today,
-          limit: 1000,
-          employeeId: selectedEmployeeId || undefined,
-          startDate: startDate || undefined,
-          endDate: endDate || undefined,
-        },
-      });
-      const totalToday = res?.total || 0;
-      const active = new Set((res?.activities || []).map((a: Activity) => a.employee?._id)).size;
-      setTodayStats({ totalToday, activeEmployeesToday: active });
-    } catch {}
+      if (Array.isArray(data)) {
+        setOnlineUsers(data.map((id) => id?.toString()));
+      }
+    } catch {
+      // ignore malformed payloads
+    }
+  }, []);
+
+  // Set up socket event listeners
+  useEffect(() => {
+    if (!socket) return;
+    socket.on(ONLINE_USERS, onlineUsersListener);
+    return () => {
+      socket.off(ONLINE_USERS, onlineUsersListener);
+    };
+  }, [socket, onlineUsersListener]);
+
+  // Initial load
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
+  // Fetch overview when employee is selected
+  useEffect(() => {
+    if (selectedEmployee) {
+      fetchEmployeeOverview(selectedEmployee._id, selectedEmployee);
+      fetchEmployeeHistory(selectedEmployee._id);
+      if (activeTab === 'screenshots') {
+        fetchScreenshots(1);
+      }
+    }
+  }, [selectedEmployee]);
+
+  // Fetch screenshots when tab or filters change
+  useEffect(() => {
+    if (activeTab === 'screenshots' && selectedEmployee) {
+      fetchScreenshots(1);
+    }
+  }, [activeTab, shotDate, shotApp]);
+
+  // Get employee initials
+  const getInitials = (employee: Employee) => {
+    const first = employee.firstName?.[0] || '';
+    const last = employee.lastName?.[0] || '';
+    return `${first}${last}`.toUpperCase();
   };
 
-  useEffect(() => { fetchActivities(); fetchToday(); }, [selectedEmployeeId, activeTab, startDate, endDate]);
+  // Get employee display name
+  const getEmployeeDisplayName = (employee: Employee) => {
+    return `${employee.firstName} ${employee.lastName}`.trim();
+  };
 
-  const openStartPicker = () => {
-    const initial = startDate ? new Date(startDate) : new Date();
-    if (Platform.OS === 'ios') {
-      setIosPicker({ visible: true, type: 'start', value: initial });
+  // Filter employees based on search query
+  const filteredEmployees = employees.filter((employee) => {
+    if (!employeeSearchQuery.trim()) return true;
+    const searchLower = employeeSearchQuery.toLowerCase();
+    const fullName = getEmployeeDisplayName(employee).toLowerCase();
+    const email = (employee.email || '').toLowerCase();
+    const position = (employee.position || employee.role || '').toLowerCase();
+    return fullName.includes(searchLower) || email.includes(searchLower) || position.includes(searchLower);
+  });
+
+  // Handle employee selection from dropdown
+  const handleEmployeeSelect = (employee: Employee | null) => {
+    if (employee) {
+      setSelectedEmployee(employee);
+      setActiveTab('overview');
     } else {
-      setShowStartPicker(true);
+      setSelectedEmployee(null);
     }
+    setShowEmployeeDropdown(false);
+    setEmployeeSearchQuery('');
   };
 
-  const openEndPicker = () => {
-    const initial = endDate ? new Date(endDate) : new Date();
-    if (Platform.OS === 'ios') {
-      setIosPicker({ visible: true, type: 'end', value: initial });
-    } else {
-      setShowEndPicker(true);
-    }
+  // Get employee user ID
+  const getEmployeeUserId = (employee: Employee): string | null => {
+    if (typeof employee.user === 'string') return employee.user;
+    if (employee.user?._id) return employee.user._id;
+    return employee._id; // Fallback to employee ID
   };
 
-  const cancelIosPicker = () => {
-    setIosPicker(prev => ({ ...prev, visible: false }));
+  // Check if employee is online
+  const isEmployeeOnline = (employee: Employee): boolean => {
+    const userId = getEmployeeUserId(employee);
+    return userId ? onlineUsers.includes(userId) : false;
   };
 
-  const applyIosPicker = () => {
-    if (!iosPicker.visible) return;
-    const iso = iosPicker.value.toISOString().slice(0, 10);
-    if (iosPicker.type === 'start') {
-      setStartDate(iso);
-      if (endDate && new Date(iso) > new Date(endDate)) {
-        setEndDate('');
-      }
-    } else {
-      if (startDate && iosPicker.value < new Date(startDate)) {
-        setStartDate('');
-      }
-      setEndDate(iso);
-    }
-    cancelIosPicker();
+  // Get today's hours from overview
+  const getTodayHours = (overview: EmployeeOverview | null): string => {
+    if (!overview?.today?.appUsage) return '00:00';
+    const totalMinutes = overview.today.appUsage.reduce(
+      (sum, app) => sum + (app.totalDurationMinutes || 0),
+      0
+    );
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   };
 
-  const clearDates = () => {
-    setStartDate('');
-    setEndDate('');
-    setShowStartPicker(false);
-    setShowEndPicker(false);
-    cancelIosPicker();
+  // Get idle time
+  const getIdleTime = (overview: EmployeeOverview | null): string => {
+    if (!overview?.today?.idleTime) return '00:00';
+    const totalMinutes = overview.today.idleTime.totalIdleTimeMinutes || 0;
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   };
 
-  const handleStartDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    if (Platform.OS !== 'ios') {
-      setShowStartPicker(false);
-    }
-    if (event.type === 'dismissed') {
-      return;
-    }
-    if (selectedDate) {
-      const iso = selectedDate.toISOString().slice(0, 10);
-      setStartDate(iso);
-      if (endDate && selectedDate > new Date(endDate)) {
-        setEndDate('');
-      }
-      if (Platform.OS === 'ios') {
-        setShowStartPicker(false);
-      }
-    }
+  // Get productivity percentage
+  const getProductivity = (overview: EmployeeOverview | null): number => {
+    return overview?.performance?.summaries?.['60']?.performancePercent || 0;
   };
 
-  const handleEndDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    if (Platform.OS !== 'ios') {
-      setShowEndPicker(false);
-    }
-    if (event.type === 'dismissed') {
-      return;
-    }
-    if (selectedDate) {
-      const iso = selectedDate.toISOString().slice(0, 10);
-      setEndDate(iso);
-      if (startDate && selectedDate < new Date(startDate)) {
-        setStartDate('');
-      }
-      if (Platform.OS === 'ios') {
-        setShowEndPicker(false);
-      }
-    }
+  // Get productivity color
+  const getProductivityColor = (productivity: number): string => {
+    if (productivity >= 70) return '#22C55E'; // Green
+    if (productivity >= 40) return '#F59E0B'; // Yellow
+    return '#EF4444'; // Red
   };
 
+  // Format date for display
   const formatDisplayDate = (value: string) => {
-    if (!value) return 'YYYY-MM-DD';
+    if (!value) return '';
     try {
-      return new Date(value).toLocaleDateString();
+      const date = new Date(value);
+      return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
     } catch {
       return value;
     }
   };
 
-  // Fetch screenshots - adjust endpoint if your API differs
-  const fetchScreenshots = async (page = 1) => {
-    try {
-      const res = await callApi({ method: 'GET', url: `/activities/org/${orgId}`, params: { page, limit: 12, employeeId: selectedEmployeeId || undefined, hasScreenshot: 'true', date: shotDate || undefined, appName: shotApp === 'all' ? undefined : shotApp } });
-      const list = res?.activities || [];
-      const normalized = list.map((s: any) => ({ _id: s._id, url: s.screenshot, appName: s.appName, timestamp: s.timestamp || s.createdAt }));
-      if (page === 1) setShots(normalized); else setShots(prev => [...prev, ...normalized]);
-      const total = res?.total || normalized.length;
-      const totalPages = Math.max(1, Math.ceil(total / 12));
-      setShotPage(page);
-      setShotTotalPages(totalPages);
-    } catch (e) {
-      if (page === 1) setShots([]);
+  // Handle date picker
+  const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS !== 'ios') {
+      setShowDatePicker(false);
+    }
+    if (event.type === 'dismissed') {
+      return;
+    }
+    if (selectedDate) {
+      const iso = selectedDate.toISOString().slice(0, 10);
+      setShotDate(iso);
+      if (Platform.OS === 'ios') {
+        setIosPicker({ visible: false, value: selectedDate });
+      }
     }
   };
 
-  useEffect(() => { if (activeTab==='screenshots') fetchScreenshots(1); }, [activeTab, shotDate, shotApp, selectedEmployeeId]);
+  // Render employee card
+  const renderEmployeeCard = (employee: Employee) => {
+    const overview = employeeOverviews.get(employee._id);
+    const isOnline = isEmployeeOnline(employee);
+    const todayHours = getTodayHours(overview || null);
+    const idleTime = getIdleTime(overview || null);
+    const productivity = getProductivity(overview || null);
+    const productivityColor = getProductivityColor(productivity);
 
-  const productivity = employees.length ? Math.round((todayStats.activeEmployeesToday / employees.length) * 100) : 0;
+    // Fetch overview if not loaded
+    if (!overview && !loadingOverview) {
+      fetchEmployeeOverview(employee._id, employee);
+    }
 
-  const rangeSummary = () => {
-    if (startDate && endDate) {
-      return `Showing entries between ${formatDisplayDate(startDate)} and ${formatDisplayDate(endDate)}.`;
-    }
-    if (startDate) {
-      return `Showing entries from ${formatDisplayDate(startDate)} onwards.`;
-    }
-    if (endDate) {
-      return `Showing entries up to ${formatDisplayDate(endDate)}.`;
-    }
-    return 'No custom date range applied.';
+    return (
+      <TouchableOpacity
+        key={employee._id}
+        style={styles.employeeCard}
+        onPress={() => {
+          setSelectedEmployee(employee);
+          setActiveTab('overview'); // Reset to overview tab when selecting employee
+        }}
+      >
+        <View style={styles.cardHeader}>
+          <View style={styles.avatarContainer}>
+            {employee.profileImage ? (
+              <Image source={{ uri: employee.profileImage }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatarPlaceholder, { backgroundColor: '#FB923C' }]}>
+                <Text style={styles.avatarText}>{getInitials(employee)}</Text>
+              </View>
+            )}
+            {isOnline && <View style={styles.onlineIndicator} />}
+          </View>
+          <View style={styles.cardHeaderRight}>
+            <Text style={styles.employeeName}>
+              {employee.firstName} {employee.lastName}
+            </Text>
+            <View style={styles.positionRow}>
+              <MaterialIcons name="business" size={14} color="#6B7280" />
+              <Text style={styles.positionText}>{employee.position || employee.role}</Text>
+            </View>
+          </View>
+          <View style={styles.cardMenu}>
+            <MaterialIcons name="more-vert" size={18} color="#9CA3AF" />
+          </View>
+        </View>
+
+        <View style={styles.cardMetrics}>
+          <View style={styles.metricItem}>
+            <MaterialIcons name="access-time" size={16} color="#FB923C" />
+            <View style={styles.metricContent}>
+              <Text style={styles.metricLabel}>Today Hours</Text>
+              <Text style={styles.metricValue}>{todayHours}</Text>
+            </View>
+          </View>
+
+          <View style={styles.metricItem}>
+            <MaterialIcons name="timer-off" size={16} color="#6B7280" />
+            <View style={styles.metricContent}>
+              <Text style={styles.metricLabel}>Idle Time</Text>
+              <Text style={styles.metricValue}>{idleTime}</Text>
+            </View>
+          </View>
+
+          <View style={styles.metricItem}>
+            <MaterialIcons name="trending-up" size={16} color={productivityColor} />
+            <View style={styles.metricContent}>
+              <Text style={styles.metricLabel}>Productivity</Text>
+              <Text style={[styles.metricValue, { color: productivityColor }]}>
+                {productivity}%
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {productivity < 40 && (
+          <View style={styles.needsImprovement}>
+            <MaterialIcons name="warning" size={14} color="#EF4444" />
+            <Text style={styles.needsImprovementText}>Needs Improvement</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
   };
 
+  // Render overview tab
+  const renderOverviewTab = () => {
+    if (!selectedEmployee) return null;
+
+    const overview = employeeOverviews.get(selectedEmployee._id);
+    const isOverviewLoading = loadingOverview && !overview;
+    
+    if (isOverviewLoading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#FB923C" />
+          <Text style={styles.loadingText}>Loading overview...</Text>
+        </View>
+      );
+    }
+
+    const todayHours = getTodayHours(overview || null);
+    const idleTime = getIdleTime(overview || null);
+    const productivity = getProductivity(overview || null);
+    const productivityColor = getProductivityColor(productivity);
+    const idleSessions = overview?.today?.idleTime?.sessionCount || 0;
+
+    return (
+      <ScrollView style={styles.overviewContainer}>
+        <View style={styles.metricsGrid}>
+          <View style={styles.metricCard}>
+            <Text style={styles.metricCardTitle}>Today's Working Hours</Text>
+            <Text style={styles.metricCardValue}>{todayHours}</Text>
+            <Text style={styles.metricCardSubtitle}>Based on daily summary</Text>
+          </View>
+
+          <View style={styles.metricCard}>
+            <Text style={styles.metricCardTitle}>Today's Idle Time</Text>
+            <Text style={styles.metricCardValue}>{idleTime}</Text>
+            <Text style={styles.metricCardSubtitle}>
+              Sessions: {idleSessions} • Click for details
+            </Text>
+          </View>
+
+          <View style={styles.metricCard}>
+            <Text style={styles.metricCardTitle}>Today's Productivity</Text>
+            <Text style={[styles.metricCardValue, { color: productivityColor }]}>
+              {productivity}%
+            </Text>
+            <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${productivity}%`, backgroundColor: productivityColor },
+                ]}
+              />
+            </View>
+          </View>
+
+          <View style={styles.metricCard}>
+            <Text style={styles.metricCardTitle}>Live Activity (Last 60 min)</Text>
+            <Text style={[styles.metricCardValue, { color: productivityColor }]}>
+              {productivity}%
+            </Text>
+            <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${productivity}%`, backgroundColor: productivityColor },
+                ]}
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Live Active vs Idle Chart */}
+        {overview?.performance?.summaries && (
+          <View style={styles.chartCard}>
+            <Text style={styles.chartTitle}>Live Active vs Idle (Recent Windows)</Text>
+            {renderLiveActiveVsIdleChart(overview)}
+          </View>
+        )}
+
+        {/* Today App Usage Chart */}
+        {overview?.today?.appUsage && overview.today.appUsage.length > 0 && (
+          <View style={styles.chartCard}>
+            <Text style={styles.chartTitle}>Today App Usage (minutes)</Text>
+            {renderTodayAppUsageChart(overview.today.appUsage)}
+          </View>
+        )}
+
+        {/* Weekly Productivity Trend */}
+        {weekHistory?.success && weekHistory.days && weekHistory.days.length > 0 && (
+          <View style={styles.chartCard}>
+            <Text style={styles.chartTitle}>Weekly Productivity Trend</Text>
+            {renderWeeklyProductivityChart(weekHistory.days)}
+          </View>
+        )}
+
+        {/* Monthly Performance */}
+        {monthHistory?.success && monthHistory.days && monthHistory.days.length > 0 && (
+          <View style={styles.chartCard}>
+            <Text style={styles.chartTitle}>Monthly Performance (Last 30 Days)</Text>
+            {renderMonthlyPerformanceChart(monthHistory.days)}
+          </View>
+        )}
+      </ScrollView>
+    );
+  };
+
+  // Render Live Active vs Idle Chart
+  const renderLiveActiveVsIdleChart = (overview: EmployeeOverview) => {
+    const summaries = overview.performance?.summaries || {};
+    const windows = ['30', '60', '120'];
+    const labels = windows.map(w => `${w}m`);
+    const activeData = windows.map(w => summaries[w]?.performancePercent || 0);
+    const engagementData = windows.map(w => summaries[w]?.activityScore || 0);
+
+    const chartData = {
+      labels,
+      datasets: [
+        {
+          data: activeData,
+          color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`, // Blue
+        },
+        {
+          data: engagementData,
+          color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`, // Green
+        },
+      ],
+    };
+
+    const chartConfig = {
+      backgroundColor: '#ffffff',
+      backgroundGradientFrom: '#ffffff',
+      backgroundGradientTo: '#ffffff',
+      decimalPlaces: 0,
+      color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+      labelColor: (opacity = 1) => `rgba(107, 114, 128, ${opacity})`,
+      style: {
+        borderRadius: 16,
+      },
+      propsForBackgroundLines: {
+        strokeDasharray: '5,5',
+        stroke: '#E5E7EB',
+      },
+    };
+
+    return (
+      <View>
+        <BarChart
+          data={chartData}
+          width={width - 64}
+          height={220}
+          chartConfig={chartConfig}
+          verticalLabelRotation={0}
+          fromZero
+          yAxisLabel=""
+          yAxisSuffix="%"
+          showValuesOnTopOfBars
+        />
+        <View style={styles.chartLegend}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#3B82F6' }]} />
+            <Text style={styles.legendText}>Active %</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#22C55E' }]} />
+            <Text style={styles.legendText}>Engagement Score</Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  // Render Today App Usage Chart
+  const renderTodayAppUsageChart = (appUsage: Array<{ appName: string; totalDurationMinutes: number }>) => {
+    const sortedApps = [...appUsage].sort((a, b) => b.totalDurationMinutes - a.totalDurationMinutes).slice(0, 5);
+    const labels = sortedApps.map(app => app.appName.length > 10 ? app.appName.substring(0, 10) + '...' : app.appName);
+    const data = sortedApps.map(app => app.totalDurationMinutes);
+    const maxValue = Math.max(...data, 1);
+
+    // Bar chart data
+    const barChartData = {
+      labels,
+      datasets: [{
+        data,
+        color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+      }],
+    };
+
+    // Pie chart data
+    const pieData = sortedApps.map((app, index) => ({
+      name: app.appName,
+      minutes: app.totalDurationMinutes,
+      color: `hsl(${index * 60}, 70%, 50%)`,
+      legendFontColor: '#374151',
+      legendFontSize: 12,
+    }));
+
+    const chartConfig = {
+      backgroundColor: '#ffffff',
+      backgroundGradientFrom: '#ffffff',
+      backgroundGradientTo: '#ffffff',
+      decimalPlaces: 0,
+      color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+      labelColor: (opacity = 1) => `rgba(107, 114, 128, ${opacity})`,
+    };
+
+    return (
+      <View style={styles.appUsageContainer}>
+        <View style={styles.appUsageBarChart}>
+          <BarChart
+            data={barChartData}
+            width={width - 64}
+            height={200}
+            chartConfig={chartConfig}
+            verticalLabelRotation={-45}
+            fromZero
+            yAxisLabel=""
+            yAxisSuffix="m"
+            showValuesOnTopOfBars
+          />
+        </View>
+        <View style={styles.appUsagePieChart}>
+          <PieChart
+            data={pieData}
+            width={width - 64}
+            height={200}
+            chartConfig={chartConfig}
+            accessor="minutes"
+            backgroundColor="transparent"
+            paddingLeft="15"
+            absolute
+          />
+        </View>
+        <View style={styles.chartLegend}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#3B82F6' }]} />
+            <Text style={styles.legendText}>Minutes</Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  // Render Weekly Productivity Chart
+  const renderWeeklyProductivityChart = (days: Array<{ date: string; productivityPercent: number }>) => {
+    const sortedDays = [...days].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const labels = sortedDays.map(day => {
+      const date = new Date(day.date);
+      return `${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+    });
+    const data = sortedDays.map(day => day.productivityPercent || 0);
+
+    const chartData = {
+      labels,
+      datasets: [{
+        data,
+        color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+      }],
+    };
+
+    const chartConfig = {
+      backgroundColor: '#ffffff',
+      backgroundGradientFrom: '#ffffff',
+      backgroundGradientTo: '#ffffff',
+      decimalPlaces: 0,
+      color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+      labelColor: (opacity = 1) => `rgba(107, 114, 128, ${opacity})`,
+      propsForBackgroundLines: {
+        strokeDasharray: '5,5',
+        stroke: '#E5E7EB',
+      },
+    };
+
+    return (
+      <View>
+        <BarChart
+          data={chartData}
+          width={width - 64}
+          height={220}
+          chartConfig={chartConfig}
+          verticalLabelRotation={0}
+          fromZero
+          yAxisLabel=""
+          yAxisSuffix="%"
+          showValuesOnTopOfBars
+        />
+        <View style={styles.chartLegend}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#3B82F6' }]} />
+            <Text style={styles.legendText}>Productivity %</Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  // Render Monthly Performance Chart
+  const renderMonthlyPerformanceChart = (days: Array<{ date: string; totalWorkMinutes: number; idleMinutes: number }>) => {
+    const sortedDays = [...days].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(-30);
+    const labels = sortedDays.map(day => {
+      const date = new Date(day.date);
+      return `${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+    });
+    
+    // Convert minutes to hours for display
+    const workHours = sortedDays.map(day => (day.totalWorkMinutes || 0) / 60);
+    const idleHours = sortedDays.map(day => (day.idleMinutes || 0) / 60);
+
+    // For stacked bar chart, we need to use a custom implementation
+    // Since react-native-chart-kit doesn't support stacked bars natively, we'll create a custom view
+    const maxValue = Math.max(...workHours.map((w, i) => w + idleHours[i]), 1);
+
+    return (
+      <View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={styles.stackedChartContainer}>
+            {sortedDays.map((day, index) => {
+              const workH = (day.totalWorkMinutes || 0) / 60;
+              const idleH = (day.idleMinutes || 0) / 60;
+              const totalH = workH + idleH;
+              const workHeight = (workH / maxValue) * 150;
+              const idleHeight = (idleH / maxValue) * 150;
+              
+              return (
+                <View key={day.date} style={styles.stackedBarContainer}>
+                  <View style={styles.stackedBarWrapper}>
+                    <View style={[styles.stackedBarSegment, { height: workHeight, backgroundColor: '#22C55E' }]} />
+                    <View style={[styles.stackedBarSegment, { height: idleHeight, backgroundColor: '#FB923C' }]} />
+                  </View>
+                  <Text style={styles.stackedBarLabel} numberOfLines={1}>
+                    {labels[index]}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
+        <View style={styles.chartLegend}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#22C55E' }]} />
+            <Text style={styles.legendText}>Work minutes</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#FB923C' }]} />
+            <Text style={styles.legendText}>Idle minutes</Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  // Render screenshots tab
+  const renderScreenshotsTab = () => {
+    return (
+      <ScrollView style={styles.screenshotsContainer}>
+        <View style={styles.screenshotFilters}>
+          <TouchableOpacity
+            style={styles.dateFilterButton}
+            onPress={() => {
+              if (Platform.OS === 'ios') {
+                setIosPicker({ visible: true, value: shotDate ? new Date(shotDate) : new Date() });
+              } else {
+                setShowDatePicker(true);
+              }
+            }}
+          >
+            <Text style={styles.dateFilterText}>
+              {shotDate ? formatDisplayDate(shotDate) : 'Select Date'}
+            </Text>
+            <MaterialIcons name="calendar-today" size={18} color="#FB923C" />
+          </TouchableOpacity>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.appFilters}>
+            {['all', 'Chrome', 'VSCode', 'Slack', 'UnrealEditor'].map((app) => (
+              <TouchableOpacity
+                key={app}
+                style={[styles.appChip, shotApp === app && styles.appChipActive]}
+                onPress={() => setShotApp(app)}
+              >
+                <Text
+                  style={[styles.appChipText, shotApp === app && styles.appChipTextActive]}
+                >
+                  {app === 'all' ? 'All Applications' : app}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {loadingScreenshots ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#FB923C" />
+          </View>
+        ) : (
+          <View style={styles.screenshotsGrid}>
+            {screenshots.map((shot) => (
+              <TouchableOpacity
+                key={shot._id}
+                style={styles.screenshotCard}
+                onPress={() => setSelectedScreenshot(shot)}
+              >
+                {shot.screenshot ? (
+                  <Image source={{ uri: shot.screenshot }} style={styles.screenshotImage} />
+                ) : (
+                  <View style={[styles.screenshotImage, styles.screenshotPlaceholder]} />
+                )}
+                <View style={styles.screenshotOverlay}>
+                  <Text style={styles.screenshotAppName} numberOfLines={1}>
+                    {shot.appName || shot.windowTitle || 'Unknown App'}
+                  </Text>
+                  <Text style={styles.screenshotTimestamp}>
+                    {shot.timestamp || shot.createdAt
+                      ? formatDate(shot.timestamp || shot.createdAt || '')
+                      : 'Unknown date'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {shotPage < shotTotalPages && !loadingScreenshots && (
+          <TouchableOpacity
+            style={styles.loadMoreButton}
+            onPress={() => fetchScreenshots(shotPage + 1)}
+            disabled={loadingMoreScreenshots}
+          >
+            {loadingMoreScreenshots ? (
+              <ActivityIndicator size="small" color="#FB923C" />
+            ) : (
+              <Text style={styles.loadMoreText}>Load More</Text>
+            )}
+          </TouchableOpacity>
+        )}
+
+        {!loadingScreenshots && screenshots.length === 0 && (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>No screenshots found</Text>
+          </View>
+        )}
+      </ScrollView>
+    );
+  };
+
+  if (loading) {
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
-      <Text style={styles.header}>Activities Overview</Text>
-      <View style={styles.dateCardPlaceholder} />
-      {showStartPicker && (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#FB923C" />
+      </View>
+    );
+  }
+
+  // Employee detail view
+  if (selectedEmployee) {
+    return (
+      <View style={styles.container}>
+        {/* Header Banner */}
+        <View style={styles.detailBanner}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => {
+              setSelectedEmployee(null);
+              setActiveTab('overview');
+            }}
+          >
+            <MaterialIcons name="arrow-back" size={20} color="#fff" />
+            <Text style={styles.backButtonText}>Back to All Employees</Text>
+          </TouchableOpacity>
+          <View style={styles.detailHeader}>
+            <View style={styles.detailAvatarContainer}>
+              {selectedEmployee.profileImage ? (
+                <Image
+                  source={{ uri: selectedEmployee.profileImage }}
+                  style={styles.detailAvatar}
+                />
+              ) : (
+                <View style={[styles.detailAvatarPlaceholder, { backgroundColor: '#FB923C' }]}>
+                  <Text style={styles.detailAvatarText}>{getInitials(selectedEmployee)}</Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.detailInfo}>
+              <Text style={styles.detailLabel}>Viewing Details</Text>
+              <Text style={styles.detailName}>
+                {selectedEmployee.firstName} {selectedEmployee.lastName}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Tabs */}
+        <View style={styles.tabRow}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'overview' && styles.tabActive]}
+            onPress={() => setActiveTab('overview')}
+          >
+            <MaterialIcons
+              name="bar-chart"
+              size={18}
+              color={activeTab === 'overview' ? '#FB923C' : '#6B7280'}
+            />
+            <Text style={[styles.tabText, activeTab === 'overview' && styles.tabTextActive]}>
+              Overview
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'screenshots' && styles.tabActive]}
+            onPress={() => setActiveTab('screenshots')}
+          >
+            <MaterialIcons
+              name="camera-alt"
+              size={18}
+              color={activeTab === 'screenshots' ? '#FB923C' : '#6B7280'}
+            />
+            <Text style={[styles.tabText, activeTab === 'screenshots' && styles.tabTextActive]}>
+              Screenshots
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Tab Content */}
+        {activeTab === 'overview' ? renderOverviewTab() : renderScreenshotsTab()}
+
+        {/* Date Picker */}
+        {showDatePicker && (
         <DateTimePicker
-          value={startDate ? new Date(startDate) : new Date()}
+            value={shotDate ? new Date(shotDate) : new Date()}
           mode="date"
-          display={Platform.OS === 'android' ? 'calendar' : 'spinner'}
-          onChange={handleStartDateChange}
-          maximumDate={endDate ? new Date(endDate) : undefined}
+            display="calendar"
+            onChange={handleDateChange}
         />
       )}
+
       {Platform.OS === 'ios' && iosPicker.visible && (
         <Modal transparent animationType="fade" visible={iosPicker.visible}>
-          <View style={styles.modalRoot}>
-            <Pressable style={styles.modalBackdrop} onPress={cancelIosPicker} />
+            <Pressable style={styles.modalBackdrop} onPress={() => setIosPicker({ visible: false, value: new Date() })} />
             <View style={styles.modalContent}>
               <View style={styles.modalHandle} />
-              <Text style={styles.modalTitle}>
-                {iosPicker.type === 'start' ? 'Select start date' : 'Select end date'}
-              </Text>
               <DateTimePicker
                 value={iosPicker.value}
                 mode="date"
                 display="spinner"
                 onChange={(_, date) => {
                   if (date) {
-                    setIosPicker(prev => ({ ...prev, value: date }));
+                    setIosPicker({ visible: true, value: date });
                   }
                 }}
-                maximumDate={iosPicker.type === 'start' && endDate ? new Date(endDate) : undefined}
-                minimumDate={iosPicker.type === 'end' && startDate ? new Date(startDate) : undefined}
               />
               <View style={styles.modalActions}>
-                <TouchableOpacity style={styles.modalButton} onPress={cancelIosPicker}>
+                <TouchableOpacity
+                  style={styles.modalButton}
+                  onPress={() => setIosPicker({ visible: false, value: new Date() })}
+                >
                   <Text style={styles.modalButtonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.modalButton, styles.modalButtonPrimary]}
-                  onPress={applyIosPicker}
+                  onPress={() => {
+                    const iso = iosPicker.value.toISOString().slice(0, 10);
+                    setShotDate(iso);
+                    setIosPicker({ visible: false, value: new Date() });
+                  }}
                 >
-                  <Text style={[styles.modalButtonText, styles.modalButtonPrimaryText]}>Apply</Text>
+                  <Text style={[styles.modalButtonText, styles.modalButtonPrimaryText]}>
+                    Apply
+                  </Text>
                 </TouchableOpacity>
-              </View>
             </View>
           </View>
         </Modal>
       )}
-      {showEndPicker && (
-        <DateTimePicker
-          value={endDate ? new Date(endDate) : new Date()}
-          mode="date"
-          display={Platform.OS === 'android' ? 'calendar' : 'spinner'}
-          onChange={handleEndDateChange}
-          minimumDate={startDate ? new Date(startDate) : undefined}
-        />
-      )}
-      {/* Employee selector */}
-      <View style={styles.selectorRow}>
-        <Text style={styles.selectorLabel}>Select Employee</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-          <TouchableOpacity style={[styles.chip, !selectedEmployeeId && styles.chipActive]} onPress={() => setSelectedEmployeeId('')}>
-            <Text style={[styles.chipText, !selectedEmployeeId && styles.chipTextActive]}>All Employees</Text>
-          </TouchableOpacity>
-          {employees.map(e => (
-            <TouchableOpacity key={e._id} style={[styles.chip, selectedEmployeeId===e._id && styles.chipActive]} onPress={() => setSelectedEmployeeId(e._id)}>
-              <Text style={[styles.chipText, selectedEmployeeId===e._id && styles.chipTextActive]}>{e.firstName} {e.lastName}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
 
-      {/* Summary cards */}
-      <View style={styles.kpiRow}>
-        <View style={styles.card}><Text style={styles.cardLabel}>Activities Today</Text><Text style={styles.cardValue}>{todayStats.totalToday}</Text><Text style={styles.cardHint}>Real-time count</Text></View>
-        <View style={styles.card}><Text style={styles.cardLabel}>Total Activities</Text><Text style={styles.cardValue}>{total}</Text><Text style={styles.cardHint}>All time</Text></View>
-        <View style={styles.card}><Text style={styles.cardLabel}>Active Employees</Text><Text style={styles.cardValue}>{todayStats.activeEmployeesToday}</Text><Text style={styles.cardHint}>Today</Text></View>
-        <View style={styles.card}><Text style={styles.cardLabel}>Productivity Rate</Text><Text style={styles.cardValue}>{productivity}%</Text><View style={styles.barBg}><View style={[styles.barFill,{ width: `${productivity}%`}]} /></View></View>
-      </View>
-
-      <View style={styles.dateCard}>
-        <View style={styles.dateCardHeader}>
-          <Text style={styles.dateCardTitle}>Date range</Text>
-          <Text style={styles.dateCardSubtitle}>
-            Refine the activity feed by selecting a custom start and end date.
+        {/* Screenshot Lightbox */}
+        {selectedScreenshot && (
+          <Modal
+            visible={!!selectedScreenshot}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setSelectedScreenshot(null)}
+          >
+            <Pressable style={styles.lightboxBackdrop} onPress={() => setSelectedScreenshot(null)}>
+              <View style={styles.lightboxContent}>
+                {selectedScreenshot.screenshot && (
+                  <Image
+                    source={{ uri: selectedScreenshot.screenshot }}
+                    style={styles.lightboxImage}
+                    resizeMode="contain"
+                  />
+                )}
+                <View style={styles.lightboxInfo}>
+                  <Text style={styles.lightboxAppName}>
+                    {selectedScreenshot.appName || selectedScreenshot.windowTitle || 'Unknown App'}
           </Text>
-        </View>
-        <View style={styles.dateFilters}>
-          <View style={styles.dateRow}>
-            <View style={styles.dateField}>
-              <TouchableOpacity style={styles.dateTrigger} onPress={openStartPicker}>
-                <Feather name="calendar" size={18} color="#FB923C" />
-                <View style={styles.dateTriggerContent}>
-                  <Text style={styles.dateInputLabel}>Start date</Text>
-                  <Text style={[styles.dateValue, !startDate && styles.placeholderText]}>
-                    {startDate ? formatDisplayDate(startDate) : 'Select date'}
+                  <Text style={styles.lightboxTimestamp}>
+                    {selectedScreenshot.timestamp || selectedScreenshot.createdAt
+                      ? new Date(selectedScreenshot.timestamp || selectedScreenshot.createdAt || '').toLocaleString()
+                      : 'Unknown date'}
                   </Text>
                 </View>
-                <Feather name="chevron-down" size={18} color="#9CA3AF" />
+                <TouchableOpacity
+                  style={styles.lightboxClose}
+                  onPress={() => setSelectedScreenshot(null)}
+                >
+                  <MaterialIcons name="close" size={24} color="#fff" />
               </TouchableOpacity>
             </View>
-            <View style={styles.dateArrow}>
-              <Feather name="arrow-right" size={16} color="#9CA3AF" />
+            </Pressable>
+          </Modal>
+        )}
             </View>
-            <View style={styles.dateField}>
-              <TouchableOpacity style={styles.dateTrigger} onPress={openEndPicker}>
-                <Feather name="calendar" size={18} color="#FB923C" />
-                <View style={styles.dateTriggerContent}>
-                  <Text style={styles.dateInputLabel}>End date</Text>
-                  <Text style={[styles.dateValue, !endDate && styles.placeholderText]}>
-                    {endDate ? formatDisplayDate(endDate) : 'Select date'}
-                  </Text>
+    );
+  }
+
+  // All employees view
+  return (
+    <>
+      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.header}>Activities Overview</Text>
+
+        {/* Employee Selector */}
+        <View style={styles.selectorCard}>
+          <Text style={styles.selectorLabel}>Select Employee</Text>
+          <TouchableOpacity
+            style={styles.selectorDropdown}
+            onPress={() => setShowEmployeeDropdown(true)}
+          >
+            <Text style={styles.selectorDropdownText}>
+              {selectedEmployee ? getEmployeeDisplayName(selectedEmployee) : 'All Employees'}
+            </Text>
+            <MaterialIcons name="keyboard-arrow-down" size={20} color="#6B7280" />
+          </TouchableOpacity>
+        </View>
+
+        {/* All Employees Overview */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <MaterialIcons name="analytics" size={20} color="#FB923C" />
+          <Text style={styles.sectionTitle}>All Employees Overview</Text>
                 </View>
-                <Feather name="chevron-down" size={18} color="#9CA3AF" />
+        <View style={styles.employeesGrid}>
+          {employees.map((employee) => renderEmployeeCard(employee))}
+        </View>
+      </View>
+      </ScrollView>
+
+      {/* Employee Dropdown Modal */}
+      <Modal
+        visible={showEmployeeDropdown}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setShowEmployeeDropdown(false);
+          setEmployeeSearchQuery('');
+        }}
+      >
+        <Pressable
+          style={styles.dropdownBackdrop}
+          onPress={() => {
+            setShowEmployeeDropdown(false);
+            setEmployeeSearchQuery('');
+          }}
+        >
+          <View style={styles.dropdownModal} onStartShouldSetResponder={() => true}>
+            <View style={styles.dropdownHeader}>
+              <Text style={styles.dropdownTitle}>Select Employee</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowEmployeeDropdown(false);
+                  setEmployeeSearchQuery('');
+                }}
+              >
+                <MaterialIcons name="close" size={24} color="#6B7280" />
               </TouchableOpacity>
             </View>
-          </View>
-          <View style={styles.rangeSummary}>
-            <Feather name="clock" size={16} color="#FB923C" />
-            <Text style={styles.rangeSummaryText}>{rangeSummary()}</Text>
-          </View>
-        </View>
-        <View style={styles.dateActions}>
-          <TouchableOpacity style={styles.clearDateButton} onPress={clearDates}>
-            <Feather name="rotate-ccw" size={16} color="#FB923C" />
-            <Text style={styles.clearDateText}>Reset range</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
 
-      {/* Tabs */}
-      <View style={styles.tabRow}>
-        {['overview','activities','screenshots'].map(t => (
-          <TouchableOpacity key={t} style={[styles.tabBtn, activeTab===t && styles.tabActive]} onPress={() => setActiveTab(t as any)}>
-            <Text style={[styles.tabText, activeTab===t && styles.tabTextActive]}>{t.charAt(0).toUpperCase()+t.slice(1)}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <View style={styles.panel}>
-        {activeTab==='overview' && (
-          <Text style={{ color:'#6b7280' }}>Select an employee to view detailed metrics.</Text>
-        )}
-        {activeTab==='activities' && (
-          <>
-            <View style={styles.tableHeader}><Text style={[styles.th,{flex:2}]}>EMPLOYEE</Text><Text style={[styles.th,{flex:1}]}>TYPE</Text><Text style={[styles.th,{flex:1}]}>STATUS</Text><Text style={[styles.th,{flex:1}]}>DATE</Text></View>
-            {activities.map((a) => (
-              <View key={a._id} style={styles.tr}><Text style={[styles.td,{flex:2}]}>{a.employee?.firstName} {a.employee?.lastName}</Text><Text style={[styles.td,{flex:1}]}>{a.type}</Text><Text style={[styles.td,{flex:1}]}>{a.status}</Text><Text style={[styles.td,{flex:1}]}>{new Date(a.createdAt).toLocaleString()}</Text></View>
-            ))}
-          </>
-        )}
-        {activeTab==='screenshots' && (
-          <>
-            {/* Filters row (date + app) */}
-            <View style={styles.shotFilters}>
+            {/* Search Input */}
+            <View style={styles.dropdownSearchContainer}>
+              <MaterialIcons name="search" size={20} color="#9CA3AF" />
               <TextInput
-                style={styles.shotDateInput}
-                value={shotDate}
-                onChangeText={setShotDate}
-                placeholder="YYYY-MM-DD"
+                style={styles.dropdownSearchInput}
+                placeholder="Search employees..."
                 placeholderTextColor="#9CA3AF"
+                value={employeeSearchQuery}
+                onChangeText={setEmployeeSearchQuery}
+                autoFocus
               />
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                {['all','Slack','Chrome','UnrealEditor','VSCode'].map(app => (
-                  <TouchableOpacity key={app} style={[styles.chip, shotApp===app && styles.chipActive]} onPress={() => setShotApp(app)}>
-                    <Text style={[styles.chipText, shotApp===app && styles.chipTextActive]}>{app === 'all' ? 'All Applications' : app}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-            {/* Grid */}
-            <View style={styles.grid}> 
-              {shots.map(s => (
-                <View key={s._id} style={styles.shotCard}>
-                  {s.url ? (
-                    <Image source={{ uri: s.url }} style={styles.shotImage} resizeMode='cover' />
-                  ) : (
-                    <View style={[styles.shotImage,{ backgroundColor:'#111' }]} />
-                  )}
-                  <View style={styles.shotOverlay}>
-                    <View style={styles.shotLabel}><Text style={styles.shotLabelText}>{s.appName || 'App'}</Text><Text style={styles.shotLabelTime}>{new Date(s.timestamp).toLocaleString()}</Text></View>
-                  </View>
-                </View>
-              ))}
-              {shots.length === 0 && (
-                <Text style={{ color:'#6b7280' }}>No screenshots found for selected filters.</Text>
+              {employeeSearchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setEmployeeSearchQuery('')}>
+                  <MaterialIcons name="clear" size={20} color="#9CA3AF" />
+                </TouchableOpacity>
               )}
             </View>
-            {shotPage < shotTotalPages && (
-              <View style={{ alignItems:'center', marginTop:12 }}>
-                <TouchableOpacity onPress={() => fetchScreenshots(shotPage+1)} style={{ backgroundColor:'#f97316', paddingHorizontal:14, paddingVertical:8, borderRadius:8 }}>
-                  <Text style={{ color:'#fff', fontWeight:'600' }}>Load More</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </>
-        )}
-      </View>
-    </ScrollView>
+
+            {/* All Employees Option */}
+            <ScrollView style={styles.dropdownList} showsVerticalScrollIndicator={false}>
+              <TouchableOpacity
+                style={[
+                  styles.dropdownItem,
+                  !selectedEmployee && styles.dropdownItemSelected,
+                ]}
+                onPress={() => handleEmployeeSelect(null)}
+              >
+                <View style={styles.dropdownItemContent}>
+                  <View style={styles.dropdownItemAvatar}>
+                    <MaterialIcons name="people" size={20} color="#FB923C" />
+                  </View>
+                  <Text
+                    style={[
+                      styles.dropdownItemText,
+                      !selectedEmployee && styles.dropdownItemTextSelected,
+                    ]}
+                  >
+                    All Employees
+                  </Text>
+                </View>
+                {!selectedEmployee && (
+                  <MaterialIcons name="check" size={20} color="#FB923C" />
+                )}
+              </TouchableOpacity>
+
+              {/* Employee List */}
+              {filteredEmployees.map((employee) => {
+                const isSelected = selectedEmployee?._id === employee._id;
+                return (
+                  <TouchableOpacity
+                    key={employee._id}
+                    style={[styles.dropdownItem, isSelected && styles.dropdownItemSelected]}
+                    onPress={() => handleEmployeeSelect(employee)}
+                  >
+                    <View style={styles.dropdownItemContent}>
+                      <View style={styles.dropdownItemAvatar}>
+                        {employee.profileImage ? (
+                          <Image
+                            source={{ uri: employee.profileImage }}
+                            style={styles.dropdownItemAvatarImage}
+                          />
+                        ) : (
+                          <View
+                            style={[
+                              styles.dropdownItemAvatarPlaceholder,
+                              { backgroundColor: '#FB923C' },
+                            ]}
+                          >
+                            <Text style={styles.dropdownItemAvatarText}>
+                              {getInitials(employee)}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={styles.dropdownItemInfo}>
+                        <Text
+                          style={[
+                            styles.dropdownItemText,
+                            isSelected && styles.dropdownItemTextSelected,
+                          ]}
+                        >
+                          {getEmployeeDisplayName(employee)}
+                        </Text>
+                        <Text style={styles.dropdownItemSubtext}>
+                          {employee.position || employee.role || employee.email}
+                        </Text>
+                      </View>
+                    </View>
+                    {isSelected && <MaterialIcons name="check" size={20} color="#FB923C" />}
+                  </TouchableOpacity>
+                );
+              })}
+
+              {filteredEmployees.length === 0 && (
+                <View style={styles.dropdownEmpty}>
+                  <Text style={styles.dropdownEmptyText}>No employees found</Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
+    </>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex:1, backgroundColor:'#fff' },
-  header: { fontSize: 22, fontWeight:'700', color:'#111827', marginBottom: 10 },
-  selectorRow: { backgroundColor:'#fff', borderRadius:12, borderWidth:1, borderColor:'#eee', padding:12, marginBottom:12 },
-  selectorLabel: { color:'#ea580c', fontWeight:'600', marginBottom:8 },
-  chip: { paddingHorizontal:10, paddingVertical:6, borderRadius:999, backgroundColor:'#F3F4F6' },
-  chipActive: { backgroundColor:'rgba(255,87,34,0.12)' },
-  chipText: { color:'#6b7280' },
-  chipTextActive: { color:'#111827', fontWeight:'700' },
-  dateCardPlaceholder: { height: 8 },
-  dateCard: {
-    backgroundColor:'#fff',
-    borderRadius:16,
-    borderWidth:1,
-    borderColor:'#E5E7EB',
-    padding:16,
-    marginBottom:16,
-    shadowColor:'#00000010',
-    shadowOpacity:0.08,
-    shadowRadius:8,
-    shadowOffset:{ width:0, height:4 },
-    elevation:2,
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
   },
-  dateCardHeader: {
-    gap:6,
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
   },
-  dateCardTitle: {
-    fontSize:16,
-    fontWeight:'700',
-    color:'#111827',
-    textTransform:'uppercase',
-    letterSpacing:0.8,
+  scrollContent: {
+    padding: 16,
   },
-  dateCardSubtitle: {
-    fontSize:12,
-    color:'#6B7280',
+  header: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 16,
   },
-  dateFilters: {
-    marginTop:16,
-    gap:12,
+  selectorCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 12,
+    marginBottom: 16,
   },
-  filterHeading: {
-    fontSize:13,
-    fontWeight:'700',
-    color:'#6B7280',
-    textTransform:'uppercase',
-    letterSpacing:0.6,
+  selectorLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FB923C',
+    marginBottom: 8,
   },
-  dateRow: {
-    flexDirection:'row',
-    gap:12,
-    flexWrap:'wrap',
-    marginTop:12,
+  selectorDropdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
   },
-  dateArrow: {
-    alignItems:'center',
-    justifyContent:'center',
-    paddingHorizontal:4,
+  selectorDropdownText: {
+    fontSize: 15,
+    color: '#111827',
   },
-  dateField: { flex:1, minWidth:160 },
-  dateTrigger: {
-    flexDirection:'row',
-    alignItems:'center',
-    paddingHorizontal:14,
-    paddingVertical:12,
-    borderRadius:12,
-    borderWidth:1,
-    borderColor:'#E5E7EB',
-    backgroundColor:'#F9FAFB',
-    gap:12,
+  section: {
+    marginBottom: 16,
   },
-  dateTriggerContent: {
-    flex:1,
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
   },
-  dateInputLabel: {
-    fontSize:11,
-    fontWeight:'600',
-    color:'#9CA3AF',
-    textTransform:'uppercase',
-    marginBottom:2,
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
   },
-  dateValue: {
-    fontSize:15,
-    fontWeight:'600',
-    color:'#111827',
+  employeesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
   },
-  placeholderText: {
-    color:'#9CA3AF',
+  employeeCard: {
+    width: (width - 44) / 2,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
-  rangeSummary: {
-    marginTop:12,
-    flexDirection:'row',
-    alignItems:'center',
-    gap:8,
-    paddingHorizontal:14,
-    paddingVertical:10,
-    borderRadius:12,
-    backgroundColor:'#FFF7ED',
-    borderWidth:1,
-    borderColor:'#FFE4D5',
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  rangeSummaryText: {
-    flex:1,
-    fontSize:13,
-    color:'#7C2D12',
-    fontWeight:'500',
+  avatarContainer: {
+    position: 'relative',
+    marginRight: 8,
   },
-  dateActions: {
-    flexDirection:'row',
-    justifyContent:'flex-end',
-    marginTop:16,
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
-  clearDateButton: {
-    flexDirection:'row',
-    alignItems:'center',
-    gap:8,
-    paddingHorizontal:16,
-    paddingVertical:10,
-    borderRadius:10,
-    borderWidth:1,
-    borderColor:'#FB923C',
-    backgroundColor:'#FFF7ED',
+  avatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  clearDateText: { color:'#FB923C', fontWeight:'600' },
-  kpiRow: { flexDirection:'row', flexWrap:'wrap', gap:12, marginBottom:12 },
-  card: { flex:1, minWidth:'48%', backgroundColor:'#fff', borderRadius:12, padding:12, borderWidth:1, borderColor:'#eee' },
-  cardLabel: { color:'#ea580c' },
-  cardValue: { fontSize:22, fontWeight:'800', color:'#111827', marginTop:4 },
-  cardHint: { color:'#6b7280', fontSize:12, marginTop:2 },
-  barBg: { height:6, backgroundColor:'#E5E7EB', borderRadius:999, marginTop:8 },
-  barFill: { height:'100%', backgroundColor:'#f97316', borderRadius:999 },
-  tabRow: { flexDirection:'row', borderBottomWidth:1, borderBottomColor:'#E5E7EB', marginBottom:10 },
-  tabBtn: { paddingHorizontal:12, paddingVertical:8 },
-  tabActive: { borderBottomWidth:2, borderBottomColor:'#f97316' },
-  tabText: { color:'#6b7280', fontWeight:'600' },
-  tabTextActive: { color:'#111827' },
-  panel: { backgroundColor:'#fff', borderRadius:12, borderWidth:1, borderColor:'#eee', padding:12 },
-  tableHeader: { flexDirection:'row', borderBottomWidth:1, borderBottomColor:'#E5E7EB', paddingVertical:10 },
-  th: { fontSize:12, color:'#374151', fontWeight:'700' },
-  tr: { flexDirection:'row', paddingVertical:12, borderBottomWidth:1, borderBottomColor:'#F3F4F6' },
-  td: { fontSize:13, color:'#374151' },
-  // Screenshots
-  shotFilters: { flexDirection:'row', alignItems:'center', gap:8, marginBottom:10 },
-  shotDateInput: {
-    flex:1,
-    backgroundColor:'#F3F4F6',
-    paddingHorizontal:12,
-    paddingVertical:8,
-    borderRadius:8,
-    color:'#111827',
+  avatarText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
-  grid: { flexDirection:'row', flexWrap:'wrap', gap:12 },
-  shotCard: { width:'48%', backgroundColor:'#000', borderRadius:12, overflow:'hidden', position:'relative' },
-  shotImage: { height:160, width: '100%' },
-  shotOverlay: { position:'absolute', left:8, bottom:8 },
-  shotLabel: { backgroundColor:'rgba(0,0,0,0.7)', paddingHorizontal:8, paddingVertical:6, borderRadius:8 },
-  shotLabelText: { color:'#fff', fontSize:12, fontWeight:'600' },
-  shotLabelTime: { color:'#fff', fontSize:11, marginTop:2 },
-  modalRoot: {
-    flex:1,
-    justifyContent:'flex-end',
+  onlineIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#22C55E',
+    borderWidth: 2,
+    borderColor: '#fff',
   },
+  cardHeaderRight: {
+    flex: 1,
+  },
+  employeeName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  positionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  positionText: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  cardMenu: {
+    padding: 4,
+  },
+  cardMetrics: {
+    gap: 8,
+  },
+  metricItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  metricContent: {
+    flex: 1,
+  },
+  metricLabel: {
+    fontSize: 11,
+    color: '#6B7280',
+  },
+  metricValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#111827',
+    marginTop: 2,
+  },
+  needsImprovement: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  needsImprovementText: {
+    fontSize: 11,
+    color: '#EF4444',
+    fontWeight: '600',
+  },
+  // Detail View Styles
+  detailBanner: {
+    backgroundColor: '#FB923C',
+    padding: 16,
+    paddingTop: 48,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  backButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  detailHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  detailAvatarContainer: {
+    position: 'relative',
+  },
+  detailAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  detailAvatarPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  detailAvatarText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  detailInfo: {
+    flex: 1,
+  },
+  detailLabel: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.9)',
+  },
+  detailName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+    marginTop: 2,
+  },
+  tabRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    backgroundColor: '#fff',
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabActive: {
+    borderBottomColor: '#FB923C',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  tabTextActive: {
+    color: '#FB923C',
+  },
+  // Overview Tab Styles
+  overviewContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 16,
+    gap: 12,
+  },
+  metricCard: {
+    width: (width - 44) / 2,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 16,
+  },
+  metricCardTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  metricCardValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#FB923C',
+    marginBottom: 4,
+  },
+  metricCardSubtitle: {
+    fontSize: 11,
+    color: '#9CA3AF',
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 3,
+    marginTop: 8,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  // Screenshots Tab Styles
+  screenshotsContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  screenshotFilters: {
+    padding: 16,
+    gap: 12,
+  },
+  dateFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  dateFilterText: {
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: '500',
+  },
+  appFilters: {
+    flexDirection: 'row',
+  },
+  appChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    marginRight: 8,
+  },
+  appChipActive: {
+    backgroundColor: '#FB923C',
+  },
+  appChipText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  appChipTextActive: {
+    color: '#fff',
+  },
+  screenshotsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 16,
+    gap: 12,
+  },
+  screenshotCard: {
+    width: (width - 44) / 2,
+    height: 200,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+    position: 'relative',
+  },
+  screenshotImage: {
+    width: '100%',
+    height: '100%',
+  },
+  screenshotPlaceholder: {
+    backgroundColor: '#1F2937',
+  },
+  screenshotOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    padding: 12,
+  },
+  screenshotAppName: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  screenshotTimestamp: {
+    color: '#fff',
+    fontSize: 11,
+    opacity: 0.9,
+  },
+  loadMoreButton: {
+    margin: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FB923C',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  loadMoreText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  emptyState: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  // Modal Styles
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor:'rgba(17,24,39,0.45)',
+    backgroundColor: 'rgba(17,24,39,0.45)',
   },
   modalContent: {
-    backgroundColor:'#fff',
-    paddingHorizontal:20,
-    paddingTop:12,
-    paddingBottom:20,
-    borderTopLeftRadius:24,
-    borderTopRightRadius:24,
-    gap:12,
-    zIndex:1,
-    shadowColor:'#00000010',
-    shadowOpacity:0.1,
-    shadowRadius:12,
-    shadowOffset:{ width:0, height:-2 },
+    backgroundColor: '#fff',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
   modalHandle: {
-    alignSelf:'center',
-    width:48,
-    height:4,
-    borderRadius:999,
-    backgroundColor:'#E5E7EB',
-  },
-  modalTitle: {
-    fontSize:16,
-    fontWeight:'600',
-    color:'#111827',
-    textAlign:'center',
+    alignSelf: 'center',
+    width: 48,
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: '#E5E7EB',
+    marginBottom: 12,
   },
   modalActions: {
-    flexDirection:'row',
-    justifyContent:'space-between',
-    gap:12,
-    marginTop:8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 16,
   },
   modalButton: {
-    flex:1,
-    paddingVertical:12,
-    borderRadius:10,
-    borderWidth:1,
-    borderColor:'#E5E7EB',
-    backgroundColor:'#fff',
-    alignItems:'center',
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#fff',
+    alignItems: 'center',
   },
   modalButtonText: {
-    fontSize:15,
-    fontWeight:'600',
-    color:'#374151',
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#374151',
   },
   modalButtonPrimary: {
-    backgroundColor:'#FB923C',
-    borderColor:'#FB923C',
+    backgroundColor: '#FB923C',
+    borderColor: '#FB923C',
   },
   modalButtonPrimaryText: {
-    color:'#fff',
+    color: '#fff',
+  },
+  // Lightbox Styles
+  lightboxBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  lightboxContent: {
+    width: width - 32,
+    height: '80%',
+    position: 'relative',
+  },
+  lightboxImage: {
+    width: '100%',
+    height: '100%',
+  },
+  lightboxInfo: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    padding: 16,
+  },
+  lightboxAppName: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  lightboxTimestamp: {
+    color: '#fff',
+    fontSize: 14,
+    opacity: 0.9,
+  },
+  lightboxClose: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // Employee Dropdown Styles
+  dropdownBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dropdownModal: {
+    width: width - 32,
+    maxHeight: '80%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  dropdownHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  dropdownTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  dropdownSearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    margin: 16,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 8,
+  },
+  dropdownSearchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#111827',
+  },
+  dropdownList: {
+    maxHeight: 400,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  dropdownItemSelected: {
+    backgroundColor: '#FFF7ED',
+  },
+  dropdownItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  dropdownItemAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+  },
+  dropdownItemAvatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  dropdownItemAvatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dropdownItemAvatarText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  dropdownItemInfo: {
+    flex: 1,
+  },
+  dropdownItemText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  dropdownItemTextSelected: {
+    color: '#FB923C',
+  },
+  dropdownItemSubtext: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  dropdownEmpty: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  dropdownEmptyText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  // Chart Styles
+  chartCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 16,
+    marginTop: 16,
+  },
+  chartTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FB923C',
+    marginBottom: 16,
+  },
+  chartLegend: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
+    marginTop: 12,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  legendText: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  appUsageContainer: {
+    gap: 16,
+  },
+  appUsageBarChart: {
+    marginBottom: 8,
+  },
+  appUsagePieChart: {
+    marginTop: 8,
+  },
+  stackedChartContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    height: 200,
+    paddingHorizontal: 8,
+    gap: 4,
+  },
+  stackedBarContainer: {
+    alignItems: 'center',
+    width: 30,
+  },
+  stackedBarWrapper: {
+    width: 24,
+    height: 150,
+    justifyContent: 'flex-end',
+    flexDirection: 'column',
+  },
+  stackedBarSegment: {
+    width: '100%',
+    minHeight: 2,
+  },
+  stackedBarLabel: {
+    fontSize: 10,
+    color: '#6B7280',
+    marginTop: 4,
+    textAlign: 'center',
   },
 });
 
 export default OrgAdminActivitiesScreen;
-
-

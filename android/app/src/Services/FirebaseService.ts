@@ -23,8 +23,24 @@ interface NotificationData {
  */
 export const initializeFirebase = async () => {
   try {
-    // Request notification permissions (iOS)
-    const authStatus = await messaging().requestPermission();
+    console.log('Firebase: Initializing Firebase...');
+    
+    // Check if Firebase is available
+    if (!messaging) {
+      console.error('Firebase: messaging is not available');
+      return null;
+    }
+
+    // Request notification permissions (iOS) - wrap in try-catch to prevent crashes
+    let authStatus;
+    try {
+      authStatus = await messaging().requestPermission();
+    } catch (permError) {
+      console.error('Firebase: Error requesting permissions:', permError);
+      // Continue anyway - permissions might already be granted
+      authStatus = messaging.AuthorizationStatus.AUTHORIZED;
+    }
+    
     const enabled =
       authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
       authStatus === messaging.AuthorizationStatus.PROVISIONAL;
@@ -32,12 +48,22 @@ export const initializeFirebase = async () => {
     if (enabled) {
       console.log('Firebase: Notification permissions granted');
       
-      // Get FCM token
-      const token = await messaging().getToken();
-      console.log('Firebase: FCM Token:', token);
+      // Get FCM token - wrap in try-catch
+      let token;
+      try {
+        token = await messaging().getToken();
+        console.log('Firebase: FCM Token:', token);
+      } catch (tokenError) {
+        console.error('Firebase: Error getting FCM token:', tokenError);
+        token = null;
+      }
       
       // Set up notification handlers
-      setupNotificationHandlers();
+      try {
+        setupNotificationHandlers();
+      } catch (handlerError) {
+        console.error('Firebase: Error setting up handlers:', handlerError);
+      }
       
       return token;
     } else {
@@ -46,6 +72,7 @@ export const initializeFirebase = async () => {
     }
   } catch (error) {
     console.error('Firebase: Error initializing Firebase:', error);
+    // Don't crash the app - return null and continue
     return null;
   }
 };
@@ -240,6 +267,9 @@ const navigateToNotifications = () => {
  * Backend endpoint: POST /api/users/fcm-token
  */
 export const sendTokenToBackend = async (userToken: string, fcmToken: string | null = null) => {
+  // Use deployed server for all environments
+  const API_BASE_URL = 'https://intelgency.com/api'; // Deployed server
+  
   try {
     const token = fcmToken || await getFCMToken();
     if (!token) {
@@ -252,44 +282,43 @@ export const sendTokenToBackend = async (userToken: string, fcmToken: string | n
       return false;
     }
 
-    // Backend is running on localhost:5000
-    // For Android emulator, use 10.0.2.2 instead of localhost
-    // For iOS simulator, use localhost
-    // For physical device, use your computer's IP address (e.g., 192.168.1.100:5000)
-    const getBaseURL = () => {
-      if (__DEV__) {
-        if (Platform.OS === 'android') {
-          return 'http://10.0.2.2:5000/api'; // Android emulator
-        } else {
-          return 'http://localhost:5000/api'; // iOS simulator
-        }
-      }
-      return 'https://intelgency.com/api'; // Production
-    };
-    
-    const API_BASE_URL = getBaseURL();
-    const endpoint = `${API_BASE_URL}/users/fcm-token`;
-    
-    console.log('Firebase: Sending FCM token to:', endpoint);
-    console.log('Firebase: Token length:', token.length);
-    console.log('Firebase: User token length:', userToken.length);
-    
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${userToken}`,
-      },
-      body: JSON.stringify({
-        fcmToken: token,
-      }),
-    });
+    // Helper to POST token to a given path (supports both /users and /user prefixes)
+    const postToken = async (path: string) => {
+      const endpoint = `${API_BASE_URL}${path}`;
+      
+      console.log('Firebase: Sending FCM token to:', endpoint);
+      console.log('Firebase: Token length:', token.length);
+      console.log('Firebase: User token length:', userToken.length);
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${userToken}`,
+        },
+        body: JSON.stringify({
+          fcmToken: token,
+        }),
+      });
 
-    // Get response text first to see what we're actually getting
-    const responseText = await response.text();
-    console.log('Firebase: Response status:', response.status);
-    console.log('Firebase: Response headers:', JSON.stringify(Object.fromEntries(response.headers.entries())));
-    console.log('Firebase: Response text (first 500 chars):', responseText.substring(0, 500));
+      const responseText = await response.text();
+      console.log('Firebase: Response status:', response.status);
+      console.log('Firebase: Response headers:', JSON.stringify(Object.fromEntries(response.headers.entries())));
+      console.log('Firebase: Response text (first 500 chars):', responseText.substring(0, 500));
+
+      return { response, responseText };
+    };
+
+    // First try the documented path: /users/fcm-token
+    let { response, responseText } = await postToken('/user/fcm-token');
+
+    // If prod backend is actually mounted under /api/user/fcm-token, fall back
+    if (response.status === 404) {
+      console.log('Firebase: /user/fcm-token returned 404, trying /user/fcm-token fallback');
+      const fallback = await postToken('/user/fcm-token');
+      response = fallback.response;
+      responseText = fallback.responseText;
+    }
 
     // Try to parse as JSON
     let data;
@@ -313,11 +342,18 @@ export const sendTokenToBackend = async (userToken: string, fcmToken: string | n
       return false;
     }
   } catch (error: any) {
-    console.error('Firebase: Error sending FCM token to backend:', error?.message || error);
-    if (error?.message?.includes('Network request failed')) {
-      console.error('Firebase: Network error - Check if backend is running on localhost:5000');
-      console.error('Firebase: For Android emulator, backend should be accessible at 10.0.2.2:5000');
+    // Only log errors in development, and make them less noisy
+    if (__DEV__) {
+      const errorMessage = error?.message || String(error);
+      if (errorMessage.includes('Network request failed')) {
+        // This is expected if backend isn't running - log at debug level only
+        console.log('Firebase: Backend not available (this is OK if backend is not running)');
+        console.log('Firebase: Backend should be at:', API_BASE_URL);
+      } else {
+        console.error('Firebase: Error sending FCM token:', errorMessage);
+      }
     }
+    // Silently fail in production or when backend is unavailable
     return false;
   }
 };

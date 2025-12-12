@@ -6,16 +6,14 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import useAxios from '../hooks/useAxios';
 import MyTeamsCard from '../components/MyTeamsCard';
-import LeaveCalendar from '../components/LeaveCalendar';
 import HolidayChart from '../components/HolidayChart';
 import LeaveTableSystem from '../components/LeaveTableSystem';
 
 const LeavesScreen: React.FC = () => {
-  const navigation = useNavigation();
   const { callApi } = useAxios();
   
   const [loading, setLoading] = useState(true);
@@ -55,15 +53,14 @@ const LeavesScreen: React.FC = () => {
         </View>
 
         {/* Page Title */}
-        <Text style={styles.pageTitle}>Leave management</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.pageTitle}>Leave management</Text>
+        </View>
 
         {/* Top Cards Section */}
         <View style={styles.cardsContainer}>
           <View style={styles.card}>
             <MyTeamsCard />
-          </View>
-          <View style={styles.card}>
-            <LeaveCalendar />
           </View>
           <View style={styles.card}>
             <HolidayChart />
@@ -112,12 +109,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
+  titleRow: {
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
   pageTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
-    paddingHorizontal: 16,
-    marginBottom: 16,
   },
   cardsContainer: {
     paddingHorizontal: 16,

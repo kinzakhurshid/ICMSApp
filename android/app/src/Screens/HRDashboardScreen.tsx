@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import useAxios from '../hooks/useAxios';
@@ -66,109 +67,93 @@ const HRDashboardScreen: React.FC = () => {
     try {
       setLoading(true);
       
-      // Mock data for now - replace with actual API calls
+      // Fetch employees from API
+      const employeesResponse = await callApi({
+        method: 'GET',
+        url: '/employee',
+      });
+      
+      // Handle different response structures
+      let employeesData = [];
+      if (Array.isArray(employeesResponse)) {
+        employeesData = employeesResponse;
+      } else if (employeesResponse && Array.isArray(employeesResponse.data)) {
+        employeesData = employeesResponse.data;
+      } else if (employeesResponse && employeesResponse.data && Array.isArray(employeesResponse.data.data)) {
+        employeesData = employeesResponse.data.data;
+      } else if (employeesResponse && employeesResponse.data) {
+        employeesData = employeesResponse.data;
+      }
+      
+      console.log('HR Dashboard - Employee API Response:', employeesResponse);
+      console.log('HR Dashboard - Parsed Employees Data:', employeesData);
+      console.log('HR Dashboard - Number of employees:', employeesData.length);
+      
+      // Map API response to Employee interface
+      const mappedEmployees: Employee[] = employeesData.map((emp: any) => {
+        const formatDate = (dateString: string) => {
+          if (!dateString) return 'N/A';
+          try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return 'Invalid Date';
+            return date.toLocaleDateString('en-GB', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+            });
+          } catch {
+            return 'Invalid Date';
+          }
+        };
+        
+        return {
+          id: emp._id || emp.id || '',
+          name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.name || emp.fullName || 'N/A',
+          email: emp.email || 'N/A',
+          position: emp.position || emp.designation || 'N/A',
+          contact: emp.contactNumber || emp.contact || emp.phone || 'N/A',
+          joiningDate: formatDate(emp.hireDate || emp.joiningDate || emp.createdAt),
+          gender: emp.gender || 'N/A',
+          avatar: emp.avatar || emp.profilePicture,
+        };
+      });
+      
+      setEmployees(mappedEmployees);
+      
+      // Mock stats for now - can be replaced with actual API call later
       const mockStats: DashboardStats = {
-        totalEmployees: 10,
+        totalEmployees: mappedEmployees.length,
         totalEmployeesChange: 25,
         attendanceRate: 88,
         totalPayroll: 457230,
-        activeEmployees: 10,
+        activeEmployees: mappedEmployees.length,
         attendanceGrowth: -11,
         payrollGrowth: 100,
         genderStats: {
-          male: 7,
-          female: 3,
-          other: 0,
-          malePercentage: 70,
-          femalePercentage: 30,
-          otherPercentage: 0,
+          male: mappedEmployees.filter(e => e.gender?.toLowerCase() === 'male').length,
+          female: mappedEmployees.filter(e => e.gender?.toLowerCase() === 'female').length,
+          other: mappedEmployees.filter(e => !['male', 'female'].includes(e.gender?.toLowerCase() || '')).length,
+          malePercentage: mappedEmployees.length > 0 
+            ? Math.round((mappedEmployees.filter(e => e.gender?.toLowerCase() === 'male').length / mappedEmployees.length) * 100)
+            : 0,
+          femalePercentage: mappedEmployees.length > 0
+            ? Math.round((mappedEmployees.filter(e => e.gender?.toLowerCase() === 'female').length / mappedEmployees.length) * 100)
+            : 0,
+          otherPercentage: mappedEmployees.length > 0
+            ? Math.round((mappedEmployees.filter(e => !['male', 'female'].includes(e.gender?.toLowerCase() || '')).length / mappedEmployees.length) * 100)
+            : 0,
         },
         departmentSalaryData: [
           { department: 'General Department', totalSalary: 190000, employees: 5 },
           { department: 'Development', totalSalary: 260000, employees: 5 },
         ],
       };
-
-      const mockEmployees: Employee[] = [
-        {
-          id: '1',
-          name: 'Test Khan',
-          email: 'test@gmail.com',
-          position: 'Developer',
-          contact: '03461155024',
-          joiningDate: '17 Oct 2025',
-          gender: 'male',
-        },
-        {
-          id: '2',
-          name: 'Waseem Khan',
-          email: 'waseemkhan@intelgency.com',
-          position: 'Unity Game Developer',
-          contact: '03369795170',
-          joiningDate: '22 Sep 2025',
-          gender: 'male',
-        },
-        {
-          id: '3',
-          name: 'Sarwar Shah',
-          email: 'sarwar@intelgency.com',
-          position: 'Full Stack Developer',
-          contact: '03331234567',
-          joiningDate: '20 Sep 2024',
-          gender: 'male',
-        },
-        {
-          id: '4',
-          name: 'Muzammil Iftikhar',
-          email: 'muzammil@intelgency.com',
-          position: 'Senior Designer',
-          contact: '03339876543',
-          joiningDate: '15 Aug 2024',
-          gender: 'male',
-        },
-        {
-          id: '5',
-          name: 'Fahad Ahmed',
-          email: 'fahad@intelgency.com',
-          position: 'PM',
-          contact: '03335556677',
-          joiningDate: '10 Jul 2024',
-          gender: 'male',
-        },
-        {
-          id: '6',
-          name: 'Asim Raja',
-          email: 'asim@intelgency.com',
-          position: 'HR',
-          contact: '03338889999',
-          joiningDate: '05 Jun 2024',
-          gender: 'male',
-        },
-        {
-          id: '7',
-          name: 'Muhammad Hassan',
-          email: 'hassan@intelgency.com',
-          position: 'Developer',
-          contact: '03331112222',
-          joiningDate: '01 May 2024',
-          gender: 'male',
-        },
-        {
-          id: '8',
-          name: 'Mamoona Shabbir',
-          email: 'mamoona@intelgency.com',
-          position: 'Designer',
-          contact: '03334445555',
-          joiningDate: '20 Apr 2024',
-          gender: 'female',
-        },
-      ];
-
+      
       setStats(mockStats);
-      setEmployees(mockEmployees);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       Alert.alert('Error', 'Failed to load dashboard data');
+      setEmployees([]);
     } finally {
       setLoading(false);
     }
@@ -245,15 +230,17 @@ const HRDashboardScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer} edges={['top', 'bottom']}>
         <ActivityIndicator size="large" color="#FF6B35" />
         <Text style={styles.loadingText}>Loading Dashboard...</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <View style={styles.container}>
+        <ScrollView style={styles.scrollView}>
 
       {/* Dashboard Cards */}
       <View style={styles.dashboardGrid}>
@@ -285,16 +272,16 @@ const HRDashboardScreen: React.FC = () => {
           <View style={styles.genderItem}>
             <Text style={styles.genderLabel}>Male</Text>
             <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: '70%', backgroundColor: '#FF6B35' }]} />
+              <View style={[styles.progressFill, { width: `${stats?.genderStats?.malePercentage || 70}%`, backgroundColor: '#3B82F6' }]} />
             </View>
-            <Text style={styles.genderPercent}>70%</Text>
+            <Text style={styles.genderPercent}>{stats?.genderStats?.malePercentage || 70}%</Text>
           </View>
           <View style={styles.genderItem}>
             <Text style={styles.genderLabel}>Female</Text>
             <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: '30%', backgroundColor: '#FF6B35' }]} />
+              <View style={[styles.progressFill, { width: `${stats?.genderStats?.femalePercentage || 30}%`, backgroundColor: '#EC4899' }]} />
             </View>
-            <Text style={styles.genderPercent}>30%</Text>
+            <Text style={styles.genderPercent}>{stats?.genderStats?.femalePercentage || 30}%</Text>
           </View>
         </View>
       </View>
@@ -309,7 +296,7 @@ const HRDashboardScreen: React.FC = () => {
               <Icon name="download" size={16} color="white" />
               <Text style={styles.exportText}>Export All</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.addButton} onPress={() => safeNavigate('HREmployees')}>
+            <TouchableOpacity style={styles.addButton} onPress={() => (navigation as any).navigate('CreateEmployee')}>
               <Icon name="add" size={16} color="white" />
               <Text style={styles.addText}>+ Add</Text>
             </TouchableOpacity>
@@ -337,6 +324,7 @@ const HRDashboardScreen: React.FC = () => {
           horizontal={true} 
           showsHorizontalScrollIndicator={true}
           style={styles.tableScrollContainer}
+          nestedScrollEnabled={true}
         >
           <View style={styles.tableContainer}>
             {/* Table Header */}
@@ -353,19 +341,35 @@ const HRDashboardScreen: React.FC = () => {
               <Text style={styles.headerText}>GENDER</Text>
             </View>
 
-            {/* Employee Rows */}
-            {filteredEmployees.map((employee, index) => renderEmployeeRow(employee, index))}
+            {/* Employee Rows - Vertical ScrollView for rows */}
+            <ScrollView 
+              vertical={true}
+              showsVerticalScrollIndicator={true}
+              nestedScrollEnabled={true}
+              style={styles.employeeRowsScroll}
+            >
+              {filteredEmployees.map((employee, index) => renderEmployeeRow(employee, index))}
+            </ScrollView>
           </View>
         </ScrollView>
       </View>
-    </ScrollView>
+        </ScrollView>
+      </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+  },
   container: {
     flex: 1,
     backgroundColor: '#F5F5F5',
+  },
+  scrollView: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -537,10 +541,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tableScrollContainer: {
-    maxHeight: 400,
+    maxHeight: 400, // Limit height so vertical scroll is needed
   },
   tableContainer: {
     minWidth: 1000, // Increased width to prevent overlapping
+  },
+  employeeRowsScroll: {
+    maxHeight: 350, // Allow vertical scrolling for employee rows
   },
   employeeActions: {
     flexDirection: 'row',

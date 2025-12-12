@@ -13,9 +13,11 @@ import {
 import { PieChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useNavigation } from '@react-navigation/native';
 import useAxios from '../hooks/useAxios';
 import { useSelector } from 'react-redux';
 import { RootState } from '../states/store';
+import MeetingDetailModal from '../components/MeetingDetailModal';
 
 const { width } = Dimensions.get('window');
 
@@ -56,6 +58,7 @@ interface MeetingStats {
 }
 
 const MeetingScreen: React.FC = () => {
+  const navigation = useNavigation();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [upcomingMeetings, setUpcomingMeetings] = useState<Meeting[]>([]);
   const [stats, setStats] = useState<MeetingStats | null>(null);
@@ -63,6 +66,8 @@ const MeetingScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
   const [carouselIndex, setCarouselIndex] = useState(0);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
 
   const { callApi } = useAxios();
   const { currentUser } = useSelector((state: RootState) => state.user);
@@ -272,15 +277,31 @@ const MeetingScreen: React.FC = () => {
   };
 
   const handleCreateMeeting = () => {
-    // Use different URLs based on user role
-    const createUrl = isPM 
-      ? 'https://intelgency.com/PM/meeting/create' 
-      : 'https://intelgency.com/meeting/create';
-    
-    Linking.openURL(createUrl).catch((err) => {
-      console.error('Failed to open URL:', err);
-      Alert.alert('Error', 'Could not open the meeting creation page.');
-    });
+    try {
+      // Navigate to CreateMeeting screen
+      (navigation as any).navigate('CreateMeeting');
+    } catch (error) {
+      console.error('Error navigating to CreateMeeting:', error);
+      Alert.alert(
+        'Error',
+        'Unable to open create meeting screen. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  const handleMeetingPress = (meetingId: string) => {
+    setSelectedMeetingId(meetingId);
+    setDetailModalVisible(true);
+  };
+
+  const handleEditMeeting = (meetingId: string) => {
+    setDetailModalVisible(false);
+    (navigation as any).navigate('EditMeeting', { meetingId });
+  };
+
+  const handleRefreshMeetings = () => {
+    loadData();
   };
 
   const joinMeeting = (meetingUrl?: string) => {
@@ -305,6 +326,13 @@ const MeetingScreen: React.FC = () => {
     loadData();
   }, []);
 
+  // Reload data when component mounts or user changes
+  useEffect(() => {
+    if (displayUser) {
+      loadData();
+    }
+  }, [displayUser]);
+
   // Reload data when user role changes
   useEffect(() => {
     if (displayUser) {
@@ -315,12 +343,45 @@ const MeetingScreen: React.FC = () => {
   // Prepare pie chart data using actual meeting data
   const getPieChartData = () => {
     const statusCounts = { Scheduled: 0, Completed: 0, Cancelled: 0 };
+    
     meetings.forEach((m) => {
-      if (statusCounts.hasOwnProperty(m.status)) {
-        statusCounts[m.status]++;
+      const status = (m.status || '').toString().trim();
+      const statusLower = status.toLowerCase();
+      
+      // Map various status formats to our categories
+      if (
+        status === 'Scheduled' || 
+        statusLower === 'scheduled' || 
+        statusLower === 'upcoming' || 
+        statusLower === 'in progress' || 
+        statusLower === 'in-progress' ||
+        statusLower === 'inprogress' ||
+        status === 'IN PROGRESS'
+      ) {
+        statusCounts.Scheduled++;
+      } else if (
+        status === 'Completed' || 
+        statusLower === 'completed' || 
+        statusLower === 'done' || 
+        statusLower === 'finished'
+      ) {
+        statusCounts.Completed++;
+      } else if (
+        status === 'Cancelled' || 
+        statusLower === 'cancelled' || 
+        statusLower === 'canceled'
+      ) {
+        statusCounts.Cancelled++;
+      } else {
+        // Default to Scheduled if status doesn't match any category (most meetings are scheduled/upcoming)
+        console.log(`🔍 Unknown status "${status}" - defaulting to Scheduled`);
+        statusCounts.Scheduled++;
       }
     });
     
+    console.log('🔍 Pie chart status counts:', statusCounts);
+    
+    // Always show all three categories, even if count is 0 (for consistent display)
     return [
       { 
         name: `Scheduled`, 
@@ -367,16 +428,17 @@ const MeetingScreen: React.FC = () => {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Meeting Management</Text>
-        <TouchableOpacity style={styles.createButton} onPress={handleCreateMeeting}>
+    <View style={styles.container}>
+      <ScrollView
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Meeting Management</Text>
+          <TouchableOpacity style={styles.createButton} onPress={handleCreateMeeting}>
           <Ionicons name="add" size={20} color="#FFFFFF" />
           <Text style={styles.createButtonText}>Create</Text>
         </TouchableOpacity>
@@ -389,75 +451,122 @@ const MeetingScreen: React.FC = () => {
         <View style={styles.chartContainer}>
           <Text style={styles.sectionTitle}>Meeting Status Distribution</Text>
           {pieChartData.length > 0 ? (
-        <PieChart
-              data={pieChartData}
-              width={width - 40}
-              height={220}
-              chartConfig={chartConfig}
-          accessor="population"
-          backgroundColor="transparent"
-              paddingLeft="15"
-              center={[10, 0]}
-              absolute
-            />
+            <View style={styles.pieChartWrapper}>
+              <PieChart
+                data={pieChartData}
+                width={width - 80}
+                height={220}
+                chartConfig={chartConfig}
+                accessor="population"
+                backgroundColor="transparent"
+                paddingLeft="0"
+                center={[0, 10]}
+                absolute
+              />
+            </View>
           ) : (
             <View style={styles.noDataContainer}>
               <Text style={styles.noDataText}>No meeting data available</Text>
             </View>
           )}
-      </View>
+        </View>
 
         {/* Upcoming Meetings Carousel */}
         <View style={styles.carouselContainer}>
           <Text style={styles.sectionTitle}>Upcoming Meetings</Text>
           {upcomingMeetings.length > 0 ? (
-            <View style={styles.carouselWrapper}>
-              {/* Left Arrow */}
-              <TouchableOpacity
-                style={styles.carouselArrow}
-                onPress={() => navigateCarousel('left')}
-              >
-                <Ionicons name="chevron-back" size={20} color="#FFFFFF" />
-              </TouchableOpacity>
-
-              {/* Meeting Card */}
-              <View style={styles.carouselContent}>
+            <>
+              <View style={styles.carouselWrapper}>
+                {/* Left Arrow */}
                 <TouchableOpacity
-                  style={styles.meetingCard}
-                  onPress={() => setSelectedMeeting(upcomingMeetings[carouselIndex])}
+                  style={styles.carouselArrow}
+                  onPress={() => navigateCarousel('left')}
+                  disabled={upcomingMeetings.length <= 1}
                 >
-                  <View style={styles.meetingCardHeader}>
-                    <Text style={styles.meetingTitle} numberOfLines={1}>
-                      {upcomingMeetings[carouselIndex].name || upcomingMeetings[carouselIndex].title}
-                    </Text>
-                    <View style={[styles.statusBadge, { backgroundColor: '#F59E0B' }]}>
-                      <Text style={styles.statusText}>Upcoming</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.meetingDate}>
-                    {formatDate(upcomingMeetings[carouselIndex].date || upcomingMeetings[carouselIndex].startDate)}
-                  </Text>
-                  <Text style={styles.meetingTime}>
-                    {formatTime(upcomingMeetings[carouselIndex].date || upcomingMeetings[carouselIndex].startDate)}
-                  </Text>
-                  <Text style={styles.meetingType}>{upcomingMeetings[carouselIndex].type}</Text>
+                  <Ionicons name="chevron-back" size={20} color={upcomingMeetings.length <= 1 ? "#CCCCCC" : "#FFFFFF"} />
+                </TouchableOpacity>
+
+                {/* Meeting Card */}
+                <View style={styles.carouselContent}>
                   <TouchableOpacity
-                    style={styles.joinButton}
-                    onPress={() => joinMeeting(upcomingMeetings[carouselIndex].meetingUrl || upcomingMeetings[carouselIndex].meetingLink)}
+                    style={styles.meetingCard}
+                    onPress={() => handleMeetingPress(upcomingMeetings[carouselIndex]._id)}
+                    activeOpacity={0.7}
                   >
-                    <Text style={styles.joinButtonText}>Join</Text>
+                    <View style={styles.meetingCardHeader}>
+                      <Text style={styles.meetingTitle} numberOfLines={2}>
+                        {upcomingMeetings[carouselIndex].name || upcomingMeetings[carouselIndex].title}
+                      </Text>
+                      <View style={[styles.statusBadge, { backgroundColor: '#F59E0B' }]}>
+                        <Text style={styles.statusText}>Upcoming</Text>
+                      </View>
+                    </View>
+                    <View style={styles.meetingInfoRow}>
+                      <Ionicons name="calendar-outline" size={14} color="#6B7280" style={styles.meetingInfoIcon} />
+                      <Text style={styles.meetingDate}>
+                        {formatDate(upcomingMeetings[carouselIndex].date || upcomingMeetings[carouselIndex].startDate)}
+                      </Text>
+                    </View>
+                    <View style={styles.meetingInfoRow}>
+                      <Ionicons name="time-outline" size={14} color="#6B7280" style={styles.meetingInfoIcon} />
+                      <Text style={styles.meetingTime}>
+                        {formatTime(upcomingMeetings[carouselIndex].date || upcomingMeetings[carouselIndex].startDate)}
+                      </Text>
+                    </View>
+                    <View style={styles.meetingTypeContainer}>
+                      <Text style={styles.meetingType}>{upcomingMeetings[carouselIndex].type}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.joinButton}
+                      onPress={() => joinMeeting(upcomingMeetings[carouselIndex].meetingUrl || upcomingMeetings[carouselIndex].meetingLink)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="videocam" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+                      <Text style={styles.joinButtonText}>Join</Text>
+                    </TouchableOpacity>
                   </TouchableOpacity>
+                </View>
+
+                {/* Right Arrow */}
+                <TouchableOpacity
+                  style={styles.carouselArrow}
+                  onPress={() => navigateCarousel('right')}
+                  disabled={upcomingMeetings.length <= 1}
+                >
+                  <Ionicons name="chevron-forward" size={20} color={upcomingMeetings.length <= 1 ? "#CCCCCC" : "#FFFFFF"} />
                 </TouchableOpacity>
               </View>
-
-              {/* Right Arrow */}
-              <TouchableOpacity
-                style={styles.carouselArrow}
-                onPress={() => navigateCarousel('right')}
-              >
-                <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
+              
+              {/* Upcoming Meetings List */}
+              {upcomingMeetings.length > 1 && (
+                <View style={styles.upcomingListContainer}>
+                  <Text style={styles.upcomingListTitle}>All Upcoming ({upcomingMeetings.length})</Text>
+                  <ScrollView style={styles.upcomingList} showsVerticalScrollIndicator={true}>
+                    {upcomingMeetings.map((meeting, index) => (
+                      <TouchableOpacity
+                        key={meeting._id}
+                        style={[styles.upcomingListItem, index === carouselIndex && styles.upcomingListItemActive]}
+                        onPress={() => {
+                          setCarouselIndex(index);
+                          handleMeetingPress(meeting._id);
+                        }}
+                      >
+                        <View style={styles.upcomingListItemContent}>
+                          <Text style={styles.upcomingListItemTitle} numberOfLines={1}>
+                            {meeting.name || meeting.title}
+                          </Text>
+                          <Text style={styles.upcomingListItemDate}>
+                            {formatDate(meeting.date || meeting.startDate)} • {formatTime(meeting.date || meeting.startDate)}
+                          </Text>
+                          <Text style={styles.upcomingListItemType}>{meeting.type}</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color="#6B7280" />
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+            </>
           ) : (
             <View style={styles.noMeetingsContainer}>
               <Ionicons name="calendar-outline" size={48} color="#9CA3AF" />
@@ -489,7 +598,7 @@ const MeetingScreen: React.FC = () => {
               <TouchableOpacity
                 key={meeting._id}
                 style={[styles.tableRow, index % 2 === 0 && styles.evenRow]}
-                onPress={() => setSelectedMeeting(meeting)}
+                onPress={() => handleMeetingPress(meeting._id)}
               >
                 <Text style={[styles.cell, styles.titleCell]} numberOfLines={2}>
                   {meeting.name || meeting.title}
@@ -541,7 +650,20 @@ const MeetingScreen: React.FC = () => {
           </View>
         </ScrollView>
       </View>
-    </ScrollView>
+
+      {/* Meeting Detail Modal */}
+      <MeetingDetailModal
+        visible={detailModalVisible}
+        meetingId={selectedMeetingId}
+        onClose={() => {
+          setDetailModalVisible(false);
+          setSelectedMeetingId(null);
+        }}
+        onEdit={handleEditMeeting}
+        onRefresh={handleRefreshMeetings}
+      />
+      </ScrollView>
+    </View>
   );
 };
 
@@ -549,6 +671,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+  },
+  scrollView: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -597,11 +722,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
+    paddingBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2,
+    alignItems: 'center',
+  },
+  pieChartWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    overflow: 'hidden',
   },
   carouselContainer: {
     backgroundColor: '#FFFFFF',
@@ -631,13 +764,15 @@ const styles = StyleSheet.create({
   },
   carouselWrapper: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
     justifyContent: 'center',
     gap: 12,
+    minHeight: 180,
   },
   carouselContent: {
     flex: 1,
-    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 0, // Allow flex to work properly
   },
   carouselArrow: {
     width: 40,
@@ -653,48 +788,69 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   meetingCard: {
-    width: width - 120, // Responsive width considering arrows
+    width: '100%',
     backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 12,
+    padding: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   meetingCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 12,
+    gap: 8,
   },
   meetingTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
     flex: 1,
-    marginRight: 8,
+    lineHeight: 22,
   },
-  meetingDate: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  meetingTime: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  meetingType: {
-    fontSize: 12,
-    color: '#f97316',
-    fontWeight: '500',
+  meetingInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 8,
   },
+  meetingInfoIcon: {
+    marginRight: 6,
+  },
+  meetingDate: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  meetingTime: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  meetingTypeContainer: {
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  meetingType: {
+    fontSize: 13,
+    color: '#f97316',
+    fontWeight: '600',
+  },
   joinButton: {
+    flexDirection: 'row',
     backgroundColor: '#f97316',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
     alignSelf: 'flex-start',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 100,
   },
   joinButtonText: {
     color: '#FFFFFF',
@@ -715,6 +871,54 @@ const styles = StyleSheet.create({
   noMeetingsSubtext: {
     fontSize: 14,
     color: '#9CA3AF',
+  },
+  upcomingListContainer: {
+    marginTop: 16,
+    maxHeight: 300,
+  },
+  upcomingListTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  upcomingList: {
+    maxHeight: 250,
+  },
+  upcomingListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F9FAFB',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  upcomingListItemActive: {
+    backgroundColor: '#FFF7ED',
+    borderColor: '#f97316',
+    borderWidth: 2,
+  },
+  upcomingListItemContent: {
+    flex: 1,
+  },
+  upcomingListItemTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  upcomingListItemDate: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  upcomingListItemType: {
+    fontSize: 12,
+    color: '#f97316',
+    fontWeight: '500',
     marginTop: 4,
   },
   tableContainer: {

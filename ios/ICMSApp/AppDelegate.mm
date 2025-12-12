@@ -7,8 +7,13 @@
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
-  // Initialize Firebase
-  [FIRApp configure];
+  // Initialize Firebase with error handling to prevent crashes
+  @try {
+    [FIRApp configure];
+  } @catch (NSException *exception) {
+    NSLog(@"Firebase: Error initializing Firebase: %@", exception.reason);
+    // Continue without Firebase - app should still work
+  }
   
   self.moduleName = @"ICMSApp";
   // You can add your custom initial props in the dictionary below.

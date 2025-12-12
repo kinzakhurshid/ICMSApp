@@ -13,6 +13,8 @@ import useAxios from '../hooks/useAxios';
 import AccessoryStatsChart from '../components/AccessoryStatsChart';
 import AssignmentTable from '../components/AssignmentTable';
 import AccessoryTable from '../components/AccessoryTable';
+import DropdownField from '../components/task/DropdownField';
+import FormField from '../components/task/FormField';
 
 interface AccessoryStats {
   byCategory: { category: string; count: number }[];
@@ -35,6 +37,14 @@ const AccessoriesScreen: React.FC = () => {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [employees, setEmployees] = useState<any[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+
+  // Edit category modal state
+  const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [savingCategory, setSavingCategory] = useState(false);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -51,6 +61,11 @@ const AccessoriesScreen: React.FC = () => {
       // Load accessories
       const accessoriesRes = await callApi({ method: 'GET', url: '/accessories?page=1&limit=10' });
       setAccessories(accessoriesRes?.data || []);
+
+      // Load categories
+      const categoriesRes = await callApi({ method: 'GET', url: '/accessories/categories' });
+      const categoryList: string[] = Array.isArray(categoriesRes) ? categoriesRes : categoriesRes?.data || [];
+      setCategories(categoryList);
 
       // Load employees
       const employeesRes = await callApi({ method: 'GET', url: '/employee' });
@@ -108,11 +123,14 @@ const AccessoriesScreen: React.FC = () => {
   };
 
   const handleEditCategories = () => {
-    Alert.alert('Edit Categories', 'Category editing functionality will be implemented');
+    setSelectedCategory('');
+    setNewCategoryName('');
+    setCategoryError(null);
+    setCategoryModalVisible(true);
   };
 
   const handleAddAccessory = () => {
-    Alert.alert('Add Accessory', 'Add accessory functionality will be implemented');
+    (navigation as any).navigate('CreateAccessory');
   };
 
   if (loading) {
@@ -136,11 +154,18 @@ const AccessoriesScreen: React.FC = () => {
         <View style={styles.header}>
           <Text style={styles.pageTitle}>Accessory management</Text>
           <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.editButton} onPress={handleEditCategories}>
-              <Text style={styles.editButtonText}>Edit Categories Names</Text>
+            <TouchableOpacity style={styles.addCategoryButton} onPress={() => {
+              // Add category functionality - show alert for now
+              Alert.alert(
+                'Add Category',
+                'Category creation feature will be available soon.',
+                [{ text: 'OK' }]
+              );
+            }}>
+              <Text style={styles.addCategoryButtonText}>Add Category</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.addButton} onPress={handleAddAccessory}>
-              <Text style={styles.addButtonText}>Add</Text>
+            <TouchableOpacity style={styles.editButton} onPress={handleEditCategories}>
+              <Text style={styles.editButtonText}>Edit Category</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -181,6 +206,91 @@ const AccessoriesScreen: React.FC = () => {
           onAccessoriesUpdate={setAccessories}
         />
       </ScrollView>
+
+      {/* Edit Category Modal (overlay, outside scroll so it stays centered) */}
+      {categoryModalVisible && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Edit Category</Text>
+
+            <DropdownField
+              label="Select Category"
+              required
+              value={selectedCategory}
+              options={categories.map((c) => ({ label: c, value: c }))}
+              onSelect={(value) => {
+                setSelectedCategory(value);
+                setCategoryError(null);
+              }}
+              placeholder="Select an option"
+              error={categoryError || undefined}
+            />
+
+            <FormField
+              label="New Category Name"
+              required
+              value={newCategoryName}
+              onChangeText={(text) => {
+                setNewCategoryName(text);
+                setCategoryError(null);
+              }}
+              placeholder="Enter new category name"
+              error={categoryError || undefined}
+            />
+
+            <View style={styles.modalButtonsRow}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                disabled={savingCategory}
+                onPress={() => {
+                  setCategoryModalVisible(false);
+                  setCategoryError(null);
+                }}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalUpdateButton, savingCategory && styles.modalUpdateButtonDisabled]}
+                disabled={savingCategory}
+                onPress={async () => {
+                  if (!selectedCategory) {
+                    setCategoryError('Please select a category');
+                    return;
+                  }
+                  if (!newCategoryName.trim()) {
+                    setCategoryError('Please enter a new category name');
+                    return;
+                  }
+                  try {
+                    setSavingCategory(true);
+                    await callApi({
+                      method: 'PUT',
+                      url: '/accessories/categories',
+                      data: {
+                        oldCategory: selectedCategory,
+                        newCategory: newCategoryName.trim(),
+                      },
+                    });
+                    Alert.alert('Success', 'Category updated successfully');
+                    setCategories((prev) =>
+                      prev.map((c) => (c === selectedCategory ? newCategoryName.trim() : c)),
+                    );
+                    await loadDashboardData();
+                    setCategoryModalVisible(false);
+                  } catch (error: any) {
+                    console.error('Error updating category:', error);
+                    Alert.alert('Error', error?.response?.data?.message || 'Failed to update category');
+                  } finally {
+                    setSavingCategory(false);
+                  }
+                }}
+              >
+                <Text style={styles.modalUpdateText}>Update</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -229,6 +339,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
+  addCategoryButton: {
+    backgroundColor: '#FF6B35',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  addCategoryButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   editButton: {
     backgroundColor: 'white',
     borderWidth: 1,
@@ -242,6 +363,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
+  assignButton: {
+    backgroundColor: '#10b981',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  assignButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  returnButton: {
+    backgroundColor: '#f59e0b',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  returnButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '500',
+  },
   addButton: {
     backgroundColor: '#FF6B35',
     borderRadius: 8,
@@ -252,6 +395,63 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: '500',
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 500,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 16,
+  },
+  modalButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 16,
+    gap: 12,
+  },
+  modalCancelButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  modalCancelText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  modalUpdateButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#FF6B35',
+  },
+  modalUpdateButtonDisabled: {
+    opacity: 0.7,
+  },
+  modalUpdateText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   chartsContainer: {
     flexDirection: 'column',

@@ -143,19 +143,23 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   }, [displayUser]);
 
   const handleMenuPress = () => {
-    // Check if toggleDrawer function exists (from drawer navigation)
-    if ('toggleDrawer' in navigation && typeof navigation.toggleDrawer === 'function') {
-      navigation.toggleDrawer();
-    } 
-    // Check if openDrawer function exists
-    else if ('openDrawer' in navigation && typeof navigation.openDrawer === 'function') {
-      navigation.openDrawer();
-    }
-    // Fallback: either go back or show a message
-    else if ('canGoBack' in navigation && navigation.canGoBack && navigation.canGoBack()) {
-      navigation.goBack();
-    } else {
-      Alert.alert('Info', 'Menu not available on this screen');
+    try {
+      // Check if toggleDrawer function exists (from drawer navigation)
+      if ('toggleDrawer' in navigation && typeof navigation.toggleDrawer === 'function') {
+        (navigation as any).toggleDrawer();
+      } 
+      // Check if openDrawer function exists
+      else if ('openDrawer' in navigation && typeof navigation.openDrawer === 'function') {
+        (navigation as any).openDrawer();
+      }
+      // Fallback: either go back or show a message
+      else if ('canGoBack' in navigation && navigation.canGoBack && typeof navigation.canGoBack === 'function' && navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        Alert.alert('Info', 'Menu not available on this screen');
+      }
+    } catch (error) {
+      console.error('Error opening drawer:', error);
     }
   };
 
@@ -173,11 +177,21 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         {/* Left side - Menu/Back button */}
         <View style={styles.headerLeft}>
           {showBackButton ? (
-            <TouchableOpacity onPress={handleBackPress} style={styles.iconButton}>
+            <TouchableOpacity 
+              onPress={handleBackPress} 
+              style={styles.iconButton}
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
               <Ionicons name="arrow-back" size={24} color="#FF5722" />
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity onPress={handleMenuPress} style={styles.iconButton}>
+            <TouchableOpacity 
+              onPress={handleMenuPress} 
+              style={styles.iconButton}
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
               <Ionicons name="grid-outline" size={24} color="#FF5722" />
             </TouchableOpacity>
           )}
@@ -299,8 +313,12 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   iconButton: {
-    padding: 5,
+    padding: 8,
     position: 'relative',
+    minWidth: 40,
+    minHeight: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   avatar: {
     width: 40,

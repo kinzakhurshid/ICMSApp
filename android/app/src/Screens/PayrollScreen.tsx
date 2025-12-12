@@ -199,28 +199,19 @@ const PayrollScreen: React.FC = () => {
 
         {/* Charts Section */}
         <View style={styles.chartsContainer}>
-          {/* Payroll Cost Overview */}
-          <View style={styles.chartCard}>
-            <Text style={styles.chartTitle}>Payroll Cost Overview</Text>
-            <View style={styles.chartPlaceholder}>
-              <Text style={styles.chartPlaceholderText}>Chart visualization would go here</Text>
-              <Text style={styles.chartPlaceholderSubtext}>
-                Bar chart showing payroll trends over time
-              </Text>
-            </View>
+          {/* Bonuses and Incentives - full width row */}
+          <View style={styles.fullWidthChartCard}>
+            <PayrollChart
+              title="Bonuses and Incentives"
+              bonuses={stats.bonusesAndIncentives.bonuses}
+              incentives={stats.bonusesAndIncentives.incentives}
+              formatCurrency={formatCurrency}
+            />
           </View>
-
-          {/* Bonuses and Incentives */}
-          <PayrollChart
-            title="Bonuses and Incentives"
-            bonuses={stats.bonusesAndIncentives.bonuses}
-            incentives={stats.bonusesAndIncentives.incentives}
-            formatCurrency={formatCurrency}
-          />
         </View>
 
         {/* Payroll Table */}
-        <PayrollTable onRefresh={fetchDashboardData} />
+        <PayrollTable onRefresh={fetchDashboardData} dateRange={dateRange} />
       </ScrollView>
     </View>
   );
@@ -305,10 +296,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   chartsContainer: {
-    flexDirection: 'row',
     paddingHorizontal: 16,
     marginBottom: 16,
-    gap: 16,
   },
   chartCard: {
     backgroundColor: 'white',
@@ -319,7 +308,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    flex: 2,
     minHeight: 200,
   },
   chartTitle: {

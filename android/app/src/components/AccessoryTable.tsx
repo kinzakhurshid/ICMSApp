@@ -8,7 +8,9 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import useAxios from '../hooks/useAxios';
 
 interface AccessoryTableProps {
   accessories: any[];
@@ -19,6 +21,8 @@ const AccessoryTable: React.FC<AccessoryTableProps> = ({
   accessories,
   onAccessoriesUpdate,
 }) => {
+  const navigation = useNavigation();
+  const { callApi } = useAxios();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -44,34 +48,71 @@ const AccessoryTable: React.FC<AccessoryTableProps> = ({
     }
   };
 
-  const handleDeleteAccessory = (id: string) => {
+  const handleDeleteAccessory = (accessory: any) => {
+    if (accessory.status === 'in-use' || accessory.status === 'in_use') {
+      Alert.alert('Cannot Delete', 'This accessory is currently in use and cannot be deleted.');
+      return;
+    }
     Alert.alert(
       'Delete Accessory',
       'Are you sure you want to delete this accessory?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => {
-          const updatedAccessories = accessories.filter(accessory => accessory._id !== id);
-          onAccessoriesUpdate(updatedAccessories);
-          Alert.alert('Success', 'Accessory deleted successfully');
-        }},
-      ]
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => deleteAccessory(accessory._id),
+        },
+      ],
     );
   };
 
+  const deleteAccessory = async (id: string) => {
+    try {
+      await callApi({ method: 'DELETE', url: `/accessories/${id}` });
+      const updatedAccessories = accessories.filter(accessory => accessory._id !== id);
+      onAccessoriesUpdate(updatedAccessories);
+      Alert.alert('Success', 'Accessory deleted successfully');
+    } catch (error: any) {
+      console.error('Error deleting accessory:', error);
+      Alert.alert('Error', error?.response?.data?.message || 'Failed to delete accessory');
+    }
+  };
+
+  const handleEditAccessory = (accessory: any) => {
+    (navigation as any).navigate('EditAccessory', { accessoryId: accessory._id });
+  };
+
   const handleAssignAccessory = (accessory: any) => {
-    Alert.alert('Assign Accessory', `Assign ${accessory.name} functionality will be implemented`);
+    if (accessory.status !== 'available') {
+      Alert.alert('Error', 'This accessory is not available for assignment');
+      return;
+    }
+    (navigation as any).navigate('AssignAccessory');
   };
 
   const handleReturnAccessory = (accessory: any) => {
-    Alert.alert('Return Accessory', `Return ${accessory.name} functionality will be implemented`);
+    if (accessory.status === 'available') {
+      Alert.alert('Error', 'This accessory is not currently assigned');
+      return;
+    }
+    (navigation as any).navigate('ReturnAccessory', { accessoryId: accessory._id });
   };
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>All Accessories</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>All Accessories</Text>
+          <TouchableOpacity 
+            style={styles.addAccessoryButton}
+            onPress={() => (navigation as any).navigate('CreateAccessory')}
+          >
+            <Icon name="add" size={18} color="white" />
+            <Text style={styles.addAccessoryButtonText}>Add Accessory</Text>
+          </TouchableOpacity>
+        </View>
         <View style={styles.headerActions}>
           <View style={styles.searchContainer}>
             <Icon name="search" size={20} color="#666" />
@@ -150,17 +191,33 @@ const AccessoryTable: React.FC<AccessoryTableProps> = ({
               </Text>
               
               <View style={styles.actionsContainer}>
+                {/* Show Assign only if available, Return only if assigned */}
+                {accessory.status === 'available' || accessory.status === 'Available' ? (
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => handleAssignAccessory(accessory)}
+                  >
+                    <Text style={styles.actionButtonText}>Assign</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.returnButton]}
+                    onPress={() => handleReturnAccessory(accessory)}
+                  >
+                    <Text style={styles.actionButtonText}>Return</Text>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() => handleAssignAccessory(accessory)}
+                  style={[styles.actionButton, styles.editButton]}
+                  onPress={() => handleEditAccessory(accessory)}
                 >
-                  <Text style={styles.actionButtonText}>Assign</Text>
+                  <Icon name="edit" size={16} color="#2563EB" />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.actionButton, styles.returnButton]}
-                  onPress={() => handleReturnAccessory(accessory)}
+                  style={[styles.actionButton, styles.deleteButton]}
+                  onPress={() => handleDeleteAccessory(accessory)}
                 >
-                  <Text style={styles.actionButtonText}>Return</Text>
+                  <Icon name="delete" size={16} color="#DC2626" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -188,10 +245,29 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     gap: 12,
   },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
+  },
+  addAccessoryButton: {
+    backgroundColor: '#FF6B35',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  addAccessoryButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
   },
   headerActions: {
     flexDirection: 'row',
@@ -306,20 +382,26 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   actionsContainer: {
-    width: 200,
+    width: 220,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
   actionButton: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#E5E7EB',
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 6,
   },
   returnButton: {
     backgroundColor: '#28A745',
+  },
+  editButton: {
+    backgroundColor: '#DBEAFE',
+  },
+  deleteButton: {
+    backgroundColor: '#FEE2E2',
   },
   actionButtonText: {
     color: 'white',

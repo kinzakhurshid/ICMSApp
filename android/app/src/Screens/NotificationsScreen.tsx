@@ -42,7 +42,7 @@ const NotificationsScreen: React.FC = () => {
   } = useNotifications();
   
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [filter, setFilter] = useState<'all' | 'unread' | 'inbox' | 'general'>('all');
 
   useEffect(() => {
     fetchNotifications();
@@ -55,7 +55,7 @@ const NotificationsScreen: React.FC = () => {
   }, [fetchNotifications]);
 
   const { openChat } = useNotifications();
-  
+
   const handleNotificationPress = async (notification: InboxNotification) => {
     if (!notification.read) {
       await markAsRead(notification._id);
@@ -158,7 +158,9 @@ const NotificationsScreen: React.FC = () => {
 
   const filteredNotifications = notifications.filter(notification => {
     if (filter === 'unread') return !notification.read;
-    return true;
+    if (filter === 'inbox') return notification.type === 'message' || notification.chat;
+    if (filter === 'general') return notification.type !== 'message' && !notification.chat;
+    return true; // 'all' - show all notifications
   });
 
 
@@ -187,12 +189,15 @@ const NotificationsScreen: React.FC = () => {
     console.log('🔍 Body:', item.body);
     
     // Extract sender name from various sources
-    const senderName = item.sender?.name || 
-                      item.sender?.username || 
-                      item.metadata?.senderName ||
-                      extractSenderNameFromMessage(item.body || '') ||
-                      extractSenderNameFromMessage(item.relatedMessage?.content || '') ||
-                      'Unknown User';
+    const senderObj = typeof item.sender === 'object' ? item.sender : undefined;
+    const senderName =
+      senderObj?.name ||
+      senderObj?.username ||
+      item.metadata?.senderName ||
+      extractSenderNameFromMessage(item.body || '') ||
+      extractSenderNameFromMessage(item.relatedMessage?.content || '') ||
+      item.title || // fall back to notification title for system / task notifications
+      'System Notification';
     
     console.log('🔍 Extracted sender name:', senderName);
     
@@ -208,7 +213,11 @@ const NotificationsScreen: React.FC = () => {
         <View style={styles.notificationContent}>
           <View style={styles.avatarContainer}>
             <Image
-              source={{ uri: item.sender?.profilePicture || 'https://via.placeholder.com/40' }}
+              source={{
+                uri:
+                  (senderObj?.profilePicture as string | undefined) ||
+                  'https://via.placeholder.com/40',
+              }}
               style={styles.avatar}
             />
             <View style={styles.messageIconContainer}>

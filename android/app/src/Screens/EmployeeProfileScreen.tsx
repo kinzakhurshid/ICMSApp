@@ -7,8 +7,10 @@ import {
   ScrollView, 
   ActivityIndicator, 
   TouchableOpacity,
-  Dimensions 
+  Dimensions,
+  Alert
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import useAxios from '../hooks/useAxios';
@@ -18,35 +20,52 @@ import { RootState } from '../states/store';
 const { width } = Dimensions.get('window');
 
 export default function EmployeeProfileScreen() {
+  const navigation = useNavigation();
   const { callApi } = useAxios();
   const { currentUser } = useSelector((state: RootState) => state.user);
   const [employee, setEmployee] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('Personal');
+  
+  const handleEditProfile = () => {
+    (navigation as any).navigate('EditProfile');
+  };
 
   useEffect(() => {
     const fetchEmployee = async () => {
       try {
         setLoading(true);
-        if (!currentUser?.employee?._id) {
-          setError('Employee ID not found');
+        // Handle both employee and OrgAdmin profiles
+        const employeeId = currentUser?.employee?._id || currentUser?.employee?.id || currentUser?._id;
+        if (!employeeId) {
+          setError('User ID not found');
           return;
         }
-        const response = await callApi({
-          method: "GET",
-          url: `/employee/${currentUser.employee._id}`,
-        });
-        setEmployee(response);
+        // Try employee endpoint first, fallback to user endpoint for OrgAdmin
+        try {
+          const response = await callApi({
+            method: "GET",
+            url: `/employee/${employeeId}`,
+          });
+          setEmployee(response);
+        } catch (employeeError) {
+          // If employee endpoint fails, try user endpoint (for OrgAdmin)
+          const userResponse = await callApi({
+            method: "GET",
+            url: `/user/${employeeId}`,
+          });
+          setEmployee(userResponse);
+        }
       } catch (err) {
         setError('Failed to load profile');
-        console.error('Error loading employee profile:', err);
+        console.error('Error loading profile:', err);
       } finally {
         setLoading(false);
       }
     };
     fetchEmployee();
-  }, [currentUser?.employee?._id]);
+  }, [currentUser?.employee?._id, currentUser?._id]);
 
   if (loading) return (
     <View style={styles.centered}>
@@ -236,9 +255,6 @@ export default function EmployeeProfileScreen() {
             <Text style={styles.headerSubtitle}>Detailed information about {employee?.firstName || ''} {employee?.lastName || ''}</Text>
           </View>
         </View>
-        <TouchableOpacity style={styles.editButton}>
-          <Text style={styles.editButtonText}>Edit Profile</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Profile Card */}
@@ -287,6 +303,18 @@ export default function EmployeeProfileScreen() {
             <Text style={styles.contactText}>{employee?.contactNumber || employee?.phone || 'No phone'}</Text>
           </View>
         </View>
+      </View>
+
+      {/* Edit Profile Button - moved below profile overview */}
+      <View style={styles.editButtonContainer}>
+        <TouchableOpacity 
+          style={styles.editButton}
+          onPress={handleEditProfile}
+          activeOpacity={0.7}
+        >
+          <Icon name="pencil" size={16} color="#FFFFFF" style={styles.editButtonIcon} />
+          <Text style={styles.editButtonText}>Edit Profile</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Tabs */}
@@ -436,12 +464,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
   },
+  editButtonContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
   editButton: {
     backgroundColor: '#f97316',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
     alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 150,
+  },
+  editButtonIcon: {
+    marginRight: 8,
   },
   editButtonText: {
     color: '#FFFFFF',

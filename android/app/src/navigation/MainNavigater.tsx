@@ -154,9 +154,19 @@ const MainTabNavigator: React.FC = () => {
         tabBarActiveTintColor: '#FF5722',
         tabBarInactiveTintColor: 'gray',
         headerShown: false,
+        tabBarLabelStyle: {
+          fontSize: 12,
+          marginTop: -5,
+          marginBottom: 5,
+        },
+        tabBarIconStyle: {
+          marginTop: 5,
+        },
         tabBarStyle: {
-          paddingVertical: 5,
-          height: 60,
+          paddingVertical: 8,
+          height: 65,
+          paddingBottom: 5,
+          paddingTop: 5,
         },
       })}
     >

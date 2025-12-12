@@ -18,16 +18,17 @@ import { DrawerParamList } from "../navigation/DrawerNavigator";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import AntDesign from "react-native-vector-icons/AntDesign";
 import useAxios from "../hooks/useAxios";
+import AppHeader from "../components/AppHeader";
 import { useSelector } from "react-redux";
 import { RootState } from "../states/store";
 
 // Get screen width for responsive design
 const { width } = Dimensions.get('window');
 
-// Updated interfaces
+// Updated interfaces (kept flexible to match backend)
 interface Project {
-  _id: string;
-  name: string;
+  _id?: string;
+  name?: string;
   priority?: string;
 }
 
@@ -35,7 +36,12 @@ interface Sprint {
   _id: string;
   id?: string;
   name: string;
-  projectId: Project[];
+  // Backend may return a single project object, an array, or IDs
+  projectId?: any;
+  projects?: any;
+  project?: any;
+  projectIds?: any;
+  projectInfo?: any;
   startDate?: string;
   endDate?: string;
   started?: boolean;
@@ -61,19 +67,46 @@ const SprintBoard = () => {
   
   // Function to handle create sprint button press
   const handleCreateSprint = () => {
-    Linking.openURL("http://89.116.32.31:3002/PM/sprint/create")
-      .catch(err => console.error("Failed to open URL:", err));
+    (navigation as any).navigate('CreateSprint');
+  };
+
+  // Normalise projects from a sprint into a Project[] for rendering
+  const normalizeProjectsFromSprint = (sprint: Sprint): Project[] => {
+    const raw =
+      sprint.projectId ??
+      sprint.projects ??
+      sprint.project ??
+      sprint.projectIds ??
+      sprint.projectInfo;
+
+    if (!raw) return [];
+
+    if (Array.isArray(raw)) {
+      return raw.filter(Boolean) as Project[];
+    }
+
+    if (typeof raw === 'object') {
+      return [raw as Project];
+    }
+
+    // If it's just an ID string/number, we can't resolve name/priority here
+    return [];
   };
 
   // Function to get project names as comma-separated string
-  const getProjectNames = (projects: Project[]): string => {
-    if (!projects || !Array.isArray(projects)) return "N/A";
-    return projects.map(project => project.name).join(", ");
+  const getProjectNames = (sprint: Sprint): string => {
+    const projects = normalizeProjectsFromSprint(sprint);
+    if (!projects.length) return "N/A";
+    return projects
+      .map(project => project.name || '')
+      .filter(Boolean)
+      .join(", ");
   };
 
   // Function to get priorities as comma-separated string
-  const getPriorities = (projects: Project[]): string => {
-    if (!projects || !Array.isArray(projects)) return "N/A";
+  const getPriorities = (sprint: Sprint): string => {
+    const projects = normalizeProjectsFromSprint(sprint);
+    if (!projects.length) return "N/A";
     const priorities = projects.map(project => project.priority || "Medium");
     return Array.from(new Set(priorities)).join(", "); // Remove duplicates
   };
@@ -99,6 +132,10 @@ const SprintBoard = () => {
         url: `/sprints/organization/${currentUser?.organization}`,
       });
       
+      if (__DEV__) {
+        console.log('🔍 SprintScreen - raw sprintsResponse:', JSON.stringify(sprintsResponse, null, 2));
+      }
+
       if (sprintsResponse && Array.isArray(sprintsResponse.data)) {
         setSprints(sprintsResponse.data as Sprint[]);
       } else if (Array.isArray(sprintsResponse)) {
@@ -120,13 +157,13 @@ const SprintBoard = () => {
   // Filter sprints based on search text
   const filteredSprints = sprints.filter((sprint) =>
     sprint.name.toLowerCase().includes(searchText.toLowerCase()) ||
-    getProjectNames(sprint.projectId).toLowerCase().includes(searchText.toLowerCase())
+    getProjectNames(sprint).toLowerCase().includes(searchText.toLowerCase())
   );
 
   const renderSprint = ({ item, index }: { item: Sprint; index: number }) => (
     <TouchableOpacity 
       style={styles.row} 
-      onPress={() => navigation.navigate('SprintDetail', { sprintId: item._id })}
+      onPress={() => (navigation as any).navigate('SprintDetailNew', { sprintId: item._id })}
     >
       <Text style={[styles.cell, styles.srCell]} numberOfLines={1}>
         {index + 1}
@@ -135,10 +172,10 @@ const SprintBoard = () => {
         {item.name}
       </Text>
       <Text style={[styles.cell, styles.projectCell]} numberOfLines={2}>
-        {getProjectNames(item.projectId)}
+        {getProjectNames(item) || 'N/A'}
       </Text>
       <Text style={[styles.cell, styles.priorityCell]} numberOfLines={1}>
-        {getPriorities(item.projectId)}
+        {getPriorities(item)}
       </Text>
       <Text style={[styles.cell, styles.dateCell]}>
         {item.startDate ? new Date(item.startDate).toLocaleDateString() : "N/A"}

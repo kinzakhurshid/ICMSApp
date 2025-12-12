@@ -137,11 +137,27 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
       route: 'Meeting',
     },
     { 
+      label: 'Attendance', 
+      icon: <MaterialIcons name="event-available" size={22} color="#FF5722" />,
+      route: 'Attendance',
+    },
+    { 
       label: 'Settings', 
       icon: <Ionicons name="settings-outline" size={22} color="#FF5722" />,
       route: 'AppSettings',
     },
   ] : isOrgAdmin ? [
+    { 
+      label: 'Dashboard', 
+      icon: <MaterialIcons name="dashboard" size={22} color="#FF5722" />,
+      route: 'OrgMainTabs',
+      screen: 'HomeTab'
+    },
+    { 
+      label: 'Profile', 
+      icon: <MaterialIcons name="person" size={22} color="#FF5722" />,
+      route: 'OrgAdminProfile',
+    },
     { 
       label: 'Dashboard', 
       icon: <MaterialIcons name="dashboard" size={22} color="#FF5722" />, 
@@ -211,6 +227,16 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
       route: 'Meeting',
     },
     { 
+      label: 'Queries', 
+      icon: <MaterialIcons name="help-outline" size={22} color="#FF5722" />,
+      route: 'Queries',
+    },
+    { 
+      label: 'Accessories', 
+      icon: <MaterialIcons name="devices" size={22} color="#FF5722" />,
+      route: 'Accessories',
+    },
+    { 
       label: 'Settings', 
       icon: <Ionicons name="settings-outline" size={22} color="#FF5722" />,
       route: 'AppSettings',
@@ -251,17 +277,22 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
   // Helper function to check if a drawer item is active
   const isItemActive = (item: any): boolean => {
     const state = props.state;
+    const currentRoute = state.routes[state.index];
     
     if (item.screen) {
       // For tab navigation items (supports both MainTabs and OrgMainTabs)
-      return state.routes.some(route => 
-        route.name === item.route && 
-        (route.state as any) && 
-        ((route.state as any).routes[(route.state as any).index || 0]?.name === item.screen)
-      );
+      // Only mark as active if this is the current route AND the screen matches
+      if (currentRoute.name === item.route) {
+        const routeState = (currentRoute.state as any);
+        if (routeState && routeState.routes && routeState.index !== undefined) {
+          const activeScreen = routeState.routes[routeState.index]?.name;
+          return activeScreen === item.screen;
+        }
+      }
+      return false;
     } else {
-      // For regular drawer items
-      return state.routes[state.index].name === item.route;
+      // For regular drawer items - only check exact match
+      return currentRoute.name === item.route;
     }
   };
 

@@ -88,54 +88,109 @@ const NotificationManager: React.FC<NotificationManagerProps> = ({ children }) =
               console.log('🔍 ===== END NOTIFICATION MANAGER NEW INBOX NOTIFICATION =====');
             };
 
-    const handleNotificationAlert = (data: any) => {
-      console.log('🔍 ===== NOTIFICATION MANAGER ALERT =====');
-      console.log('🔍 NotificationManager: Notification alert received', JSON.stringify(data, null, 2));
+    // Handle NEW_NOTIFICATION_ALERT - can be inbox or system notification
+    // According to backend docs:
+    // - Message notifications have type: "message" AND have message property
+    // - System notifications (attendance, break) have type: "attendance" or "system" and NO message property
+    const handleNotificationAlert = (payload: any) => {
+      console.log('🔍 ===== NEW_NOTIFICATION_ALERT RECEIVED =====');
+      console.log('🔍 NotificationManager: NEW_NOTIFICATION_ALERT payload:', JSON.stringify(payload, null, 2));
       
-      // Create unique ID for deduplication
-      const notificationId = data._id || data.notificationId || data.message?._id || Date.now().toString();
-      const messageId = data.message?._id;
+      // Check notification type from payload
+      const notificationType = payload?.type || '';
+      const hasMessageProperty = payload?.message !== undefined && payload?.message !== null;
       
-      // Check for duplicates
-      if (isNotificationProcessed(notificationId, messageId)) {
-        return;
+      // Determine if this is a message/inbox notification
+      // Message notifications have type === 'message' AND have message property
+      // System notifications have type === 'attendance' or 'system' and NO message property
+      const isMessageNotification = notificationType === 'message' && hasMessageProperty;
+      
+      if (isMessageNotification) {
+        console.log('🔍 This is an INBOX/MESSAGE notification');
+        const inboxNotification = payload.message as InboxNotification;
+        
+        // Check for duplicates
+        if (isNotificationProcessed(inboxNotification._id, inboxNotification.relatedMessage?._id)) {
+          console.log('🔍 Duplicate inbox notification, skipping');
+          return;
+        }
+        
+        // Handle inbox notification
+        handleNewNotification(inboxNotification);
+      } else {
+        // This is a SYSTEM notification (attendance, break, task, etc.)
+        // Types: "attendance", "system", "task", etc.
+        console.log('🔍 This is a SYSTEM notification (type:', notificationType, ')');
+        
+        // Handle system notification - convert to InboxNotification format for display
+        const notificationId = payload._id || payload.notificationId || Date.now().toString();
+        
+        // Check for duplicates
+        if (isNotificationProcessed(notificationId)) {
+          console.log('🔍 Duplicate system notification, skipping');
+          return;
+        }
+        
+        // Extract title and body according to backend structure
+        const title = payload.title || 'Notification';
+        const body = payload.body || payload.content || '';
+        
+        // Extract sender information
+        let sender: any = { _id: '', username: 'System', name: 'System' };
+        if (payload.sender) {
+          if (typeof payload.sender === 'string') {
+            sender = { _id: payload.sender, username: 'System', name: 'System' };
+          } else {
+            sender = {
+              _id: payload.sender._id || payload.sender.id || '',
+              username: payload.sender.username || 'System',
+              name: payload.sender.name || 'System',
+            };
+          }
+        }
+        
+        const systemNotification: InboxNotification = {
+          _id: notificationId,
+          receiver: payload.receiver || '',
+          sender: sender,
+          type: notificationType || 'system',
+          chat: payload.chatId ? { _id: payload.chatId } : undefined,
+          title: title,
+          body: body,
+          metadata: {
+            ...payload.metadata,
+            link: payload.link,
+            entity: payload.entity,
+            severity: payload.severity,
+            module: payload.module,
+            action: payload.action,
+            notificationType: notificationType,
+            // Include break-specific metadata
+            phase: payload.metadata?.phase, // "start" or "end" for breaks
+            idlePresetId: payload.metadata?.idlePresetId,
+            startTime: payload.metadata?.startTime,
+            endTime: payload.metadata?.endTime,
+            label: payload.metadata?.label, // "Lunch break", "Prayer time", etc.
+            // Include attendance-specific metadata
+            attendanceId: payload.metadata?.attendanceId,
+            employeeId: payload.metadata?.employeeId,
+          },
+          read: false,
+          delivered: payload.deliveredAt ? true : false,
+          createdAt: payload.createdAt || new Date().toISOString(),
+          updatedAt: payload.updatedAt || payload.createdAt || new Date().toISOString(),
+        };
+        
+        console.log('🔍 System notification converted:', JSON.stringify(systemNotification, null, 2));
+        
+        // Add system notification to context
+        addNotification(systemNotification);
+        
+        // Show Notifee notification for system notifications
+        NotificationService.showLocalNotification(systemNotification);
       }
       
-      // Convert alert data to notification format - match backend structure
-      const sender = data.sender || data.message?.sender;
-      const relatedMessage = data.message || data.relatedMessage;
-      const notification: InboxNotification = {
-        _id: notificationId,
-        receiver: data.receiver || data.recipient || '',
-        sender: sender || { _id: '', username: 'Unknown User', name: 'Unknown User' },
-        type: data.type || 'message',
-        chat: data.chat || data.chatId ? { _id: data.chatId } : undefined,
-        relatedMessage: relatedMessage ? {
-          _id: relatedMessage._id || '',
-          content: relatedMessage.content || '',
-          messageType: relatedMessage.messageType || 'text'
-        } : undefined,
-        title: data.title || (data.sender?.name ? `${data.sender.name}` : 'New Message'),
-        body: relatedMessage?.content || data.body || data.content || 'New message',
-        metadata: {
-          ...data.metadata,
-          senderName: sender?.name || sender?.username || data.senderName || 'Unknown User',
-          senderAvatar: sender?.profilePicture || sender?.avatar || data.senderAvatar,
-          chatId: data.chatId || data.chat?._id,
-          messageId: relatedMessage?._id || data.messageId
-        },
-        read: false,
-        delivered: true,
-        createdAt: data.createdAt || new Date().toISOString(),
-        updatedAt: data.updatedAt || new Date().toISOString(),
-      };
-
-      console.log('🔍 NotificationManager final notification:', JSON.stringify(notification, null, 2));
-      console.log('🔍 ===== END NOTIFICATION MANAGER ALERT =====');
-      
-      // Add to notification context and show popup
-      addNotification(notification);
-      handleNewNotification(notification);
+      console.log('🔍 ===== END NEW_NOTIFICATION_ALERT =====');
     };
 
             const handleNewMessage = (data: any) => {
@@ -223,12 +278,29 @@ const NotificationManager: React.FC<NotificationManagerProps> = ({ children }) =
       console.log('🔍 ===== END SOCKET EVENT DEBUG =====');
     };
 
+    // Handle UNREAD_COUNT_UPDATED event
+    const handleUnreadCountUpdate = (data: any) => {
+      console.log('🔍 ===== UNREAD_COUNT_UPDATED RECEIVED =====');
+      console.log('🔍 NotificationManager: Unread count update:', JSON.stringify(data, null, 2));
+      
+      // Only update if it's for the current user
+      if (data?.unreadCount !== undefined) {
+        console.log('🔍 Updating unread count to:', data.unreadCount);
+        // The NotificationContext will handle this via fetchUnreadCount
+        fetchUnreadCount();
+      }
+      
+      console.log('🔍 ===== END UNREAD_COUNT_UPDATED =====');
+    };
+
     // Register socket event listeners with deduplication
     console.log('🔍 NotificationManager: Registering socket event listeners...');
     
-    // Primary events only to prevent duplicates
+    // Primary events
     socket.on('NEW_MESSAGE', handleNewMessage);
     socket.on('NEW_INBOX_NOTIFICATION', handleNewNotification);
+    socket.on('NEW_NOTIFICATION_ALERT', handleNotificationAlert); // This handles both message and system notifications
+    socket.on('UNREAD_COUNT_UPDATED', handleUnreadCountUpdate);
     
     // Debug all events
     socket.onAny(debugAllEvents);
@@ -240,6 +312,8 @@ const NotificationManager: React.FC<NotificationManagerProps> = ({ children }) =
       socket.off('disconnect');
       socket.off('NEW_MESSAGE', handleNewMessage);
       socket.off('NEW_INBOX_NOTIFICATION', handleNewNotification);
+      socket.off('NEW_NOTIFICATION_ALERT', handleNotificationAlert);
+      socket.off('UNREAD_COUNT_UPDATED', handleUnreadCountUpdate);
       socket.offAny(debugAllEvents);
     };
   }, [socket, isConnected]);

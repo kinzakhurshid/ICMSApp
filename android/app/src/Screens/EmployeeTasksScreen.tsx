@@ -8,8 +8,12 @@ import {
   TouchableOpacity, 
   TextInput,
   Dimensions,
-  Modal
+  Modal,
+  Alert
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
+import { RootState } from '../states/store';
 import useAxios from '../hooks/useAxios';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -25,7 +29,9 @@ const periods = [
 ];
 
 export default function EmployeeTasksScreen() {
+  const navigation = useNavigation();
   const { callApi } = useAxios();
+  const { currentUser } = useSelector((state: RootState) => state.user);
   const [selectedPeriod, setSelectedPeriod] = useState(periods[0]);
   const [counts, setCounts] = useState({
     assigned: 0,
@@ -74,6 +80,8 @@ export default function EmployeeTasksScreen() {
   useEffect(() => {
     const fetchTasks = async () => {
       try {
+        setLoading(true);
+        setError('');
         const response = await callApi({
           method: "GET",
           url: "/task/me",
@@ -83,52 +91,66 @@ export default function EmployeeTasksScreen() {
             page: 1
           }
         });
-        setTasks(response?.tasks || response?.data?.tasks || []);
-      } catch (err) {
+        
+        console.log('Task API Response:', JSON.stringify(response, null, 2));
+        console.log('Current User:', JSON.stringify(currentUser, null, 2));
+        
+        // Handle different response structures
+        let allTasks = [];
+        if (Array.isArray(response)) {
+          allTasks = response;
+        } else if (Array.isArray(response?.tasks)) {
+          allTasks = response.tasks;
+        } else if (Array.isArray(response?.data)) {
+          allTasks = response.data;
+        } else if (Array.isArray(response?.data?.tasks)) {
+          allTasks = response.data.tasks;
+        } else if (response?.tasks && Array.isArray(response.tasks)) {
+          allTasks = response.tasks;
+        }
+        
+        console.log('Parsed Tasks:', allTasks.length, allTasks);
+        
+        // The API /task/me should already return only current user's tasks
+        // But we'll do a light filter just in case
+        const currentUserId = currentUser?._id || currentUser?.id || (currentUser as any)?.employee?._id || (currentUser as any)?.employeeId;
+        
+        if (allTasks.length === 0) {
+          console.log('No tasks returned from API');
+          setTasks([]);
+          setLoading(false);
+          return;
+        }
+        
+        // Since /task/me should already filter by user, we can trust the API response
+        // But add a safety check if needed
+        let filteredTasks = allTasks;
+        if (currentUserId && allTasks.length > 0) {
+          // Only filter if we see tasks that don't belong to the user
+          // For now, trust the API response since /task/me should handle filtering
+          filteredTasks = allTasks;
+        }
+        
+        console.log('Final Tasks to Display:', filteredTasks.length);
+        setTasks(filteredTasks);
+      } catch (err: any) {
         console.error('Error fetching tasks:', err);
-        // Set some mock data for demonstration
-        setTasks([
-          {
-            _id: '1',
-            title: 'Implement user authentication',
-            description: 'Create login and registration functionality',
-            priority: 'high',
-            status: 'in_progress',
-            dueDate: '2024-01-15',
-            projectId: { name: 'Mobile App' }
-          },
-          {
-            _id: '2',
-            title: 'Design database schema',
-            description: 'Create tables for users, projects, and tasks',
-            priority: 'medium',
-            status: 'completed',
-            dueDate: '2024-01-10',
-            projectId: { name: 'Backend API' }
-          },
-          {
-            _id: '3',
-            title: 'Write unit tests',
-            description: 'Add test coverage for critical functions',
-            priority: 'low',
-            status: 'todo',
-            dueDate: '2024-01-20',
-            projectId: { name: 'Testing Suite' }
-          },
-          {
-            _id: '4',
-            title: 'Code review for PR #123',
-            description: 'Review changes in authentication module',
-            priority: 'critical',
-            status: 'in_review',
-            dueDate: '2024-01-12',
-            projectId: { name: 'Code Review' }
-          }
-        ]);
+        console.error('Error details:', err?.response?.data || err?.message);
+        setError('Failed to load tasks. Please try again.');
+        setTasks([]);
+        Alert.alert('Error', err?.response?.data?.message || 'Failed to load tasks');
+      } finally {
+        setLoading(false);
       }
     };
-    fetchTasks();
-  }, [selectedPeriod]);
+    
+    if (currentUser) {
+      fetchTasks();
+    } else {
+      console.log('No current user, waiting...');
+      setLoading(false);
+    }
+  }, [selectedPeriod, currentUser]);
 
   useEffect(() => {
     const filtered = tasks.filter(task =>
@@ -141,10 +163,55 @@ export default function EmployeeTasksScreen() {
     setFilteredTasks(filtered);
   }, [tasks, searchQuery]);
 
-  if (loading) return (
+  if (loading && tasks.length === 0) return (
     <View style={styles.centered}>
       <ActivityIndicator size="large" color="#f97316" />
       <Text style={styles.loadingText}>Loading tasks...</Text>
+    </View>
+  );
+  
+  if (error && tasks.length === 0) return (
+    <View style={styles.centered}>
+      <Text style={styles.errorText}>{error}</Text>
+      <TouchableOpacity 
+        style={styles.retryButton}
+        onPress={() => {
+          setError('');
+          setLoading(true);
+          const fetchTasks = async () => {
+            try {
+              const response = await callApi({
+                method: "GET",
+                url: "/task/me",
+                params: { 
+                  period: selectedPeriod.key,
+                  limit: 50,
+                  page: 1
+                }
+              });
+              let allTasks = [];
+              if (Array.isArray(response)) {
+                allTasks = response;
+              } else if (Array.isArray(response?.tasks)) {
+                allTasks = response.tasks;
+              } else if (Array.isArray(response?.data)) {
+                allTasks = response.data;
+              } else if (Array.isArray(response?.data?.tasks)) {
+                allTasks = response.data.tasks;
+              }
+              setTasks(allTasks);
+              setError('');
+            } catch (err: any) {
+              setError('Failed to load tasks. Please try again.');
+            } finally {
+              setLoading(false);
+            }
+          };
+          fetchTasks();
+        }}
+      >
+        <Text style={styles.retryButtonText}>Retry</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -265,13 +332,19 @@ export default function EmployeeTasksScreen() {
                   showsVerticalScrollIndicator={true}
                   nestedScrollEnabled={true}
                 >
-                  {filteredTasks.length > 0 ? (
+                  {loading ? (
+                    <View style={styles.emptyState}>
+                      <ActivityIndicator size="small" color="#f97316" />
+                      <Text style={styles.emptyStateText}>Loading tasks...</Text>
+                    </View>
+                  ) : filteredTasks.length > 0 ? (
                     filteredTasks.map((task, index) => (
-                      <TaskRow key={task._id || index} task={task} />
+                      <TaskRow key={task._id || index} task={task} navigation={navigation} />
                     ))
                   ) : (
                     <View style={styles.emptyState}>
                       <Text style={styles.emptyStateText}>No tasks found</Text>
+                      {error && <Text style={styles.errorTextSmall}>{error}</Text>}
                     </View>
                   )}
                 </ScrollView>
@@ -346,7 +419,7 @@ function StatItem({ label, value, color, separatorColor }) {
   );
 }
 
-    function TaskRow({ task }) {
+    function TaskRow({ task, navigation }) {
       const getPriorityColor = (priority) => {
         switch (priority?.toLowerCase()) {
           case 'critical': return '#DC2626';
@@ -390,18 +463,26 @@ function StatItem({ label, value, color, separatorColor }) {
       };
 
       return (
-        <View style={styles.taskRow}>
+        <TouchableOpacity 
+          style={styles.taskRow}
+          onPress={() => {
+            if (task._id && navigation) {
+              navigation.navigate('TaskDetail', { taskId: task._id });
+            }
+          }}
+          activeOpacity={0.7}
+        >
           <View style={styles.checkboxColumn}>
             <TouchableOpacity style={styles.taskCheckbox} />
           </View>
-          <Text style={[styles.taskProject, styles.projectCell]} numberOfLines={1}>
+          <Text style={[styles.taskProject, styles.projectCell]} numberOfLines={2}>
             {typeof task.projectId === 'object' ? task.projectId?.name || 'N/A' : task.project || 'N/A'}
           </Text>
-          <Text style={[styles.taskTitle, styles.taskCell]} numberOfLines={1}>
+          <Text style={[styles.taskTitle, styles.taskCell]} numberOfLines={2}>
             {task.title || 'Untitled Task'}
           </Text>
-          <Text style={[styles.taskDescription, styles.descriptionCell]} numberOfLines={1}>
-            {task.description || 'No description'}
+          <Text style={[styles.taskDescription, styles.descriptionCell]} numberOfLines={2}>
+            {task.description?.replace(/<[^>]*>/g, '').trim() || 'No description'}
           </Text>
           <View style={[styles.priorityColumn, styles.priorityCell]}>
             <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(task.priority) }]}>
@@ -420,7 +501,7 @@ function StatItem({ label, value, color, separatorColor }) {
           <Text style={[styles.dueDate, styles.dueDateCell]} numberOfLines={1}>
             {formatDate(task.dueDate)}
           </Text>
-    </View>
+        </TouchableOpacity>
   );
 }
 
@@ -605,154 +686,189 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   tableWrapper: {
-    minWidth: 650,
+    minWidth: 900,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 8,
+    borderRadius: 12,
     backgroundColor: '#FFFFFF',
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   taskListContainer: {
-    maxHeight: 400,
+    maxHeight: 500,
   },
   
   // Table Styles
   tableHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     backgroundColor: '#F8FAFC',
-    borderBottomWidth: 1,
+    borderBottomWidth: 2,
     borderBottomColor: '#E2E8F0',
+    minHeight: 50,
   },
   checkboxColumn: {
-    width: 30,
+    width: 40,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   sortableColumn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   tableHeaderText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#374151',
-    letterSpacing: 0.3,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E293B',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   checkbox: {
-    width: 14,
-    height: 14,
-    borderWidth: 1.5,
+    width: 18,
+    height: 18,
+    borderWidth: 2,
     borderColor: '#D1D5DB',
-    borderRadius: 3,
+    borderRadius: 4,
   },
   
   // Header Column Styles
   projectHeader: {
-    width: 100,
+    width: 140,
     textAlign: 'left',
+    marginLeft: 8,
   },
   taskHeader: {
-    width: 120,
+    width: 180,
     textAlign: 'left',
+    marginLeft: 12,
   },
   descriptionHeader: {
-    width: 150,
+    width: 220,
     textAlign: 'left',
+    marginLeft: 12,
   },
   priorityHeader: {
-    width: 80,
+    width: 110,
     textAlign: 'center',
+    marginLeft: 12,
   },
   statusHeader: {
-    width: 90,
+    width: 120,
     textAlign: 'center',
+    marginLeft: 12,
   },
   dueDateHeader: {
-    width: 100,
+    width: 130,
     textAlign: 'center',
+    marginLeft: 12,
   },
   
   // Task Row Styles
   taskRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
     backgroundColor: '#FFFFFF',
+    minHeight: 64,
   },
   taskCheckbox: {
-    width: 14,
-    height: 14,
-    borderWidth: 1.5,
+    width: 18,
+    height: 18,
+    borderWidth: 2,
     borderColor: '#D1D5DB',
-    borderRadius: 3,
+    borderRadius: 4,
   },
   
   // Cell Styles
   projectCell: {
-    width: 100,
-    fontSize: 13,
+    width: 140,
+    fontSize: 14,
     color: '#374151',
-    fontWeight: '500',
-    textAlign: 'left',
-  },
-  taskCell: {
-    width: 120,
-    fontSize: 13,
-    color: '#1E293B',
     fontWeight: '600',
     textAlign: 'left',
+    marginLeft: 8,
+    lineHeight: 20,
+  },
+  taskCell: {
+    width: 180,
+    fontSize: 14,
+    color: '#1E293B',
+    fontWeight: '700',
+    textAlign: 'left',
+    marginLeft: 12,
+    lineHeight: 20,
   },
   descriptionCell: {
-    width: 150,
+    width: 220,
     fontSize: 13,
     color: '#6B7280',
     textAlign: 'left',
+    marginLeft: 12,
+    lineHeight: 18,
   },
   priorityCell: {
-    width: 80,
+    width: 110,
     alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
   },
   statusCell: {
-    width: 90,
+    width: 120,
     alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
   },
   dueDateCell: {
-    width: 100,
+    width: 130,
     fontSize: 13,
     color: '#6B7280',
     textAlign: 'center',
+    marginLeft: 12,
+    lineHeight: 18,
+    fontWeight: '500',
   },
   
   // Badge Styles
   priorityBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    minWidth: 50,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    minWidth: 70,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   priorityText: {
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
     color: '#FFFFFF',
+    letterSpacing: 0.3,
   },
   statusBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    minWidth: 60,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    minWidth: 85,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   statusText: {
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
     color: '#FFFFFF',
+    letterSpacing: 0.3,
   },
   
   // Pagination Styles
@@ -760,15 +876,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     backgroundColor: '#F8FAFC',
-    borderTopWidth: 1,
+    borderTopWidth: 2,
     borderTopColor: '#E2E8F0',
   },
   paginationText: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#6B7280',
+    fontWeight: '500',
   },
   paginationControls: {
     flexDirection: 'row',
@@ -776,30 +893,33 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   paginationButton: {
-    width: 24,
-    height: 24,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 4,
+    borderRadius: 6,
     backgroundColor: '#FFFFFF',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#D1D5DB',
   },
   paginationPageText: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#374151',
-    marginHorizontal: 8,
+    marginHorizontal: 12,
+    fontWeight: '600',
   },
   
   // Empty State Styles
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 24,
+    paddingVertical: 40,
+    paddingHorizontal: 20,
   },
   emptyStateText: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#9CA3AF',
-    fontWeight: '500',
+    fontWeight: '600',
+    marginTop: 12,
   },
   
   // Modal Styles
@@ -847,5 +967,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center', 
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#EF4444',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  errorTextSmall: {
+    fontSize: 12,
+    color: '#EF4444',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  retryButton: {
+    backgroundColor: '#F97316',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

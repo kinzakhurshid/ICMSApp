@@ -12,7 +12,6 @@ import {
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import useAxios from '../hooks/useAxios';
-import AppHeader from '../components/AppHeader';
 import HiringCard from '../components/HiringCard';
 import HiringTable from '../components/HiringTable';
 
@@ -154,32 +153,35 @@ const HiringScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <AppHeader navigation={navigation as any} />
       <ScrollView style={styles.scrollContainer}>
         {/* Breadcrumb */}
         <View style={styles.breadcrumb}>
           <Text style={styles.breadcrumbText}>Dashboard / Hiring</Text>
         </View>
 
-        {/* Page Title with Arrow Buttons */}
+        {/* Page Title with Controls */}
         <View style={styles.titleContainer}>
           <Text style={styles.pageTitle}>Hiring management</Text>
-          <View style={styles.arrowButtonsContainer}>
-            <TouchableOpacity
-              style={[styles.arrowButton, currentCardIndex === 0 && styles.arrowButtonDisabled]}
-              onPress={scrollToPrevCard}
-              disabled={currentCardIndex === 0}
-            >
-              <Icon name="chevron-left" size={20} color={currentCardIndex === 0 ? '#ccc' : '#FF6B35'} />
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.arrowButton, currentCardIndex === openHirings.length - 1 && styles.arrowButtonDisabled]}
-              onPress={scrollToNextCard}
-              disabled={currentCardIndex === openHirings.length - 1}
-            >
-              <Icon name="chevron-right" size={20} color={currentCardIndex === openHirings.length - 1 ? '#ccc' : '#FF6B35'} />
-            </TouchableOpacity>
+          
+          <View style={styles.titleRight}>
+            {/* Carousel Arrows */}
+            <View style={styles.arrowButtonsContainer}>
+              <TouchableOpacity
+                style={[styles.arrowButton, currentCardIndex === 0 && styles.arrowButtonDisabled]}
+                onPress={scrollToPrevCard}
+                disabled={currentCardIndex === 0}
+              >
+                <Icon name="chevron-left" size={20} color={currentCardIndex === 0 ? '#ccc' : '#FF6B35'} />
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.arrowButton, currentCardIndex === openHirings.length - 1 && styles.arrowButtonDisabled]}
+                onPress={scrollToNextCard}
+                disabled={currentCardIndex === openHirings.length - 1}
+              >
+                <Icon name="chevron-right" size={20} color={currentCardIndex === openHirings.length - 1 ? '#ccc' : '#FF6B35'} />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -283,6 +285,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     marginBottom: 16,
+  },
+  titleRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   arrowButtonsContainer: {
     flexDirection: 'row',

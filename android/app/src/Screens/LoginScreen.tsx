@@ -11,6 +11,8 @@ import {
   ImageBackground,
   Alert,
   ActivityIndicator,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import LinearGradient from 'react-native-linear-gradient';
@@ -105,8 +107,16 @@ const handleLogin = async () => {
     
     dispatch(loginSuccess({ user: userWithoutToken, token }));
 
-    Alert.alert('Login Successful', `Welcome back, ${user.name}!`);
-    navigation.navigate('Home');
+    // Reset navigation to dashboard/home to prevent returning to previous screens
+    Alert.alert('Login Successful', `Welcome back, ${user.name}!`, [
+      {
+        text: 'OK',
+        onPress: () => {
+          // Navigation will automatically switch to RoleBasedNavigator due to isLoggedIn change
+          // The navigator will show the appropriate dashboard based on role
+        },
+      },
+    ]);
   } catch (error: any) {
      console.log('Full error object:', error);
     console.log('Error response:', error.response);
@@ -150,11 +160,12 @@ const handleLogin = async () => {
   };
 
   return (
-    <ImageBackground
-      source={require('../../assets/images/BG2.png')}
-      style={styles.container}
-      resizeMode="cover">
-      <View style={styles.card}>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <ImageBackground
+        source={require('../../assets/images/BG2.png')}
+        style={styles.container}
+        resizeMode="cover">
+        <View style={styles.card}>
         <Text style={styles.title}>SIGN IN</Text>
 
         <View
@@ -227,18 +238,26 @@ const handleLogin = async () => {
           </LinearGradient>
         </TouchableOpacity>
 
-        <TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.forgotPasswordButton}
+          onPress={() => {
+            // TODO: Implement forgot password functionality
+            Alert.alert('Forgot Password', 'Forgot password functionality coming soon');
+          }}>
           <Text style={styles.link}>Forgot Password?</Text>
         </TouchableOpacity>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Don't have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+          <TouchableOpacity 
+            style={styles.signUpButton}
+            onPress={() => navigation.navigate('Signup')}>
             <Text style={[styles.link, styles.signUpText]}>SIGN UP</Text>
           </TouchableOpacity>
         </View>
       </View>
-    </ImageBackground>
+      </ImageBackground>
+    </TouchableWithoutFeedback>
   );
 };
 
@@ -328,9 +347,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
+  forgotPasswordButton: {
+    alignSelf: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
   link: {
     color: '#F09819',
-    marginTop: 15,
     textAlign: 'center',
     fontWeight: '600',
     fontSize: 14,
@@ -338,7 +361,13 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
+    alignItems: 'center',
     marginTop: 20,
+    flexWrap: 'wrap',
+  },
+  signUpButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 4,
   },
   footerText: {
     color: '#666',

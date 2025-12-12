@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { IdleTimePreset } from '../types/idleTime';
 
 type Props = {
@@ -7,13 +8,18 @@ type Props = {
 };
 
 const IdleTimePresetsCard: React.FC<Props> = ({ data }) => {
+  const navigation = useNavigation();
+  
   return (
     <View style={styles.card}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>Idle Time Presets</Text>
-        <View style={styles.addButton}>
+        <TouchableOpacity 
+          style={styles.addButton}
+          onPress={() => (navigation as any).navigate('AddIdleTimePreset')}
+        >
           <Text style={styles.addText}>+ Add Preset</Text>
-        </View>
+        </TouchableOpacity>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View style={{ minWidth: 700 }}>

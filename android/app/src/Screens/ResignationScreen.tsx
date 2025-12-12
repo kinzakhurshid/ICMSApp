@@ -6,6 +6,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import useAxios from '../hooks/useAxios';
@@ -272,8 +273,16 @@ const ResignationScreen: React.FC = () => {
           <Text style={styles.breadcrumbText}>Dashboard / Resignation</Text>
         </View>
 
-        {/* Page Title */}
-        <Text style={styles.pageTitle}>Resignation management</Text>
+        {/* Page Title and Actions */}
+        <View style={styles.titleRow}>
+          <Text style={styles.pageTitle}>Resignation management</Text>
+          <TouchableOpacity
+            style={styles.terminateButton}
+            onPress={() => (navigation as any).navigate('TerminateEmployee')}
+          >
+            <Text style={styles.terminateButtonText}>Terminate</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Header Summary */}
         <View style={styles.summaryContainer}>
@@ -330,12 +339,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
   pageTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
+    flex: 1,
+  },
+  terminateButton: {
+    backgroundColor: '#dc2626',
+    borderRadius: 8,
     paddingHorizontal: 16,
-    marginBottom: 16,
+    paddingVertical: 10,
+  },
+  terminateButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
   },
   summaryContainer: {
     flexDirection: 'column',

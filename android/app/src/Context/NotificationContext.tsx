@@ -6,19 +6,19 @@ import useAxios from '../hooks/useAxios';
 // User interface for notifications
 export interface NotificationUser {
   _id: string;
-  username: string;
+  username?: string;
   profilePicture?: string;
   name?: string;
 }
 
-// Chat interface for notifications
+// Chat interface for notifications (used for message-type notifications)
 export interface NotificationChat {
   _id: string;
   name?: string;
   type?: string;
 }
 
-// Message interface for notifications
+// Message interface for notifications (used for inbox/chat notifications)
 export interface NotificationMessage {
   _id: string;
   content: string;
@@ -26,20 +26,38 @@ export interface NotificationMessage {
 }
 
 // Main notification interface
+// NOTE: Backend can return different notification modules (PM, HR, etc.)
+// so we keep this interface flexible and normalise in fetchNotifications.
 export interface InboxNotification {
   _id: string;
   receiver: string;
-  sender: NotificationUser;
-  type: "message" | "reaction" | "mention" | "system" | "group_invite";
+  // Backend may send either a user object or an ID string
+  sender: NotificationUser | string;
+  // Can be "message", "reaction", "mention", "system", "task", etc.
+  type: string;
   chat?: NotificationChat;
   relatedMessage?: NotificationMessage;
   title: string;
   body: string;
   metadata: Record<string, any>;
+  // Derived flag in frontend based on readAt / read boolean
   read: boolean;
   delivered: boolean;
   createdAt: string;
   updatedAt: string;
+  // Additional fields from new notifications API
+  organizationId?: string;
+  action?: string;
+  link?: string;
+  entity?: {
+    kind: string;
+    id: string;
+  };
+  severity?: string;
+  module?: string;
+  deliveredAt?: string;
+  readAt?: string | null;
+  isArchived?: boolean;
 }
 
 // API Response interfaces
@@ -102,21 +120,87 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     return currentUser?._id || currentUser?.id || '';
   };
 
-  const fetchNotifications = async (page = 1, limit = 20): Promise<void> => {
+  const fetchNotifications = async (page = 1, limit = 50): Promise<void> => {
     try {
       setNotificationsLoading(true);
-      const userId = getCurrentUserId();
-      if (!userId) return;
-
+      // Fetch all notifications (inbox and general/system notifications)
+      // Unified notifications API (same as web):
+      // GET /notifications?page=1&limit=50
+      // We rely on auth token for current user scoping.
       const response = await callApi({
         method: 'GET',
-        url: `/inbox-notifications/user/${userId}`,
-        params: { page, limit }
+        url: '/notifications',
+        params: { 
+          page, 
+          limit,
+          type: 'all' // Fetch all types of notifications (inbox and general)
+        },
       });
 
-      if (response && response.notifications) {
-        setNotifications(response.notifications);
+      // Support multiple possible response shapes gracefully
+      let items: any[] = [];
+
+      if (Array.isArray(response)) {
+        items = response;
+      } else if (Array.isArray(response?.notifications)) {
+        items = response.notifications;
+      } else if (Array.isArray(response?.data)) {
+        items = response.data;
+      } else if (Array.isArray(response?.results)) {
+        items = response.results;
       }
+
+      // Normalise raw notifications into our InboxNotification shape
+      const normalised: InboxNotification[] = items.map((raw: any) => {
+        const readFlag = !!(raw.read || raw.readAt);
+        const deliveredFlag = !!(raw.delivered || raw.deliveredAt);
+
+        // Normalise sender: can be an object or an ID string
+        let sender: NotificationUser | string;
+        if (raw.sender && typeof raw.sender === 'object') {
+          sender = {
+            _id: raw.sender._id || raw.sender.id || '',
+            username: raw.sender.username,
+            profilePicture: raw.sender.profilePicture,
+            name: raw.sender.name,
+          };
+        } else {
+          sender = typeof raw.sender === 'string'
+            ? raw.sender
+            : '';
+        }
+
+        return {
+          _id: raw._id,
+          receiver: raw.receiver,
+          sender,
+          type: raw.type || 'system',
+          chat: raw.chat,
+          relatedMessage: raw.relatedMessage,
+          title: raw.title || '',
+          body: raw.body || '',
+          metadata: raw.metadata || {},
+          read: readFlag,
+          delivered: deliveredFlag,
+          createdAt: raw.createdAt,
+          updatedAt: raw.updatedAt,
+          organizationId: raw.organizationId,
+          action: raw.action,
+          link: raw.link,
+          entity: raw.entity,
+          severity: raw.severity,
+          module: raw.module,
+          deliveredAt: raw.deliveredAt,
+          readAt: raw.readAt,
+          isArchived: raw.isArchived,
+        };
+      });
+
+      setNotifications(normalised);
+
+      // Derive unread count from the fetched list so badge stays in sync
+      const unread = normalised.filter(n => !n.read).length;
+      setUnreadCount(unread);
     } catch (error) {
       console.error('Error fetching notifications:', error);
     } finally {
@@ -147,9 +231,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
   const markAsRead = async (notificationId: string): Promise<void> => {
     try {
+      // New notifications API – mark single notification as read
       await callApi({
-        method: 'PUT',
-        url: `/inbox-notifications/${notificationId}/read`
+        method: 'PATCH',
+        url: `/notifications/${notificationId}/read`,
       });
 
       setNotifications(prev => 

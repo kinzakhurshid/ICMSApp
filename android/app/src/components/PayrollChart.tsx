@@ -57,13 +57,13 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: 'white',
     borderRadius: 12,
-    padding: 20,
+    padding: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    minHeight: 200,
+    minHeight: 300,
   },
   title: {
     fontSize: 16,
@@ -75,6 +75,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    minHeight: 240,
+    paddingVertical: 16,
   },
   totalSection: {
     alignItems: 'center',

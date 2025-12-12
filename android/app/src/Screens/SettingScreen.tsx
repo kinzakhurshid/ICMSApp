@@ -63,7 +63,18 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Account Settings</Text>
         
-        <TouchableOpacity style={styles.settingItem}>
+        <TouchableOpacity 
+          style={styles.settingItem}
+          onPress={() => {
+            // Navigate to profile/edit profile screen
+            const user = (navigation as any).getState?.()?.routes?.[0]?.params;
+            if ((navigation as any).navigate) {
+              (navigation as any).navigate('Profile');
+            } else {
+              Alert.alert('Info', 'Account information feature coming soon');
+            }
+          }}
+        >
           <View style={styles.settingInfo}>
             <Icon name="person" size={22} color="#d9534f" style={styles.settingIcon} />
             <Text style={styles.settingText}>Account Information</Text>
@@ -71,7 +82,16 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
           <Icon name="chevron-right" size={22} color="#a0aec0" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.settingItem}>
+        <TouchableOpacity 
+          style={styles.settingItem}
+          onPress={() => {
+            Alert.alert(
+              'Change Password',
+              'Password change feature will be available soon. Please contact your administrator for password reset.',
+              [{ text: 'OK' }]
+            );
+          }}
+        >
           <View style={styles.settingInfo}>
             <Icon name="lock" size={22} color="#d9534f" style={styles.settingIcon} />
             <Text style={styles.settingText}>Change Password</Text>
@@ -113,7 +133,16 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Support</Text>
         
-        <TouchableOpacity style={styles.settingItem}>
+        <TouchableOpacity 
+          style={styles.settingItem}
+          onPress={() => {
+            Alert.alert(
+              'Help Center',
+              'For assistance, please contact:\n\nEmail: support@icmsapp.com\nPhone: +92-XXX-XXXXXXX',
+              [{ text: 'OK' }]
+            );
+          }}
+        >
           <View style={styles.settingInfo}>
             <Icon name="help" size={22} color="#d9534f" style={styles.settingIcon} />
             <Text style={styles.settingText}>Help Center</Text>
@@ -121,7 +150,16 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
           <Icon name="chevron-right" size={22} color="#a0aec0" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.settingItem}>
+        <TouchableOpacity 
+          style={styles.settingItem}
+          onPress={() => {
+            Alert.alert(
+              'About App',
+              'ICMS App\nVersion 1.0.0\n\nIntegrated Company Management System',
+              [{ text: 'OK' }]
+            );
+          }}
+        >
           <View style={styles.settingInfo}>
             <Icon name="info" size={22} color="#d9534f" style={styles.settingIcon} />
             <Text style={styles.settingText}>About App</Text>

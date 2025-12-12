@@ -95,20 +95,6 @@ const HrQueriesScreen: React.FC = () => {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.heroCard}>
-        <View style={styles.heroInfo}>
-          <Text style={styles.heroBadge}>HR Management Dashboard</Text>
-          <Text style={styles.heroTitle}>Query Management</Text>
-          <Text style={styles.heroSubtitle}>
-            Monitor and resolve organization-wide queries with real-time tracking and status insights.
-          </Text>
-        </View>
-        <TouchableOpacity style={styles.heroAction}>
-          <Feather name="download-cloud" size={16} color="#fff" />
-          <Text style={styles.heroActionText}>Download Trackwise</Text>
-        </TouchableOpacity>
-      </View>
-
       <View style={styles.tableCard}>
         <View style={styles.tableHeader}>
           <View>
@@ -230,54 +216,6 @@ const HrQueriesScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F3F4F6' },
   content: { padding: 16, gap: 18, paddingBottom: 32 },
-  heroCard: {
-    backgroundColor: '#FF6B35',
-    borderRadius: 20,
-    padding: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    shadowColor: '#00000030',
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
-  },
-  heroInfo: {
-    flex: 1,
-    paddingRight: 16,
-  },
-  heroBadge: {
-    color: '#FFE8D9',
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  heroTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 6,
-  },
-  heroSubtitle: {
-    fontSize: 14,
-    color: '#FFE8D9',
-    lineHeight: 20,
-  },
-  heroAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#1F2937',
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 14,
-  },
-  heroActionText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 13,
-  },
   tableCard: {
     backgroundColor: '#fff',
     borderRadius: 16,

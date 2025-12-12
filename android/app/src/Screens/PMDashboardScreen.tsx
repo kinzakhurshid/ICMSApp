@@ -12,6 +12,7 @@ import {
   Alert,
   Modal
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
@@ -91,22 +92,31 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
     total: 0
   });
   const [showDateFilter, setShowDateFilter] = useState(false);
-  const [timeFilter, setTimeFilter] = useState<TimeFilter>('month');
+  // Default to "This Year" for main PM dashboard, as requested
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('year');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
 
   useEffect(() => {
+    // Only fetch once we actually have an organization id
+    if (!currentUser?.organization) return;
     fetchDashboardStats();
     fetchTasks();
-  }, []);
+  }, [currentUser?.organization]);
 
   useEffect(() => {
+    // Re-fetch tasks whenever filters change AND we have an organization id
+    if (!currentUser?.organization) return;
+
+    // Reset pagination to page 1 when tab or filters change
+    setPagination(prev => ({ ...prev, page: 1 }));
+
     const timeoutId = setTimeout(() => {
       fetchTasks();
     }, 500);
-    
+
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, activeTab, timeFilter, customStartDate, customEndDate]);
+  }, [searchQuery, activeTab, timeFilter, customStartDate, customEndDate, currentUser?.organization]);
 
   const fetchDashboardStats = async () => {
     try {
@@ -116,7 +126,22 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
         url: `/projects/dashStats/${currentUser?.organization}`,
       });
       console.log('Dashboard Stats Response:', response);
-      setDashStats(response.data);
+
+      // Support multiple possible response shapes
+      const payload: any =
+        response?.data?.data ??
+        response?.data ??
+        response;
+
+      if (payload) {
+        setDashStats({
+          totalProjects: payload.totalProjects ?? payload.total_projects ?? 0,
+          projectsInProgress: payload.projectsInProgress ?? payload.projects_in_progress ?? 0,
+          highPriorityProjects: payload.highPriorityProjects ?? payload.high_priority_projects ?? 0,
+          highPriorityTasks: payload.highPriorityTasks ?? payload.high_priority_tasks ?? 0,
+          pendingTasks: payload.pendingTasks ?? payload.pending_tasks ?? 0,
+        });
+      }
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
     } finally {
@@ -124,21 +149,20 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
     }
   };
 
+  // Build date params for /task/getAll to match web PM/tasks behavior
   const getDateRange = () => {
+    // All time: backend expects timePeriod = 'all' and no dates
     if (timeFilter === 'all') {
       return {
-        timePeriod: 'custom',
-        startDate: new Date(0).toISOString(),
-        endDate: new Date().toISOString(),
+        timePeriod: 'all',
       };
     }
 
+    // Custom: use explicit start/end from inputs if provided
     if (timeFilter === 'custom') {
       if (!customStartDate || !customEndDate) {
         return {
-          timePeriod: 'custom',
-          startDate: new Date(0).toISOString(),
-          endDate: new Date().toISOString(),
+          timePeriod: 'all',
         };
       }
       return {
@@ -148,10 +172,12 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
       };
     }
 
+    // Relative ranges (today/week/month/year)
     const now = dayjs();
-    let startDate, endDate;
+    let startDate: string;
+    let endDate: string;
     
-    switch(timeFilter) {
+    switch (timeFilter) {
       case 'today':
         startDate = now.startOf('day').toISOString();
         endDate = now.endOf('day').toISOString();
@@ -176,17 +202,20 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
     return {
       timePeriod: 'custom',
       startDate,
-      endDate
+      endDate,
     };
   };
 
   const fetchTasks = async () => {
-    try {
-      if (!currentUser?.organization) return;
-      
-      setLoading(prev => ({ ...prev, tasks: true }));
+    // If we don't yet have an organization, don't stay stuck in loading state
+    if (!currentUser?.organization) {
+      setTasks([]);
+      setLoading(prev => ({ ...prev, tasks: false }));
+      return;
+    }
 
-      const dateRange = getDateRange();
+    try {
+      setLoading(prev => ({ ...prev, tasks: true }));
 
       const params = {
         organizationId: currentUser.organization,
@@ -194,7 +223,8 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
         search: searchQuery,
         page: pagination.page,
         limit: pagination.limit,
-        ...dateRange
+        isBug: 'false',
+        ...getDateRange(),
       };
 
       console.log('API Request Params:', params);
@@ -202,17 +232,22 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
       const response = await callApi({
         method: 'GET',
         url: '/task/getAll',
-        params, 
+        params,
       });
 
-      if (response?.success) {
-        setTasks(response.data.tasks || []);
-        setPagination({
-          page: response.data.pagination?.page || 1,
-          limit: response.data.pagination?.limit || 10,
-          total: response.data.pagination?.total || 0
-        });
-      }
+      // Web PM/tasks list contract:
+      // { success, data: { tasks, pagination } }
+      const success = (response as any)?.success;
+      const dataWrapper = (response as any)?.data;
+      const tasksArray = Array.isArray(dataWrapper?.tasks) ? dataWrapper.tasks : [];
+      const paginationData = dataWrapper?.pagination || {};
+
+      setTasks(success && Array.isArray(tasksArray) ? tasksArray : []);
+      setPagination({
+        page: paginationData.page || 1,
+        limit: paginationData.limit || 10,
+        total: paginationData.total || 0,
+      });
     } catch (err) {
       console.error('Failed to fetch tasks:', err);
     } finally {
@@ -316,23 +351,15 @@ const cards: CardData[] = [
 
   if (loading.cards) {
     return (
-      <View style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer} edges={['top', 'bottom']}>
         <ActivityIndicator size="large" color="#FF5722" />
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.topActions}>
-        <TouchableOpacity
-          style={styles.requestLeaveButton}
-          onPress={() => navigation.navigate('RequestLeave', { redirectTo: 'HomeMain' })}
-        >
-          <Ionicons name="exit-outline" size={18} color="#fff" />
-          <Text style={styles.requestLeaveText}>Request Leave</Text>
-        </TouchableOpacity>
-      </View>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Cards */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Overview</Text>
@@ -369,9 +396,11 @@ const cards: CardData[] = [
       <ScrollView
         ref={scrollRef}
         horizontal
-        showsHorizontalScrollIndicator={false}
+        showsHorizontalScrollIndicator={true}
         contentContainerStyle={styles.horizontalScroll}
-        scrollEnabled={false}
+        scrollEnabled={true}
+        bounces={false}
+        decelerationRate="fast"
       >
         {cards.map((card) => (
           <View
@@ -511,15 +540,21 @@ const cards: CardData[] = [
         <View style={styles.tabsContainer}>
           <TouchableOpacity
             style={[styles.tabButton, activeTab === 'active' && styles.activeTab]}
-            onPress={() => setActiveTab('active')}
+            onPress={() => {
+              setActiveTab('active');
+              setPagination(prev => ({ ...prev, page: 1 })); // Reset pagination on tab change
+            }}
           >
             <Text style={[styles.tabText, activeTab === 'active' && styles.activeTabText]}>
-              Active ({tasks.filter(task => task.status === 'todo' || task.status === 'inProgress').length})
+              Active ({tasks.filter(task => task.status === 'todo' || task.status === 'in_progress').length})
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tabButton, activeTab === 'completed' && styles.activeTab]}
-            onPress={() => setActiveTab('completed')}
+            onPress={() => {
+              setActiveTab('completed');
+              setPagination(prev => ({ ...prev, page: 1 })); // Reset pagination on tab change
+            }}
           >
             <Text style={[styles.tabText, activeTab === 'completed' && styles.activeTabText]}>
               Completed ({tasks.filter(task => task.status === 'completed').length})
@@ -593,11 +628,11 @@ const cards: CardData[] = [
                         <View style={[
                           styles.statusBadge,
                           item.status === 'completed' ? styles.completedBadge : 
-                          item.status === 'inProgress' ? styles.inProgressBadge : styles.todoBadge
+                          item.status === 'in_progress' ? styles.inProgressBadge : styles.todoBadge
                         ]}>
                           <Text style={styles.statusText}>
                             {item.status === 'completed' ? 'Done' : 
-                              item.status === 'inProgress' ? 'In Progress' : 'To Do'}
+                              item.status === 'in_progress' ? 'In Progress' : 'To Do'}
                           </Text>
                         </View>
                       </View>
@@ -650,38 +685,17 @@ const cards: CardData[] = [
           </>
         )}
       </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-container: { flex: 1, backgroundColor: '#F9F9F9' },
-  topActions: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 4,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F9F9F9',
   },
-  requestLeaveButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FB923C',
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 12,
-    shadowColor: '#00000020',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  requestLeaveText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  container: { flex: 1, backgroundColor: '#F9F9F9' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9F9F9' },
   sectionTitle: { fontSize: 18, fontWeight: '700', color: '#333' }, 
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 15, marginTop: 15 },

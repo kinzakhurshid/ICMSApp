@@ -8,6 +8,9 @@ import {
   TextInput,
   ActivityIndicator,
   ScrollView,
+  Alert,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import useAxios from '../hooks/useAxios';
 import {useNavigation} from '@react-navigation/native';
@@ -82,22 +85,45 @@ const SignupScreen : React.FC = () => {
       });
 
       console.log('Signup response:', response);
-            navigation.navigate('Login');
+      
+      // Show success alert
+      Alert.alert(
+        'Account Created Successfully!',
+        `Your organization account "${orgName}" has been created. The admin account has been set up. Please sign in to continue.`,
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              navigation.navigate('Login');
+            },
+          },
+        ],
+        { cancelable: false }
+      );
     
     } catch (err: any) {
       console.error('Signup error:', err);
-      setError(err.message || 'Registration failed. Please try again.');
+      const errorMessage = err.response?.data?.message || err.message || 'Registration failed. Please try again.';
+      setError(errorMessage);
+      
+      // Show failure alert
+      Alert.alert(
+        'Registration Failed',
+        errorMessage,
+        [{ text: 'OK' }]
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ImageBackground
-      source={require('../../assets/images/BG3.png')}
-      style={styles.background}
-      resizeMode="cover">
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <ImageBackground
+        source={require('../../assets/images/BG3.png')}
+        style={styles.background}
+        resizeMode="cover">
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.card}>
           <Text style={styles.title}>Hello</Text>
           <Text style={styles.subtitle}>Create your organization account</Text>
@@ -161,7 +187,8 @@ const SignupScreen : React.FC = () => {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </ImageBackground>
+      </ImageBackground>
+    </TouchableWithoutFeedback>
   );
 };
 

@@ -11,7 +11,8 @@ import { RootState } from '../states/store';
 
 // Components
 import EmployeeAttendanceChart from '../components/EmployeeAttendceChart';
-import EmployeeLeavesChart from '../components/EmployeeLeaveChart';
+// Removed "My Leaves" pie chart/card from PM Attendance screen
+// import EmployeeLeavesChart from '../components/EmployeeLeaveChart';
 import EmployeeLeaveCalendar from '../components/EmployeeLeaveCalender';
 import EmployeeAttendanceTable from '../components/EmployeeAttendceTable';
 import EmployeeLeaveTable from '../components/EmployeeLeaveTable';
@@ -37,10 +38,9 @@ const EmployeeDashboardScreen = () => {
         <Text style={styles.headerTitle}>Attendance and Leave Management</Text>
       </View>
 
-      {/* Charts Row */}
+      {/* Charts Row (My Attendance + Calendar only) */}
       <View style={styles.chartsContainer}>
         <EmployeeAttendanceChart />
-        <EmployeeLeavesChart />
         <EmployeeLeaveCalendar />
       </View>
 

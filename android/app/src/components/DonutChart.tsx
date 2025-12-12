@@ -66,7 +66,7 @@ const DonutChart: React.FC<Props> = ({ segments, size = 140, stroke = 16, title,
           <View key={s.label} style={styles.legendRow}>
             <View style={[styles.legendDot, { backgroundColor: s.color }]} />
             <Text style={styles.legendText}>{s.label}</Text>
-            <Text style={styles.legendPct}>{Math.round(((s.value || 0)/total)*100)}%</Text>
+            <Text style={styles.legendPct}>{s.value || 0}</Text>
           </View>
         ))}
       </View>
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendText: { flex: 1, color: '#111827', fontSize: 13 },
-  legendPct: { color: '#6b7280', fontSize: 12 },
+  legendPct: { color: '#111827', fontSize: 13, fontWeight: '600' },
 });
 
 export default DonutChart;
