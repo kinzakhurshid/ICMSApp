@@ -7,12 +7,15 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import Feather from 'react-native-vector-icons/Feather';
 import { useSelector } from 'react-redux';
 import { RootState } from '../states/store';
 import { fetchOrgQueries } from '../Services/queries';
 import { OrgQuery } from '../types/queries';
+import useAxios from '../hooks/useAxios';
 
 const PAGE_SIZE = 10;
 
@@ -26,7 +29,9 @@ const statusColors: Record<string, { bg: string; text: string }> = {
 const statusOptions = ['All', 'Pending', 'Noted', 'Solved', 'In Progress'];
 
 const HrQueriesScreen: React.FC = () => {
+  const navigation = useNavigation();
   const token = useSelector((state: RootState) => state.user.token) || '';
+  const { callApi } = useAxios();
 
   const [records, setRecords] = useState<OrgQuery[]>([]);
   const [recordsTotal, setRecordsTotal] = useState(0);
@@ -36,6 +41,45 @@ const HrQueriesScreen: React.FC = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [showFilters, setShowFilters] = useState(false);
+
+  const updateQueryStatus = async (queryId: string, newStatus: string) => {
+    try {
+      // Use PUT method with /query/{id}/status endpoint
+      await callApi({
+        method: 'PUT',
+        url: `/query/${queryId}/status`,
+        data: { status: newStatus },
+      });
+      Alert.alert('Success', 'Query status updated successfully');
+      fetchRecords();
+    } catch (error: any) {
+      console.error('Update query status error:', error);
+      const errorMessage = error?.response?.data?.message || 
+                           error?.response?.data?.error ||
+                           error?.message ||
+                           'Failed to update query status';
+      Alert.alert('Error', errorMessage);
+    }
+  };
+
+  const addComment = async (queryId: string, comment: string) => {
+    try {
+      await callApi({
+        method: 'POST',
+        url: `/query/${queryId}/comment`,
+        data: { comment },
+      });
+      Alert.alert('Success', 'Comment added successfully');
+      fetchRecords();
+    } catch (error: any) {
+      console.error('Add comment error:', error);
+      const errorMessage = error?.response?.data?.message || 
+                           error?.response?.data?.error ||
+                           error?.message ||
+                           'Failed to add comment';
+      Alert.alert('Error', errorMessage);
+    }
+  };
 
   const formatDate = (value?: string) => {
     if (!value) return '-';
@@ -98,7 +142,7 @@ const HrQueriesScreen: React.FC = () => {
       <View style={styles.tableCard}>
         <View style={styles.tableHeader}>
           <View>
-            <Text style={styles.sectionTitle}>Organization Complaints</Text>
+            <Text style={styles.sectionTitle}>Queries</Text>
             <Text style={styles.sectionCaption}>
               Review submitted complaints, track their resolution state, and follow up promptly.
             </Text>
@@ -161,7 +205,15 @@ const HrQueriesScreen: React.FC = () => {
               </View>
             ) : (
               records.map(record => (
-                <View key={record._id} style={styles.tableRow}>
+                <TouchableOpacity 
+                  key={record._id} 
+                  style={styles.tableRow}
+                  onPress={() => {
+                    // Navigate to query detail screen
+                    (navigation as any).navigate('QueryDetail', { queryId: record._id, query: record });
+                  }}
+                  activeOpacity={0.7}
+                >
                   <Text style={[styles.cell, { width: 240 }]} numberOfLines={1}>
                     {record.subject || '-'}
                   </Text>
@@ -177,7 +229,7 @@ const HrQueriesScreen: React.FC = () => {
                   <Text style={[styles.cell, { width: 140 }]} numberOfLines={1}>
                     {formatDate(record.createdAt)}
                   </Text>
-                </View>
+                </TouchableOpacity>
               ))
             )}
           </View>

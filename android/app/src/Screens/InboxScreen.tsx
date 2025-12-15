@@ -37,6 +37,7 @@ const InboxScreen: React.FC<InboxScreenProps> = ({ routeParams }) => {
   }, [currentUser, token]);
 
   // Only show connection banner if socket exists but not connected (actively trying to connect)
+  // Hide banner once connected to avoid showing "connecting" when already connected
   useEffect(() => {
     if (socket && !isConnected) {
       // Show banner when socket exists but not connected
@@ -48,6 +49,9 @@ const InboxScreen: React.FC<InboxScreenProps> = ({ routeParams }) => {
         }
       }, 5000);
       return () => clearTimeout(timeout);
+    } else if (isConnected) {
+      // Immediately hide banner when connected
+      setShowConnectionBanner(false);
     } else {
       setShowConnectionBanner(false);
     }

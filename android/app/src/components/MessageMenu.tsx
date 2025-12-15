@@ -28,6 +28,7 @@ interface MessageMenuProps {
   alignment: 'top' | 'bottom';
   onReply?: (message: Message) => void;
   onEdit?: (message: Message) => void;
+  onForward?: (message: Message) => void;
 }
 
 const MessageMenu: React.FC<MessageMenuProps> = ({
@@ -38,6 +39,7 @@ const MessageMenu: React.FC<MessageMenuProps> = ({
   alignment,
   onReply,
   onEdit,
+  onForward,
 }) => {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -68,7 +70,7 @@ const MessageMenu: React.FC<MessageMenuProps> = ({
 
   // Handle modal state changes
   useEffect(() => {
-    console.log('Modal state changed:', { isAnyModalOpen, isEditModalOpen, isReplyModalOpen });
+    // Removed verbose logging - only track state internally
     isModalOpenRef.current = isAnyModalOpen;
   }, [isAnyModalOpen, isEditModalOpen, isReplyModalOpen]);
 
@@ -287,6 +289,24 @@ const MessageMenu: React.FC<MessageMenuProps> = ({
         >
           <Icon name="pin" size={20} color="#6B7280" />
           <Text style={styles.menuText}>Pin</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => {
+            console.log('🔍 [MessageMenu] Forward button pressed');
+            console.log('🔍 [MessageMenu] onForward exists:', !!onForward);
+            if (onForward) {
+              console.log('🔍 [MessageMenu] Calling onForward with message:', message._id);
+              onForward(message);
+            } else {
+              console.error('🔍 [MessageMenu] onForward is not defined!');
+            }
+            onClose();
+          }}
+        >
+          <Icon name="arrow-forward" size={20} color="#6B7280" />
+          <Text style={styles.menuText}>Forward</Text>
         </TouchableOpacity>
 
         {isCurrentUser && (

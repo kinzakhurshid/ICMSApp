@@ -96,6 +96,11 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
       route: 'AccessoriesScreen',
     },
     { 
+      label: 'Profile', 
+      icon: <MaterialIcons name="person" size={22} color="#FF5722" />,
+      route: 'EmployeeProfile',
+    },
+    { 
       label: 'Settings', 
       icon: <MaterialIcons name="settings" size={22} color="#FF5722" />,
       route: 'SettingsScreen',
@@ -462,8 +467,9 @@ const styles = StyleSheet.create({
   activeIndicator: {
     position: 'absolute',
     left: 0,
-    top: '25%',
-    height: '50%',
+    top: '50%',
+    transform: [{ translateY: -12 }], // Center vertically (half of height)
+    height: 24,
     width: 4,
     backgroundColor: '#FF5722',
     borderTopRightRadius: 2,

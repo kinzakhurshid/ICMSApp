@@ -1,26 +1,41 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Socket } from 'socket.io-client';
 
 const useSocketEvents = (socket: Socket | null, eventHandlers: Record<string, (...args: any[]) => void>) => {
+  const handlersRef = useRef(eventHandlers);
+  const registeredRef = useRef<Set<string>>(new Set());
+
+  // Update ref when handlers change
+  useEffect(() => {
+    handlersRef.current = eventHandlers;
+  }, [eventHandlers]);
+
   useEffect(() => {
     if (!socket) {
-      console.log('🔌 useSocketEvents: No socket available');
       return;
     }
 
-    console.log('🔌 useSocketEvents: Registering event handlers:', Object.keys(eventHandlers));
-    Object.entries(eventHandlers).forEach(([event, handler]) => {
-      console.log('🔌 Registering handler for event:', event);
-      socket.on(event, handler);
+    const handlers = handlersRef.current;
+    const eventNames = Object.keys(handlers);
+
+    // Only register handlers that haven't been registered yet
+    eventNames.forEach((event) => {
+      if (!registeredRef.current.has(event)) {
+        socket.on(event, handlers[event]);
+        registeredRef.current.add(event);
+      }
     });
 
     return () => {
-      console.log('🔌 useSocketEvents: Cleaning up event handlers');
-      Object.entries(eventHandlers).forEach(([event, handler]) => {
-        socket.off(event, handler);
+      // Clean up only registered handlers
+      registeredRef.current.forEach((event) => {
+        if (handlers[event]) {
+          socket.off(event, handlers[event]);
+        }
       });
+      registeredRef.current.clear();
     };
-  }, [socket, eventHandlers]);
+  }, [socket]); // Only depend on socket, not eventHandlers
 };
 
 export default useSocketEvents;

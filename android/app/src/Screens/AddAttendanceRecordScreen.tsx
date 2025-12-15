@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import useAxios from '../hooks/useAxios';
 import FormField from '../components/task/FormField';
@@ -26,8 +26,8 @@ interface Employee {
 const statusOptions = [
   { label: 'Present', value: 'Present' },
   { label: 'Absent', value: 'Absent' },
-  { label: 'Late', value: 'Late' },
   { label: 'Half Day', value: 'Half Day' },
+  { label: 'On Leave', value: 'On Leave' },
 ];
 
 const arrivalStatusOptions = [
@@ -60,6 +60,21 @@ export default function AddAttendanceRecordScreen() {
     loadEmployees();
   }, []);
 
+  // Reset form when screen is focused (user navigates to this screen)
+  useFocusEffect(
+    useCallback(() => {
+      // Reset form to default state when screen is focused
+      setEmployeeId('');
+      setDate(null);
+      setStatus('Present');
+      setCheckInTime('');
+      setCheckOutTime('');
+      setArrivalStatus('');
+      setNotes('');
+      setErrors({});
+    }, [])
+  );
+
   const loadEmployees = async () => {
     try {
       setLoadingEmployees(true);
@@ -86,9 +101,19 @@ export default function AddAttendanceRecordScreen() {
     if (!employeeId) newErrors.employeeId = 'Employee is required';
     if (!date) newErrors.date = 'Date is required';
     if (!status) newErrors.status = 'Status is required';
-    if (!checkInTime) newErrors.checkInTime = 'Check in time is required';
-    if (checkOutTime && checkOutTime <= checkInTime) {
-      newErrors.checkOutTime = 'Check out time must be after check in time';
+    
+    // If status is Absent, don't require check-in/check-out times
+    if (status === 'Absent') {
+      // Clear check-in/check-out times and arrival status for absent employees
+      setCheckInTime('');
+      setCheckOutTime('');
+      setArrivalStatus('');
+    } else {
+      // For non-absent statuses, require check-in time
+      if (!checkInTime) newErrors.checkInTime = 'Check in time is required';
+      if (checkOutTime && checkOutTime <= checkInTime) {
+        newErrors.checkOutTime = 'Check out time must be after check in time';
+      }
     }
 
     setErrors(newErrors);
@@ -108,9 +133,12 @@ export default function AddAttendanceRecordScreen() {
         employeeId,
         date: date!.toISOString().split('T')[0],
         status,
-        checkInTime,
-        checkOutTime: checkOutTime || undefined,
-        arrivalStatus: arrivalStatus || undefined,
+        // Only include times and arrival status if not Absent
+        ...(status !== 'Absent' && {
+          checkInTime,
+          checkOutTime: checkOutTime || undefined,
+          arrivalStatus: arrivalStatus || undefined,
+        }),
         notes: notes.trim() || undefined,
       };
 
@@ -119,6 +147,16 @@ export default function AddAttendanceRecordScreen() {
         url: '/attendance',
         data: payload,
       });
+
+      // Reset form after successful submission
+      setEmployeeId('');
+      setDate(null);
+      setStatus('Present');
+      setCheckInTime('');
+      setCheckOutTime('');
+      setArrivalStatus('');
+      setNotes('');
+      setErrors({});
 
       Alert.alert('Success', 'Attendance record added successfully', [
         {
@@ -202,6 +240,12 @@ export default function AddAttendanceRecordScreen() {
                 onSelect={(value) => {
                   setStatus(value);
                   if (errors.status) setErrors({ ...errors, status: '' });
+                  // Clear times and arrival status if Absent
+                  if (value === 'Absent') {
+                    setCheckInTime('');
+                    setCheckOutTime('');
+                    setArrivalStatus('');
+                  }
                 }}
                 placeholder="Select status"
                 error={errors.status}
@@ -210,40 +254,43 @@ export default function AddAttendanceRecordScreen() {
             <View style={styles.column}>
               <TimePickerField
                 label="Check In Time"
-                required
+                required={status !== 'Absent'}
                 value={checkInTime}
                 onChange={(time) => {
                   setCheckInTime(time);
                   if (errors.checkInTime) setErrors({ ...errors, checkInTime: '' });
                 }}
                 error={errors.checkInTime}
+                disabled={status === 'Absent'}
               />
             </View>
           </View>
 
           {/* Check Out Time and Arrival Status */}
-          <View style={styles.twoColumn}>
-            <View style={styles.column}>
-              <TimePickerField
-                label="Check Out Time"
-                value={checkOutTime}
-                onChange={(time) => {
-                  setCheckOutTime(time);
-                  if (errors.checkOutTime) setErrors({ ...errors, checkOutTime: '' });
-                }}
-                error={errors.checkOutTime}
-              />
+          {status !== 'Absent' && (
+            <View style={styles.twoColumn}>
+              <View style={styles.column}>
+                <TimePickerField
+                  label="Check Out Time"
+                  value={checkOutTime}
+                  onChange={(time) => {
+                    setCheckOutTime(time);
+                    if (errors.checkOutTime) setErrors({ ...errors, checkOutTime: '' });
+                  }}
+                  error={errors.checkOutTime}
+                />
+              </View>
+              <View style={styles.column}>
+                <DropdownField
+                  label="Arrival Status"
+                  value={arrivalStatus}
+                  options={arrivalStatusOptions}
+                  onSelect={setArrivalStatus}
+                  placeholder="Select an option"
+                />
+              </View>
             </View>
-            <View style={styles.column}>
-              <DropdownField
-                label="Arrival Status (Manual)"
-                value={arrivalStatus}
-                options={arrivalStatusOptions}
-                onSelect={setArrivalStatus}
-                placeholder="Select an option"
-              />
-            </View>
-          </View>
+          )}
 
           {/* Notes */}
           <FormField

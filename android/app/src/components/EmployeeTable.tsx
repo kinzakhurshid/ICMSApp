@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Alert,
   ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -31,6 +31,7 @@ interface Employee {
 const EmployeeTable: React.FC = () => {
   const navigation = useNavigation();
   const { callApi } = useAxios();
+
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -47,9 +48,8 @@ const EmployeeTable: React.FC = () => {
         method: 'GET',
         url: '/employee',
       });
-      
-      // Handle different response structures
-      let employeesData = [];
+
+      let employeesData: any[] = [];
       if (Array.isArray(response)) {
         employeesData = response;
       } else if (response && Array.isArray(response.data)) {
@@ -59,12 +59,7 @@ const EmployeeTable: React.FC = () => {
       } else if (response && response.data) {
         employeesData = response.data;
       }
-      
-      console.log('Employee API Response:', response);
-      console.log('Parsed Employees Data:', employeesData);
-      console.log('Number of employees:', employeesData.length);
-      
-      // Map API response to Employee interface
+
       const mappedEmployees: Employee[] = employeesData.map((emp: any) => ({
         _id: emp._id || emp.id || '',
         firstName: emp.firstName || emp.fullName?.split(' ')[0] || '',
@@ -78,9 +73,7 @@ const EmployeeTable: React.FC = () => {
         gender: emp.gender || 'N/A',
         avatar: emp.avatar || emp.profileImage || emp.profilePicture,
       }));
-      
-      console.log('Mapped Employees:', mappedEmployees);
-      console.log('Mapped Employees Count:', mappedEmployees.length);
+
       setEmployees(mappedEmployees);
     } catch (error) {
       console.error('Error fetching employees:', error);
@@ -92,10 +85,8 @@ const EmployeeTable: React.FC = () => {
   };
 
   const handleSelectEmployee = (id: string) => {
-    setSelectedIds(prev => 
-      prev.includes(id) 
-        ? prev.filter(empId => empId !== id)
-        : [...prev, id]
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(empId => empId !== id) : [...prev, id],
     );
   };
 
@@ -114,14 +105,14 @@ const EmployeeTable: React.FC = () => {
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: () => deleteEmployee(id) },
-      ]
+      ],
     );
   };
 
   const deleteEmployee = async (id: string) => {
     try {
       await callApi({ method: 'DELETE', url: `/employee/${id}` });
-      setEmployees(employees.filter(emp => emp._id !== id));
+      setEmployees(prev => prev.filter(emp => emp._id !== id));
       Alert.alert('Success', 'Employee deleted successfully');
     } catch (error) {
       console.error('Error deleting employee:', error);
@@ -147,28 +138,18 @@ const EmployeeTable: React.FC = () => {
       (emp.position || '').toLowerCase().includes(search)
     );
   });
-  
-  console.log('Filtered Employees Count:', filteredEmployees.length);
-  console.log('Search Term:', searchTerm);
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
-    
     try {
       const date = new Date(dateString);
-      
-      // Check if date is valid
-      if (isNaN(date.getTime())) {
-        return 'Invalid Date';
-      }
-      
+      if (isNaN(date.getTime())) return 'Invalid Date';
       return date.toLocaleDateString('en-GB', {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
       });
-    } catch (error) {
-      console.error('Error formatting date:', error);
+    } catch {
       return 'Invalid Date';
     }
   };
@@ -191,22 +172,28 @@ const EmployeeTable: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Employees</Text>
+
         <View style={styles.headerActions}>
           <View style={styles.searchContainer}>
             <Icon name="search" size={20} color="#666" />
             <TextInput
               style={styles.searchInput}
               placeholder="Search..."
-              placeholderTextColor="#999"
+              placeholderTextColor="#666"
               value={searchTerm}
               onChangeText={setSearchTerm}
             />
           </View>
-          
-          <TouchableOpacity style={styles.filterButton}>
+
+          <TouchableOpacity
+            style={styles.filterButton}
+            onPress={() => {
+              Alert.alert('Filter', 'Filter options will be available here');
+            }}
+          >
             <Icon name="filter-list" size={20} color="#666" />
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={styles.exportButton}
             onPress={() => {
@@ -238,32 +225,36 @@ const EmployeeTable: React.FC = () => {
             <Icon name="download" size={16} color="white" />
             <Text style={styles.exportText}>Export All</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.addButton}
             onPress={() => (navigation as any).navigate('CreateEmployee')}
           >
             <Icon name="add" size={16} color="white" />
-            <Text style={styles.addText}>+ Add</Text>
+            <Text style={styles.addText}>Add</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Table */}
       <ScrollView
-        showsVerticalScrollIndicator={true}
+        showsVerticalScrollIndicator
         horizontal
-        showsHorizontalScrollIndicator={true}
+        showsHorizontalScrollIndicator
         style={styles.tableScrollContainer}
       >
         <View style={styles.tableContainer}>
-          {/* Table Header */}
+          {/* Header row */}
           <View style={styles.tableHeader}>
             <TouchableOpacity style={styles.checkboxHeader} onPress={handleSelectAll}>
-              <Icon 
-                name={selectedIds.length === employees.length ? "check-box" : "check-box-outline-blank"} 
-                size={20} 
-                color="#666" 
+              <Icon
+                name={
+                  selectedIds.length === employees.length && employees.length > 0
+                    ? 'check-box'
+                    : 'check-box-outline-blank'
+                }
+                size={20}
+                color="#666"
               />
             </TouchableOpacity>
             <Text style={[styles.headerText, styles.srCol]}>SR#</Text>
@@ -276,12 +267,12 @@ const EmployeeTable: React.FC = () => {
             <Text style={[styles.headerText, styles.actionsCol]}>AC</Text>
           </View>
 
-          {/* Table Rows */}
+          {/* Rows */}
           {filteredEmployees.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>
-                {employees.length === 0 
-                  ? 'No employees found' 
+                {employees.length === 0
+                  ? 'No employees found'
                   : `No employees match "${searchTerm}"`}
               </Text>
             </View>
@@ -293,19 +284,26 @@ const EmployeeTable: React.FC = () => {
                 activeOpacity={0.7}
                 onPress={() => handleViewEmployee(employee._id)}
               >
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.checkboxCell}
-                  onPress={() => handleSelectEmployee(employee._id)}
+                  onPress={e => {
+                    e.stopPropagation();
+                    handleSelectEmployee(employee._id);
+                  }}
                 >
-                  <Icon 
-                    name={selectedIds.includes(employee._id) ? "check-box" : "check-box-outline-blank"} 
-                    size={20} 
-                    color="#666" 
+                  <Icon
+                    name={
+                      selectedIds.includes(employee._id)
+                        ? 'check-box'
+                        : 'check-box-outline-blank'
+                    }
+                    size={20}
+                    color={selectedIds.includes(employee._id) ? '#FF6B35' : '#666'}
                   />
                 </TouchableOpacity>
-                
+
                 <Text style={[styles.cellText, styles.srCol]}>{index + 1}</Text>
-                
+
                 <View style={styles.nameCell}>
                   <View style={styles.avatarContainer}>
                     {employee.avatar ? (
@@ -314,19 +312,27 @@ const EmployeeTable: React.FC = () => {
                       </View>
                     ) : (
                       <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>{getInitials(employee.firstName, employee.lastName)}</Text>
+                        <Text style={styles.avatarText}>
+                          {getInitials(employee.firstName, employee.lastName)}
+                        </Text>
                       </View>
                     )}
                   </View>
-                  <Text style={styles.nameText}>{employee.firstName} {employee.lastName}</Text>
+                  <Text style={styles.nameText}>
+                    {employee.firstName} {employee.lastName}
+                  </Text>
                 </View>
-                
+
                 <Text style={[styles.cellText, styles.emailCol]}>{employee.email}</Text>
                 <Text style={[styles.cellText, styles.positionCol]}>{employee.position}</Text>
-                <Text style={[styles.cellText, styles.contactCol]}>{employee.contactNumber || employee.contact || 'N/A'}</Text>
-                <Text style={[styles.cellText, styles.joiningCol]}>{formatDate(employee.hireDate || employee.joiningDate)}</Text>
+                <Text style={[styles.cellText, styles.contactCol]}>
+                  {employee.contactNumber || employee.contact || 'N/A'}
+                </Text>
+                <Text style={[styles.cellText, styles.joiningCol]}>
+                  {formatDate(employee.hireDate || employee.joiningDate)}
+                </Text>
                 <Text style={[styles.cellText, styles.genderCol]}>{employee.gender}</Text>
-                
+
                 <View style={styles.actionsContainer}>
                   <TouchableOpacity
                     style={styles.actionButton}
@@ -530,6 +536,7 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: 4,
     backgroundColor: '#F5F5F5',
+    marginVertical: 2,
   },
   emptyContainer: {
     padding: 40,
@@ -544,3 +551,5 @@ const styles = StyleSheet.create({
 });
 
 export default EmployeeTable;
+
+

@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import useAxios from '../hooks/useAxios';
+import Svg, { Circle } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
 
@@ -58,6 +59,8 @@ const HRDashboardScreen: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
+  const [showFilterModal, setShowFilterModal] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -206,11 +209,106 @@ const HRDashboardScreen: React.FC = () => {
     </View>
   );
 
-  const renderEmployeeRow = (employee: Employee, index: number) => (
-    <View key={employee.id} style={styles.employeeRow}>
-      <View style={styles.employeeCheckbox}>
-        <Icon name="check-box-outline-blank" size={20} color="#666" />
+  const toggleEmployeeSelection = (employeeId: string) => {
+    setSelectedEmployees(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(employeeId)) {
+        newSet.delete(employeeId);
+      } else {
+        newSet.add(employeeId);
+      }
+      return newSet;
+    });
+  };
+
+  const renderDonutChart = (malePercentage: number, femalePercentage: number) => {
+    const size = 120;
+    const stroke = 20;
+    const radius = (size - stroke) / 2;
+    const circumference = 2 * Math.PI * radius;
+    
+    // Normalize percentages to ensure they sum to 100%
+    const total = malePercentage + femalePercentage;
+    const normalizedMale = total > 0 ? (malePercentage / total) * 100 : 0;
+    const normalizedFemale = total > 0 ? (femalePercentage / total) * 100 : 0;
+    
+    // Convert percentages to decimals (0-1)
+    const maleProgress = normalizedMale / 100;
+    const femaleProgress = normalizedFemale / 100;
+    
+    // Calculate dash arrays - each segment takes up its percentage of the circumference
+    const maleDash = circumference * maleProgress;
+    const femaleDash = circumference * femaleProgress;
+    
+    return (
+      <View style={styles.donutChartWrapper}>
+        <Svg width={size} height={size} style={styles.donutSvg}>
+          {/* Background track (gray) */}
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke="#E5E7EB"
+            strokeWidth={stroke}
+            fill="none"
+          />
+          {/* Male segment (blue) - starts at top (rotation -90) */}
+          {normalizedMale > 0 && (
+            <Circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke="#3B82F6"
+              strokeWidth={stroke}
+              strokeDasharray={`${maleDash} ${circumference}`}
+              strokeDashoffset="0"
+              strokeLinecap="round"
+              fill="none"
+              rotation="-90"
+              originX={size / 2}
+              originY={size / 2}
+            />
+          )}
+          {/* Female segment (pink) - starts where male ends */}
+          {normalizedFemale > 0 && (
+            <Circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke="#EC4899"
+              strokeWidth={stroke}
+              strokeDasharray={`${femaleDash} ${circumference}`}
+              strokeDashoffset={-maleDash}
+              strokeLinecap="round"
+              fill="none"
+              rotation="-90"
+              originX={size / 2}
+              originY={size / 2}
+            />
+          )}
+        </Svg>
+        <View style={styles.donutCenter}>
+          <Text style={styles.donutTotal}>Total</Text>
+          <Text style={styles.donutPercent}>100%</Text>
+        </View>
       </View>
+    );
+  };
+
+  const renderEmployeeRow = (employee: Employee, index: number) => {
+    const isSelected = selectedEmployees.has(employee.id);
+    return (
+    <View key={employee.id} style={styles.employeeRow}>
+      <TouchableOpacity 
+        style={styles.employeeCheckbox}
+        onPress={() => toggleEmployeeSelection(employee.id)}
+      >
+        <Icon 
+          name={isSelected ? "check-box" : "check-box-outline-blank"} 
+          size={20} 
+          color={isSelected ? "#FF6B35" : "#666"} 
+        />
+      </TouchableOpacity>
       <Text style={styles.employeeSr}>{index + 1}</Text>
       <View style={styles.employeeInfo}>
         <View style={styles.employeeAvatar}>
@@ -226,7 +324,8 @@ const HRDashboardScreen: React.FC = () => {
       <Text style={styles.employeeDate}>{employee.joiningDate}</Text>
       <Text style={styles.employeeGender}>{employee.gender}</Text>
     </View>
-  );
+    );
+  };
 
   if (loading) {
     return (
@@ -253,7 +352,13 @@ const HRDashboardScreen: React.FC = () => {
         <TouchableOpacity onPress={() => safeNavigate('HRAttendance')}>
           {renderDashboardCard('Attendance Rate', `${stats?.attendanceRate || 0}%`, stats?.attendanceGrowth || 0, '#9C27B0', 'schedule')}
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => safeNavigate('Payroll')}>
+        <TouchableOpacity onPress={() => {
+          try {
+            (navigation as any).navigate('PayrollScreen');
+          } catch (error) {
+            safeNavigate('Payroll');
+          }
+        }}>
           {renderDashboardCard('Total Payroll', `Rs ${(stats?.totalPayroll || 0).toLocaleString()}K`, stats?.payrollGrowth || 0, '#2196F3', 'account-balance-wallet')}
         </TouchableOpacity>
       </View>
@@ -262,26 +367,26 @@ const HRDashboardScreen: React.FC = () => {
       {/* Employee Structure */}
       <View style={styles.structureCard}>
         <Text style={styles.structureTitle}>Employee Structure</Text>
-        <View style={styles.donutChart}>
-          <View style={styles.donutCenter}>
-            <Text style={styles.donutTotal}>Total</Text>
-            <Text style={styles.donutPercent}>100%</Text>
-          </View>
+        <View style={styles.donutChartContainer}>
+          {renderDonutChart(
+            stats?.genderStats?.malePercentage || 0,
+            stats?.genderStats?.femalePercentage || 0
+          )}
         </View>
         <View style={styles.genderStats}>
           <View style={styles.genderItem}>
             <Text style={styles.genderLabel}>Male</Text>
             <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${stats?.genderStats?.malePercentage || 70}%`, backgroundColor: '#3B82F6' }]} />
+              <View style={[styles.progressFill, { width: `${stats?.genderStats?.malePercentage || 0}%`, backgroundColor: '#3B82F6' }]} />
             </View>
-            <Text style={styles.genderPercent}>{stats?.genderStats?.malePercentage || 70}%</Text>
+            <Text style={styles.genderPercent}>{stats?.genderStats?.malePercentage || 0}%</Text>
           </View>
           <View style={styles.genderItem}>
             <Text style={styles.genderLabel}>Female</Text>
             <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${stats?.genderStats?.femalePercentage || 30}%`, backgroundColor: '#EC4899' }]} />
+              <View style={[styles.progressFill, { width: `${stats?.genderStats?.femalePercentage || 0}%`, backgroundColor: '#EC4899' }]} />
             </View>
-            <Text style={styles.genderPercent}>{stats?.genderStats?.femalePercentage || 30}%</Text>
+            <Text style={styles.genderPercent}>{stats?.genderStats?.femalePercentage || 0}%</Text>
           </View>
         </View>
       </View>
@@ -292,13 +397,55 @@ const HRDashboardScreen: React.FC = () => {
         <View style={styles.employeeHeader}>
           <Text style={styles.employeeCardTitle}>Employees</Text>
           <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.exportButton} onPress={() => Alert.alert('Export', 'Export functionality will be implemented')}>
+            <TouchableOpacity 
+              style={styles.exportButton} 
+              onPress={async () => {
+                try {
+                  // Export selected employees or all if none selected
+                  const employeesToExport = selectedEmployees.size > 0
+                    ? filteredEmployees.filter(emp => selectedEmployees.has(emp.id))
+                    : filteredEmployees;
+                  
+                  if (employeesToExport.length === 0) {
+                    Alert.alert('No Data', 'No employees to export');
+                    return;
+                  }
+
+                  // Create CSV content
+                  const headers = ['SR#', 'NAME', 'EMAIL', 'POSITION', 'CONTACT', 'JOINING DATE', 'GENDER'];
+                  const rows = employeesToExport.map((emp, idx) => [
+                    idx + 1,
+                    emp.name,
+                    emp.email,
+                    emp.position,
+                    emp.contact,
+                    emp.joiningDate,
+                    emp.gender
+                  ]);
+                  
+                  const csvContent = [
+                    headers.join(','),
+                    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+                  ].join('\n');
+
+                  // For React Native, we'll use a library or show the data
+                  // For now, show an alert with the data count
+                  Alert.alert(
+                    'Export Ready',
+                    `Ready to export ${employeesToExport.length} employee(s).\n\nCSV format:\n${csvContent.substring(0, 200)}...`,
+                    [{ text: 'OK' }]
+                  );
+                } catch (error) {
+                  Alert.alert('Error', 'Failed to export employees');
+                }
+              }}
+            >
               <Icon name="download" size={16} color="white" />
-              <Text style={styles.exportText}>Export All</Text>
+              <Text style={styles.exportText}>Export {selectedEmployees.size > 0 ? `${selectedEmployees.size} Selected` : 'All'}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.addButton} onPress={() => (navigation as any).navigate('CreateEmployee')}>
               <Icon name="add" size={16} color="white" />
-              <Text style={styles.addText}>+ Add</Text>
+              <Text style={styles.addText}>Add</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -310,11 +457,15 @@ const HRDashboardScreen: React.FC = () => {
             <TextInput
               style={styles.searchInput}
               placeholder="Search..."
+              placeholderTextColor="#999"
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
           </View>
-          <TouchableOpacity style={styles.filterButton}>
+          <TouchableOpacity 
+            style={styles.filterButton}
+            onPress={() => setShowFilterModal(true)}
+          >
             <Icon name="filter-list" size={20} color="#666" />
           </TouchableOpacity>
         </View>
@@ -456,15 +607,19 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 20,
   },
-  donutChart: {
+  donutChartContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  donutChartWrapper: {
     width: 120,
     height: 120,
-    borderRadius: 60,
-    backgroundColor: '#FF6B35',
     justifyContent: 'center',
     alignItems: 'center',
-    alignSelf: 'center',
-    marginBottom: 20,
+    position: 'relative',
+  },
+  donutSvg: {
+    position: 'absolute',
   },
   donutCenter: {
     width: 80,
@@ -473,6 +628,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 1,
   },
   donutTotal: {
     fontSize: 12,
@@ -569,6 +725,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 8,
     fontSize: 14,
+    color: '#333',
   },
   filterButton: {
     width: 40,

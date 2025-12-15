@@ -50,8 +50,10 @@ const SignupScreen : React.FC = () => {
     if (!adminName.trim()) {
       return 'Admin name is required';
     }
-    if (!email.includes('@')) {
-      return 'Invalid email address';
+    // Enhanced email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+      return 'Invalid email address format';
     }
     if (password.length < 6) {
       return 'Password must be at least 6 characters long';
@@ -133,6 +135,7 @@ const SignupScreen : React.FC = () => {
           <TextInput
             style={styles.input}
             placeholder="Organization Name"
+            placeholderTextColor="#999"
             value={orgName}
             onChangeText={setOrgName}
           />
@@ -140,6 +143,7 @@ const SignupScreen : React.FC = () => {
           <TextInput
             style={styles.input}
             placeholder="Admin Name"
+            placeholderTextColor="#999"
             value={adminName}
             onChangeText={setAdminName}
           />
@@ -147,6 +151,7 @@ const SignupScreen : React.FC = () => {
           <TextInput
             style={styles.input}
             placeholder="Admin Email"
+            placeholderTextColor="#999"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -155,6 +160,7 @@ const SignupScreen : React.FC = () => {
           <TextInput
             style={styles.input}
             placeholder="Password"
+            placeholderTextColor="#999"
             secureTextEntry
             value={password}
             onChangeText={setPassword}
@@ -163,6 +169,7 @@ const SignupScreen : React.FC = () => {
           <TextInput
             style={styles.input}
             placeholder="Confirm Password"
+            placeholderTextColor="#999"
             secureTextEntry
             value={confirmPassword}
             onChangeText={setConfirmPassword}
@@ -243,6 +250,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     borderRadius: 8,
     marginBottom: 10,
+    color: '#333',
+    fontSize: 16,
   },
   button: {
     backgroundColor: '#ff4500',

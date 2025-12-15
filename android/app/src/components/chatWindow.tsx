@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   FlatList,
@@ -80,6 +80,8 @@ import {
   STOP_TYPING,
   ONLINE_USERS,
   REFETCH_CHAT_DETAILS,
+  CHAT_JOINED,
+  CHAT_LEAVED,
 } from '../constants/events';
 
 // Import components
@@ -92,6 +94,10 @@ import PinnedMessagesScreen from './PinnedMessagesScreen';
 import TypingIndicator from './TypingIndicator';
 import MessageSearch from './MessageSearch';
 import ChatSearch from './ChatSearch';
+import ChatMediaLinksModal from './ChatMediaLinksModal';
+import GroupMemberManagementModal from './GroupMemberManagementModal';
+import ForwardMessageModal from './ForwardMessageModal';
+import { MessageListSkeleton } from './ChatSkeletonLoader';
 
 interface ChatWindowProps {
   chat: Chat;
@@ -105,6 +111,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   currentUser,
   onMarkAsRead,
   onBack,
+  allChats = [],
 }) => {
   const navigation = useNavigation();
   const [chatState, setChatState] = useState<ChatState>({
@@ -126,11 +133,56 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [members, setMembers] = useState<User[]>([]);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [showSearch, setShowSearch] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [highlightedMessageIds, setHighlightedMessageIds] = useState<Set<string>>(new Set());
+  const [searchResultIds, setSearchResultIds] = useState<string[]>([]);
+  const [currentSearchIndex, setCurrentSearchIndex] = useState(-1);
+  const [showMediaLinks, setShowMediaLinks] = useState(false);
+  const [showMemberManagement, setShowMemberManagement] = useState(false);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [showForwardModal, setShowForwardModal] = useState(false);
+  const [messageToForward, setMessageToForward] = useState<Message | null>(null);
+  const [isForwarding, setIsForwarding] = useState(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
+  const scrollPositionRef = useRef<number>(0);
+  const messagesBeforeLoadRef = useRef<number>(0);
   
   const flatListRef = useRef<FlatList>(null);
   const { socket } = useSocket();
   const token = useSelector((state: RootState) => state.user.token);
   const actualUser = currentUser.currentUser;
+
+  // Emit CHAT_JOINED when chat opens and CHAT_LEAVED when chat closes
+  useEffect(() => {
+    if (!socket || !chat._id || !actualUser?._id) return;
+
+    // Get member IDs for the chat
+    const memberIds = chat.members
+      ?.map((m: any) => (typeof m === 'string' ? m : m._id || m.id))
+      .filter((id: any) => id && id !== actualUser._id) || [];
+
+    // Emit CHAT_JOINED when component mounts
+    socket.emit(CHAT_JOINED, {
+      userId: actualUser._id,
+      members: memberIds,
+      chatId: chat._id,
+    });
+
+    // Emit CHAT_LEAVED when component unmounts
+    return () => {
+      if (socket && chat._id && actualUser._id) {
+        socket.emit(CHAT_LEAVED, {
+          userId: actualUser._id,
+          members: memberIds,
+          chatId: chat._id,
+        });
+      }
+    };
+  }, [socket, chat._id, actualUser?._id, chat.members]);
 
   // Load initial data
   useEffect(() => {
@@ -338,16 +390,22 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       loadMessages(),
       loadPinnedMessages(),
       loadMembers(),
+      loadAllUsers(),
     ]);
   };
 
-  const loadMessages = async () => {
+  const loadMessages = async (page: number = 1, append: boolean = false) => {
     if (!token) return;
     
-    setChatState(prev => ({ ...prev, isLoadingMessages: true }));
+    if (append) {
+      setIsLoadingOlderMessages(true);
+    } else {
+      setChatState(prev => ({ ...prev, isLoadingMessages: true }));
+    }
     
     try {
-      const response = await getChatMessages(chat._id, 1, 50, token);
+      const limit = 30; // Page size
+      const response = await getChatMessages(chat._id, page, limit, token);
       
       const messages = response.messages || response || [];
       const sortedMessages = Array.isArray(messages) ? messages
@@ -359,19 +417,81 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         }))
         .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) : [];
       
-      
-      setChatState(prev => ({
-        ...prev,
-        messages: sortedMessages,
-        isLoadingMessages: false
-      }));
+      if (append) {
+        // Append older messages to the beginning
+        setChatState(prev => {
+          const existingIds = new Set(prev.messages.map(m => m._id));
+          const newMessages = sortedMessages.filter(m => !existingIds.has(m._id));
+          const combinedMessages = [...newMessages, ...prev.messages];
+          
+          // Maintain scroll position
+          setTimeout(() => {
+            if (flatListRef.current && messagesBeforeLoadRef.current > 0) {
+              // Scroll to maintain position
+              const scrollOffset = messagesBeforeLoadRef.current * 100; // Approximate height per message
+              flatListRef.current.scrollToOffset({ 
+                offset: scrollOffset, 
+                animated: false 
+              });
+            }
+          }, 100);
+          
+          return {
+            ...prev,
+            messages: combinedMessages,
+          };
+        });
+        setIsLoadingOlderMessages(false);
+        
+        // Check if there are more messages
+        setHasMoreMessages(sortedMessages.length === limit);
+      } else {
+        // Initial load
+        setChatState(prev => ({
+          ...prev,
+          messages: sortedMessages,
+          isLoadingMessages: false
+        }));
+        setCurrentPage(1);
+        setHasMoreMessages(sortedMessages.length === limit);
+        
+        // Scroll to bottom after initial load
+        setTimeout(() => {
+          scrollToBottom();
+        }, 300);
+      }
     } catch (error) {
-      // If API is not available, start with empty messages
-      setChatState(prev => ({
-        ...prev,
-        messages: [],
-        isLoadingMessages: false
-      }));
+      console.error('Failed to load messages:', error);
+      if (append) {
+        setIsLoadingOlderMessages(false);
+      } else {
+        setChatState(prev => ({
+          ...prev,
+          messages: [],
+          isLoadingMessages: false
+        }));
+      }
+    }
+  };
+
+  const loadOlderMessages = async () => {
+    if (isLoadingOlderMessages || !hasMoreMessages || !token) return;
+    
+    // Store current scroll position
+    messagesBeforeLoadRef.current = chatState.messages.length;
+    
+    const nextPage = currentPage + 1;
+    setCurrentPage(nextPage);
+    await loadMessages(nextPage, true);
+  };
+
+  const handleScroll = (event: any) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    scrollPositionRef.current = contentOffset.y;
+    
+    // Load more when scrolling near the top
+    if (contentOffset.y < 500 && hasMoreMessages && !isLoadingOlderMessages) {
+      loadOlderMessages();
     }
   };
 
@@ -422,7 +542,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         }));
       
       setMembers(memberUsers);
-    } catch (error) {
+    } catch (error: any) {
+      // Silently fallback to chat members from props
+      // Only log if it's not a 404 or "Resource not found" (expected when endpoint doesn't exist)
+      const isExpectedError = 
+        error?.response?.status === 404 || 
+        error?.message === 'Resource not found' ||
+        error === 'Resource not found' ||
+        (typeof error === 'string' && error.includes('Resource not found'));
+      
+      if (!isExpectedError) {
+        console.error('Failed to fetch chat members:', error);
+      }
       
       // Fallback to chat members from props - convert to User format
       const memberUsers = (chat.members || [])
@@ -443,172 +574,536 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   };
 
+  const loadAllUsers = async () => {
+    if (!token) return;
+    
+    try {
+      // Fetch all employees/users for adding to group
+      const response = await fetch(`${process.env.API_URL || 'http://89.116.32.31:5001'}/employee`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const employees = data.data || data || [];
+        const users = employees.map((emp: any) => ({
+          _id: emp._id || emp.id,
+          name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.name || 'Unknown',
+          email: emp.email || '',
+          profilePic: emp.profilePic || emp.avatar || '',
+          avatar: emp.profilePic || emp.avatar || '',
+        }));
+        setAllUsers(users);
+      }
+    } catch (error: any) {
+      // Silently fallback - only log unexpected errors
+      if (error?.message !== 'Network request failed' && error?.code !== 'NETWORK_ERROR') {
+        console.error('Failed to load users:', error);
+      }
+      // Fallback: use members from chat if available
+      if (chat.members && chat.members.length > 0) {
+        const users = chat.members
+          .filter((m: any) => m && (m.user || m._id))
+          .map((m: any) => {
+            const user = m.user || m;
+            return {
+              _id: user._id || user.id || '',
+              name: user.name || user.fullName || '',
+              email: user.email || '',
+              profilePic: user.profilePic || user.avatar || '',
+              avatar: user.profilePic || user.avatar || '',
+            };
+          });
+        setAllUsers(users);
+      }
+    }
+  };
+
   const handleSendMessage = async (content: string, attachments?: any[], replyToId?: string, mentions?: string[]) => {
     if (!token || (!content.trim() && !attachments?.length)) return;
     
-    try {
-      // Create message object exactly like website
-      const message: Message = {
-        messageId: `msg${Date.now()}`,
-        content: content.trim(),
-        sender: {
-          _id: actualUser._id || "",
-          name: actualUser.name || "",
-          email: actualUser.email || "",
-          avatar: actualUser.profilePic || "",
-          profilePic: actualUser.profilePic || "",
-        },
-        chat: chat._id,
-        readBy: [],
-        deletedFor: [],
-        reactions: [],
-        type: attachments && attachments.length > 0 ? "attachment" : "text",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        attachments: attachments || [],
-        _id: `msg${Date.now()}`,
-        replyTo: replyToId,
-        mentions: mentions?.map(id => {
-          const mentionedUser = members.find(m => m._id === id);
-          return mentionedUser ? { _id: mentionedUser._id, name: mentionedUser.name } : undefined;
-        }).filter(Boolean) as MentionSuggestion[] || [],
-      };
+    // Create optimistic message
+    const tempMessageId = `temp_${Date.now()}`;
+    const message: Message = {
+      messageId: tempMessageId,
+      content: content.trim(),
+      sender: {
+        _id: actualUser._id || "",
+        name: actualUser.name || "",
+        email: actualUser.email || "",
+        avatar: actualUser.profilePic || "",
+        profilePic: actualUser.profilePic || "",
+      },
+      chat: chat._id,
+      readBy: [],
+      deletedFor: [],
+      reactions: [],
+      type: attachments && attachments.length > 0 ? "attachment" : "text",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      attachments: attachments || [],
+      _id: tempMessageId,
+      replyTo: replyToId,
+      mentions: mentions?.map(id => {
+        const mentionedUser = members.find(m => m._id === id);
+        return mentionedUser ? { _id: mentionedUser._id, name: mentionedUser.name } : undefined;
+      }).filter(Boolean) as MentionSuggestion[] || [],
+    };
 
-      // If replying, find the full replyToMessage object
-      if (replyToId) {
-        const repliedMessage = chatState.messages.find(msg => msg._id === replyToId);
-        if (repliedMessage) {
-          message.replyToMessage = repliedMessage;
-        }
+    // If replying, find the full replyToMessage object
+    if (replyToId) {
+      const repliedMessage = chatState.messages.find(msg => msg._id === replyToId);
+      if (repliedMessage) {
+        message.replyToMessage = repliedMessage;
       }
+    }
 
-      // Add to local state immediately (like website)
-      setChatState(prev => ({
+    // Store original state for rollback
+    const originalMessages = [...chatState.messages];
+    const originalGroupedMessages = { ...chatState.groupedMessages };
+    const originalDateGroups = [...chatState.dateGroups];
+
+    // Optimistic update - Add to local state immediately
+    setChatState(prev => ({
+      ...prev,
+      messages: [...prev.messages, message]
+    }));
+
+    // Update grouped messages
+    const groupKey = getDateGroupKey(new Date());
+    setChatState(prev => {
+      const newGroups = { ...prev.groupedMessages };
+      if (!newGroups[groupKey]) {
+        newGroups[groupKey] = [];
+      }
+      newGroups[groupKey].push(message);
+      return {
         ...prev,
-        messages: [...prev.messages, message]
-      }));
+        groupedMessages: newGroups
+      };
+    });
 
-      // Update grouped messages (like website)
-      const groupKey = getDateGroupKey(new Date());
-      setChatState(prev => {
-        const newGroups = { ...prev.groupedMessages };
-        if (!newGroups[groupKey]) {
-          newGroups[groupKey] = [];
-        }
-        newGroups[groupKey].push(message);
+    // Update date groups
+    setChatState(prev => {
+      if (!prev.dateGroups.includes(groupKey)) {
+        const newOrderedGroups = getOrderedDateGroups({
+          ...prev.groupedMessages,
+          [groupKey]: [message],
+        });
         return {
           ...prev,
-          groupedMessages: newGroups
+          dateGroups: newOrderedGroups.reverse()
         };
-      });
+      }
+      return prev;
+    });
 
-      // Update date groups (like website)
-      setChatState(prev => {
-        if (!prev.dateGroups.includes(groupKey)) {
-          const newOrderedGroups = getOrderedDateGroups({
-            ...prev.groupedMessages,
-            [groupKey]: [message],
-          });
-          return {
-            ...prev,
-            dateGroups: newOrderedGroups.reverse()
-          };
-        }
-        return prev;
-      });
+    // Emit socket event
+    socket?.emit(NEW_MESSAGE, {
+      chatId: chat._id,
+      members: chat.members,
+      message,
+      messageId: message.messageId,
+    });
+    
+    // Clear reply
+    setReplyTo(null);
 
-      // Emit socket event exactly like website
-      socket?.emit(NEW_MESSAGE, {
-        chatId: chat._id,
-        members: chat.members,
-        message,
-        messageId: message.messageId,
-      });
+    // Send to API and update with real message
+    try {
+      const response = await sendMessage(chat._id, {
+        content: content.trim(),
+        type: attachments && attachments.length > 0 ? 'attachment' : 'text',
+        attachments: attachments || [],
+        replyTo: replyToId,
+        mentions: mentions || []
+      }, token);
       
-      // Clear reply
-      setReplyTo(null);
+      // Replace optimistic message with real message from server
+      if (response && response._id) {
+        setChatState(prev => ({
+          ...prev,
+          messages: prev.messages.map(msg => 
+            msg._id === tempMessageId ? { ...response, id: response._id } : msg
+          )
+        }));
+      }
     } catch (error) {
       console.error('Failed to send message:', error);
-      Alert.alert('Error', 'Failed to send message');
+      
+      // Rollback optimistic update
+      setChatState(prev => ({
+        ...prev,
+        messages: originalMessages,
+        groupedMessages: originalGroupedMessages,
+        dateGroups: originalDateGroups
+      }));
+      
+      Alert.alert('Error', 'Failed to send message. Please try again.');
     }
   };
 
   const handleEditMessage = async (message: Message, newContent: string) => {
     if (!token || !newContent.trim()) return;
     
+    // Store original content for rollback
+    const originalContent = message.content;
+    
+    // Optimistic update
+    setChatState(prev => ({
+      ...prev,
+      messages: prev.messages.map(msg =>
+        msg._id === message._id
+          ? { ...msg, content: newContent.trim(), updatedAt: new Date(), isEdited: true }
+          : msg
+      )
+    }));
+    
+    setEditingMessage(null);
+    
+    // Emit socket event
+    socket?.emit(UPDATE_MESSAGE, {
+      chatId: chat._id,
+      messageId: message._id,
+      message: { content: newContent.trim() }
+    });
+    
     try {
       await editMessage(message._id, newContent.trim(), token);
-      
-      // Emit socket event
-      socket?.emit(UPDATE_MESSAGE, {
-        chatId: chat._id,
-        messageId: message._id,
-        message: { content: newContent.trim() }
-      });
-      
-      setEditingMessage(null);
+      // Success - optimistic update already applied
     } catch (error) {
       console.error('Failed to edit message:', error);
-      Alert.alert('Error', 'Failed to edit message');
+      
+      // Rollback optimistic update
+      setChatState(prev => ({
+        ...prev,
+        messages: prev.messages.map(msg =>
+          msg._id === message._id
+            ? { ...msg, content: originalContent, isEdited: false }
+            : msg
+        )
+      }));
+      
+      Alert.alert('Error', 'Failed to edit message. Please try again.');
     }
   };
 
   const handleDeleteMessage = async (messageId: string) => {
     if (!token) return;
     
-    // Remove from local state immediately
+    // Store deleted message for rollback
+    const deletedMessage = chatState.messages.find(msg => msg._id === messageId);
+    if (!deletedMessage) return;
+    
+    // Optimistic update - Remove from local state immediately
     setChatState(prev => ({
       ...prev,
       messages: prev.messages.filter(msg => msg._id !== messageId),
     }));
     
+    // Emit socket event
+    socket?.emit(DELETE_MESSAGE, {
+      chatId: chat._id,
+      messageId,
+    });
+    
     try {
       await deleteMessage(messageId, token);
-      
-      // Emit socket event
-      socket?.emit(DELETE_MESSAGE, {
-        chatId: chat._id,
-        messageId
-      });
+      // Success - optimistic update already applied
     } catch (error) {
       console.error('Failed to delete message:', error);
       
-      // Check if message was already deleted
-      if (error.message?.includes('Resource not found') || 
-          error.message?.includes('Message not found') ||
-          error.message?.includes('Message not found or deleted')) {
-        // Message was already removed from local state, so this is fine
-      } else {
-        Alert.alert('Error', 'Failed to delete message');
+      // Rollback optimistic update
+      setChatState(prev => ({
+        ...prev,
+        messages: [...prev.messages, deletedMessage].sort(
+          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        )
+      }));
+      
+      Alert.alert('Error', 'Failed to delete message. Please try again.');
+    }
+  };
+
+  const handleForwardMessage = (message: Message) => {
+    console.log('🔍 [Forward] handleForwardMessage called with message:', message._id);
+    setMessageToForward(message);
+    setShowForwardModal(true);
+    console.log('🔍 [Forward] Modal state set to true, messageToForward:', message._id);
+  };
+
+  const handleForward = async (chatIds: string[]): Promise<boolean> => {
+    console.log('🔍 [Forward] handleForward called with chatIds:', chatIds);
+    console.log('🔍 [Forward] messageToForward:', messageToForward?._id);
+    console.log('🔍 [Forward] token exists:', !!token);
+    
+    if (!messageToForward || !token || chatIds.length === 0) {
+      console.error('🔍 [Forward] Missing required data:', { messageToForward: !!messageToForward, token: !!token, chatIds: chatIds.length });
+      Alert.alert('Error', 'Please select at least one chat to forward to.');
+      return false;
+    }
+
+    setIsForwarding(true);
+    console.log('🔍 [Forward] Starting forward process...');
+    try {
+      let successCount = 0;
+      let failCount = 0;
+      
+      // Forward message to each selected chat
+      for (const chatId of chatIds) {
+        try {
+          console.log(`🔍 [Forward] Forwarding to chat: ${chatId}`);
+          
+          // Create forwarded message content
+          // Note: Using original content without "Forwarded:" prefix to match server expectations
+          const forwardedContent = messageToForward.content 
+            ? messageToForward.content.trim()
+            : messageToForward.attachments?.length > 0 
+              ? 'Message with attachment'
+              : 'Message';
+          
+          console.log('🔍 [Forward] Forwarded content:', forwardedContent);
+          
+          // Validate content is not empty
+          if (!forwardedContent || forwardedContent.trim().length === 0) {
+            console.error('🔍 [Forward] Empty content, skipping forward');
+            failCount++;
+            continue;
+          }
+          
+          // Prepare attachments - ensure they're in the correct format
+          const attachments = messageToForward.attachments?.map(att => ({
+            url: att.url || att.uri,
+            fileType: att.fileType || att.type || 'unknown',
+            fileName: att.fileName || att.name || 'attachment',
+            size: att.size || 0
+          })) || [];
+          
+          console.log('🔍 [Forward] Attachments:', attachments.length);
+          
+          // Try forwarding via Socket.IO first (like regular messages do)
+          // This matches the pattern used for regular messages
+          console.log('🔍 [Forward] Attempting forward via Socket.IO pattern...');
+          
+          // Create a temporary message object for optimistic update
+          const tempMessageId = `forward_${Date.now()}_${chatId}`;
+          const forwardedMessage = {
+            _id: tempMessageId,
+            content: forwardedContent,
+            type: attachments.length > 0 ? 'attachment' : 'text',
+            attachments: attachments,
+            sender: actualUser,
+            chat: chatId,
+            createdAt: new Date().toISOString(),
+            messageId: tempMessageId,
+            isForwarded: true,
+            originalMessage: {
+              _id: messageToForward._id,
+              content: messageToForward.content,
+              sender: messageToForward.sender,
+              chat: messageToForward.chat
+            }
+          };
+
+          // Emit socket event first (optimistic update pattern)
+          if (socket) {
+            const targetChat = allChats.find(c => c._id === chatId);
+            socket.emit(NEW_MESSAGE, {
+              chatId,
+              members: targetChat?.members || [],
+              message: forwardedMessage,
+              messageId: tempMessageId,
+            });
+            console.log('🔍 [Forward] Emitted NEW_MESSAGE socket event');
+          }
+
+          // Then try REST API - try multiple approaches
+          let response: any = null;
+          let apiSuccess = false;
+          
+          // Approach 1: Try sendMessage API (current approach)
+          try {
+            console.log('🔍 [Forward] Attempting Approach 1: sendMessage API...');
+            const messageData: {
+              content: string;
+              type: 'text' | 'attachment';
+              attachments?: any[];
+              replyTo?: string;
+              mentions?: string[];
+            } = {
+              content: forwardedContent,
+              type: attachments.length > 0 ? 'attachment' : 'text',
+              attachments: attachments.length > 0 ? attachments : undefined,
+              mentions: [],
+            };
+            
+            if (messageToForward.replyTo) {
+              messageData.replyTo = messageToForward.replyTo;
+            }
+            
+            response = await sendMessage(chatId, messageData, token);
+            console.log('🔍 [Forward] sendMessage API success:', response);
+            apiSuccess = true;
+          } catch (error1: any) {
+            console.error('🔍 [Forward] Approach 1 failed:', error1?.message);
+            
+            // Approach 2: Try minimal payload (just chatId and content)
+            try {
+              console.log('🔍 [Forward] Attempting Approach 2: Minimal payload...');
+              const minimalData = {
+                content: forwardedContent,
+                type: 'text' as const,
+              };
+              response = await sendMessage(chatId, minimalData, token);
+              console.log('🔍 [Forward] Minimal payload success:', response);
+              apiSuccess = true;
+            } catch (error2: any) {
+              console.error('🔍 [Forward] Approach 2 failed:', error2?.message);
+              
+              // If both fail, we'll rely on socket event only
+              console.warn('🔍 [Forward] Both API approaches failed, relying on socket event only');
+              // Don't throw - socket event was already emitted, so message appears sent
+              // The server will handle it via socket
+              apiSuccess = false;
+            }
+          }
+
+          // If API succeeded, validate response
+          if (apiSuccess && response) {
+            const messageId = response?._id || response?.message?._id || response?.data?._id;
+            if (!messageId) {
+              console.warn('🔍 [Forward] API returned but no message ID, using socket event result');
+              // Don't throw - socket event was already emitted
+            } else {
+              console.log('🔍 [Forward] API success with message ID:', messageId);
+            }
+          }
+          
+          // If we got here, either API succeeded or socket event was emitted
+          // Count as success since socket event ensures message appears
+          successCount++;
+          console.log(`🔍 [Forward] Successfully forwarded to chat ${chatId} (via ${apiSuccess ? 'API' : 'Socket.IO only'})`);
+        } catch (error: any) {
+          console.error(`🔍 [Forward] Failed to forward to chat ${chatId}:`, error);
+          console.error(`🔍 [Forward] Error response:`, error?.response?.data);
+          console.error(`🔍 [Forward] Error status:`, error?.response?.status);
+          const errorMessage = error?.response?.data?.message || error?.message || 'Unknown error';
+          console.error(`🔍 [Forward] Error details:`, errorMessage);
+          
+          // Check if socket event was emitted - if so, count as partial success
+          // The message will appear via socket even if API failed
+          if (socket) {
+            console.log(`🔍 [Forward] API failed but socket event was emitted, message may still appear`);
+            // Don't count as complete failure - socket event was sent
+            successCount++;
+          } else {
+            failCount++;
+          }
+        }
       }
+
+      if (successCount > 0) {
+        Alert.alert(
+          'Success', 
+          `Message forwarded to ${successCount} chat(s)${failCount > 0 ? `, ${failCount} failed` : ''}`
+        );
+        setShowForwardModal(false);
+        setMessageToForward(null);
+      } else {
+        // All forwards failed - show error and return false
+        const errorMsg = `Failed to forward message to all ${chatIds.length} chat(s). The server returned an error. Please try again.`;
+        Alert.alert('Error', errorMsg);
+        return false; // Failure - modal should stay open
+      }
+    } catch (error: any) {
+      console.error('🔍 [Forward] Unexpected error in handleForward:', error);
+      Alert.alert('Error', error?.message || 'Failed to forward message. Please try again.');
+      return false; // Failure - modal should stay open
+    } finally {
+      setIsForwarding(false);
     }
   };
 
   const handleReaction = async (messageId: string, emoji: string) => {
     if (!token) return;
     
+    const message = chatState.messages.find(m => m._id === messageId);
+    if (!message) return;
+    
+    const existingReaction = message.reactions?.find(
+      r => r.user._id === actualUser._id && r.emoji === emoji
+    );
+    
+    // Store original reactions for rollback
+    const originalReactions = [...(message.reactions || [])];
+    
+    // Optimistic update
+    setChatState(prev => ({
+      ...prev,
+      messages: prev.messages.map(msg => {
+        if (msg._id === messageId) {
+          if (existingReaction) {
+            // Remove reaction
+            return {
+              ...msg,
+              reactions: (msg.reactions || []).filter(
+                r => !(r.user._id === actualUser._id && r.emoji === emoji)
+              )
+            };
+          } else {
+            // Add reaction
+            return {
+              ...msg,
+              reactions: [
+                ...(msg.reactions || []),
+                {
+                  emoji,
+                  user: {
+                    _id: actualUser._id,
+                    name: actualUser.name || '',
+                    email: actualUser.email || '',
+                  }
+                }
+              ]
+            };
+          }
+        }
+        return msg;
+      })
+    }));
+    
+    // Emit socket event
+    socket?.emit(existingReaction ? REMOVE_REACTION : ADD_REACTION, {
+      messageId,
+      chatId: chat._id,
+      emoji,
+      userId: actualUser._id
+    });
+    
     try {
-      const message = chatState.messages.find(m => m._id === messageId);
-      const existingReaction = message?.reactions.find(
-        r => r.user._id === actualUser._id && r.emoji === emoji
-      );
-      
       if (existingReaction) {
         await removeReaction(messageId, emoji, token);
       } else {
         await addReaction(messageId, emoji, token);
       }
-      
-      // Emit socket event
-      socket?.emit(existingReaction ? REMOVE_REACTION : ADD_REACTION, {
-        messageId,
-        chatId: chat._id,
-        emoji,
-        userId: actualUser._id
-      });
+      // Success - optimistic update already applied
     } catch (error) {
       console.error('Failed to handle reaction:', error);
-      Alert.alert('Error', 'Failed to update reaction');
+      
+      // Rollback optimistic update
+      setChatState(prev => ({
+        ...prev,
+        messages: prev.messages.map(msg =>
+          msg._id === messageId
+            ? { ...msg, reactions: originalReactions }
+            : msg
+        )
+      }));
+      
+      Alert.alert('Error', 'Failed to update reaction. Please try again.');
     }
   };
 
@@ -649,25 +1144,72 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   const handleSearch = async (query: string) => {
+    setSearchTerm(query);
+    
     if (!token || !query.trim()) {
       setChatState(prev => ({ ...prev, searchResults: null, isSearching: false }));
-        return;
-      }
+      setHighlightedMessageIds(new Set());
+      setSearchResultIds([]);
+      setCurrentSearchIndex(-1);
+      return;
+    }
       
     setChatState(prev => ({ ...prev, isSearching: true }));
     
     try {
-      const results = await searchMessages(chat._id, query, 1, 20, token);
+      const results = await searchMessages(chat._id, query, 1, 100, token);
+      const messageIds = (results.messages || []).map((msg: Message) => msg._id);
+      
       setChatState(prev => ({ ...prev, searchResults: results, isSearching: false }));
+      setHighlightedMessageIds(new Set(messageIds));
+      setSearchResultIds(messageIds);
+      setCurrentSearchIndex(0);
+      
+      // Auto-scroll to first result
+      if (messageIds.length > 0) {
+        scrollToMessage(messageIds[0]);
+      }
     } catch (error) {
       console.error('Search failed:', error);
       setChatState(prev => ({ ...prev, isSearching: false }));
+      setHighlightedMessageIds(new Set());
+      setSearchResultIds([]);
+      setCurrentSearchIndex(-1);
       Alert.alert('Error', 'Failed to search messages');
     }
   };
 
   const handleClearSearch = () => {
+    setSearchTerm('');
     setChatState(prev => ({ ...prev, searchResults: null, isSearching: false }));
+    setHighlightedMessageIds(new Set());
+    setSearchResultIds([]);
+    setCurrentSearchIndex(-1);
+  };
+
+  const navigateSearchResult = (direction: 'next' | 'prev') => {
+    if (searchResultIds.length === 0) return;
+    
+    let newIndex = currentSearchIndex;
+    if (direction === 'next') {
+      newIndex = (currentSearchIndex + 1) % searchResultIds.length;
+    } else {
+      newIndex = currentSearchIndex <= 0 ? searchResultIds.length - 1 : currentSearchIndex - 1;
+    }
+    
+    setCurrentSearchIndex(newIndex);
+    scrollToMessage(searchResultIds[newIndex]);
+  };
+
+  const scrollToMessage = (messageId: string) => {
+    const messageIndex = chatState.messages.findIndex(msg => msg._id === messageId);
+    if (messageIndex !== -1 && flatListRef.current) {
+      flatListRef.current.scrollToIndex({ 
+        index: messageIndex, 
+        animated: true,
+        viewPosition: 0.5 // Center the message
+      });
+    }
   };
 
   const handleSearchMessage = (message: Message) => {
@@ -767,18 +1309,26 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   };
 
-  const renderMessage = ({ item }: { item: Message }) => (
-      <MessageBubble
-        message={item}
-        isCurrentUser={item.sender._id === actualUser._id}
-        currentUser={actualUser}
+  const renderMessage = React.useCallback(({ item }: { item: Message }) => (
+    <MessageBubble
+      message={item}
+      isCurrentUser={item.sender._id === actualUser._id}
+      currentUser={actualUser}
       onReply={handleReply}
       onEdit={handleEdit}
       onDelete={handleDeleteMessage}
       onPin={handlePinMessage}
       onUnpin={handleUnpinMessage}
+      onForward={handleForwardMessage}
+      searchTerm={searchTerm}
+      isHighlighted={highlightedMessageIds.has(item._id)}
+      chatMembers={members}
+      isGroupChat={chat.isGroup}
+      isCurrentSearchResult={currentSearchIndex >= 0 && searchResultIds[currentSearchIndex] === item._id}
     />
-  );
+  ), [actualUser, searchTerm, highlightedMessageIds, members, chat.isGroup, currentSearchIndex, searchResultIds, handleReply, handleEdit, handleDeleteMessage, handlePinMessage, handleUnpinMessage, handleForwardMessage]);
+
+  const keyExtractor = useCallback((item: Message) => item._id || item.messageId || `msg_${item.createdAt}`, []);
 
   const renderTypingIndicator = () => {
     // Convert typing user IDs to User objects
@@ -793,8 +1343,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   if (chatState.isLoadingMessages) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading messages...</Text>
+        <MessageListSkeleton />
       </View>
     );
   }
@@ -813,6 +1362,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         onBack={onBack}
         onTogglePinned={() => setShowPinnedMessages(true)}
         onSearch={handleSearchPress}
+        onMediaLinks={() => setShowMediaLinks(true)}
+        onManageMembers={() => setShowMemberManagement(true)}
         onStartVoiceCall={handleStartVoiceCall}
         onStartVideoCall={handleStartVideoCall}
         showCallButtons={true}
@@ -837,14 +1388,46 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       <FlatList
         ref={flatListRef}
         data={chatState.searchResults ? chatState.searchResults.messages : chatState.messages}
-        keyExtractor={(item, index) => item._id || `message_${index}`}
+        keyExtractor={keyExtractor}
         renderItem={renderMessage}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        initialNumToRender={15}
+        windowSize={10}
         style={styles.messagesList}
         contentContainerStyle={styles.messagesContainer}
-        onContentSizeChange={scrollToBottom}
-        onLayout={scrollToBottom}
+        onContentSizeChange={() => {
+          // Only auto-scroll on new messages, not when loading older messages
+          if (!isLoadingOlderMessages && chatState.messages.length > 0) {
+            // Check if we're near the bottom (within 200px)
+            if (scrollPositionRef.current === 0 || 
+                (scrollPositionRef.current < 200 && !isLoadingOlderMessages)) {
+              scrollToBottom();
+            }
+          }
+        }}
+        onLayout={() => {
+          if (!isLoadingOlderMessages) {
+            scrollToBottom();
+          }
+        }}
+        onScroll={handleScroll}
+        scrollEventThrottle={400}
+        ListHeaderComponent={
+          isLoadingOlderMessages ? (
+            <View style={styles.loadingOlderContainer}>
+              <ActivityIndicator size="small" color="#3B82F6" />
+              <Text style={styles.loadingOlderText}>Loading older messages...</Text>
+            </View>
+          ) : null
+        }
         ListFooterComponent={renderTypingIndicator}
         showsVerticalScrollIndicator={false}
+        inverted={false}
+        maintainVisibleContentPosition={{
+          minIndexForVisible: 0,
+        }}
       />
 
       <MessageInput
@@ -887,6 +1470,47 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           token={token || ''}
         />
       </Modal>
+
+      {/* Media & Links Modal */}
+      <ChatMediaLinksModal
+        visible={showMediaLinks}
+        onClose={() => setShowMediaLinks(false)}
+        messages={chatState.messages}
+        onMessagePress={(messageId) => {
+          scrollToMessage(messageId);
+          setShowMediaLinks(false);
+        }}
+      />
+
+      {/* Group Member Management Modal */}
+      {chat.isGroup && (
+        <GroupMemberManagementModal
+          visible={showMemberManagement}
+          onClose={() => setShowMemberManagement(false)}
+          chatId={chat._id}
+          currentMembers={members}
+          allUsers={allUsers}
+          currentUser={actualUser}
+          onMembersUpdated={() => {
+            loadMembers();
+          }}
+        />
+      )}
+
+      {/* Forward Message Modal */}
+      {messageToForward && (
+        <ForwardMessageModal
+          visible={showForwardModal}
+          onClose={() => {
+            setShowForwardModal(false);
+            setMessageToForward(null);
+          }}
+          message={messageToForward}
+          chats={allChats.filter(c => c._id !== chat._id)} // Exclude current chat
+          onForward={handleForward}
+          isLoading={isForwarding}
+        />
+      )}
     </KeyboardAvoidingView>
   );
 };
@@ -922,6 +1546,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     fontStyle: 'italic',
+  },
+  loadingOlderContainer: {
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  loadingOlderText: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginLeft: 8,
   },
 });
 

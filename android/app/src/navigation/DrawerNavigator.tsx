@@ -44,9 +44,11 @@ import OrgAdminActivitiesScreen from '../Screens/OrgAdminActivitiesScreen';
 import AttendanceScreen from '../Screens/AttendanceScreen';
 import HrIdleTimeScreen from '../Screens/HrIdleTimeScreen';
 import HrQueriesScreen from '../Screens/HrQueriesScreen';
+import QueryDetailScreen from '../Screens/QueryDetailScreen';
 import DepartmentDetailScreen from '../Screens/DepartmentDetailScreen';
 import CreateDepartmentScreen from '../Screens/CreateDepartmentScreen';
 import EditDepartmentScreen from '../Screens/EditDepartmentScreen';
+import EditProfileScreen from '../Screens/EditProfileScreen';
 
 export type DrawerParamList = {
   MainTabs: undefined;
@@ -72,6 +74,7 @@ export type DrawerParamList = {
   TerminateEmployee: undefined;
   HRIdleTime: undefined;
   HRQueries: undefined;
+  QueryDetail: { queryId: string; query?: any };
   ResignationScreen: undefined;
   PayrollScreen: undefined;
   LeavesScreen: undefined;
@@ -85,6 +88,7 @@ export type DrawerParamList = {
   CreateDepartment: undefined;
   EditDepartment: { departmentId: string };
   OrgAdminProfile: undefined;
+  EditProfile: undefined;
 };
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
@@ -453,6 +457,17 @@ const DrawerNavigator: React.FC = () => {
                 }}
               />
               
+              {/* Query Detail Screen */}
+              <Drawer.Screen
+                name="QueryDetail"
+                component={QueryDetailScreen}
+                options={{ 
+                  title: 'Query Details',
+                  headerShown: false,
+                  drawerItemStyle: { display: 'none' },
+                }}
+              />
+              
               {/* HR Resignation Screen */}
               <Drawer.Screen
                 name="ResignationScreen"
@@ -516,6 +531,17 @@ const DrawerNavigator: React.FC = () => {
                   title: 'Profile',
                   headerShown: true,
                   drawerItemStyle: isOrgAdmin ? {} : { display: 'none' },
+                }}
+              />
+              
+              {/* Edit Profile Screen - accessible from EmployeeProfileScreen */}
+              <Drawer.Screen
+                name="EditProfile"
+                component={EditProfileScreen}
+                options={{ 
+                  title: 'Edit Profile',
+                  headerShown: true,
+                  drawerItemStyle: { display: 'none' }, // Hide from drawer, only accessible via navigation
                 }}
               />
             </Drawer.Navigator>

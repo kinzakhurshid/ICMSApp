@@ -1,4 +1,5 @@
 import React from 'react';
+import { ChatListSkeleton } from './ChatSkeletonLoader';
 import {
   View,
   Text,
@@ -216,15 +217,6 @@ const ChatList: React.FC<ChatListProps> = ({
 };
 
 // Skeleton Component
-const ChatListSkeleton = () => (
-  <View style={styles.skeletonItem}>
-    <View style={styles.skeletonAvatar} />
-    <View style={styles.skeletonContent}>
-      <View style={styles.skeletonLine} />
-      <View style={[styles.skeletonLine, styles.skeletonShortLine]} />
-    </View>
-  </View>
-);
 
 const styles = StyleSheet.create({
   container: {
@@ -294,33 +286,6 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     backgroundColor: '#F3F4F6',
-  },
-  skeletonItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  skeletonAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#F3F4F6',
-    marginRight: 12,
-  },
-  skeletonContent: {
-    flex: 1,
-  },
-  skeletonLine: {
-    height: 16,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 4,
-    marginBottom: 8,
-  },
-  skeletonShortLine: {
-    width: '60%',
-    marginBottom: 0,
   },
 });
 

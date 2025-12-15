@@ -8,6 +8,8 @@ import {
   Image,
   Dimensions,
   Keyboard,
+  Linking,
+  Modal,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Message, User, Reaction } from '../types/chattypes';
@@ -27,10 +29,16 @@ interface MessageBubbleProps {
   onDelete?: (messageId: string) => void;
   onPin?: (messageId: string) => void;
   onUnpin?: (messageId: string) => void;
+  onForward?: (message: Message) => void;
   showReactions?: boolean;
   showPinIcon?: boolean;
   allChatMessages?: Message[];
   memberRoles?: Record<string, string>;
+  searchTerm?: string;
+  isHighlighted?: boolean;
+  isCurrentSearchResult?: boolean;
+  chatMembers?: User[];
+  isGroupChat?: boolean;
 }
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -44,10 +52,16 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   onDelete,
   onPin,
   onUnpin,
+  onForward,
   showReactions = true,
   showPinIcon = true,
   allChatMessages = [],
   memberRoles = {},
+  searchTerm = '',
+  isHighlighted = false,
+  isCurrentSearchResult = false,
+  chatMembers = [],
+  isGroupChat = false,
 }) => {
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -55,6 +69,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const [selectedReaction, setSelectedReaction] = useState<Reaction | null>(null);
   const [menuPosition, setMenuPosition] = useState<'top' | 'bottom'>('top');
   const [showActions, setShowActions] = useState(false);
+  const [showReadReceipts, setShowReadReceipts] = useState(false);
   const menuRef = useRef<View>(null);
   const bubbleRef = useRef<View>(null);
   const { socket } = useSocket();
@@ -91,6 +106,68 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const formatTime = (date: Date | string) => {
     const d = new Date(date);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Render text with search highlighting
+  const renderHighlightedText = (text: string) => {
+    if (!searchTerm || !text) {
+      return renderTextWithLinks(text);
+    }
+
+    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    
+    return (
+      <Text>
+        {parts.map((part, index) => {
+          if (regex.test(part)) {
+            return (
+              <Text key={index} style={styles.searchHighlight}>
+                {renderTextWithLinks(part)}
+              </Text>
+            );
+          }
+          return <Text key={index}>{renderTextWithLinks(part)}</Text>;
+        })}
+      </Text>
+    );
+  };
+
+  // Detect and render URLs as clickable links
+  const renderTextWithLinks = (text: string) => {
+    if (!text) return text;
+
+    // URL regex pattern
+    const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}[^\s]*)/gi;
+    const parts = text.split(urlRegex);
+    
+    return (
+      <Text>
+        {parts.map((part, index) => {
+          if (urlRegex.test(part)) {
+            // Normalize URL - add https:// if missing
+            let url = part;
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+              url = `https://${url}`;
+            }
+            
+            return (
+              <Text
+                key={index}
+                style={styles.link}
+                onPress={() => {
+                  // Open URL in browser
+                  Linking.openURL(url).catch(err => console.error('Failed to open URL:', err));
+                }}
+              >
+                {part}
+              </Text>
+            );
+          }
+          return <Text key={index}>{part}</Text>;
+        })}
+      </Text>
+    );
   };
 
   const handleReaction = (emoji: string) => {
@@ -276,6 +353,121 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     );
   };
 
+  // Get read receipt status
+  const getReadReceiptStatus = () => {
+    if (!message.readBy || message.readBy.length === 0) {
+      return 'sent'; // Single check - sent but not delivered
+    }
+    
+    // For group chats, check if all members (except sender) have read
+    if (isGroupChat && chatMembers.length > 0) {
+      const otherMembers = chatMembers.filter(m => m._id !== currentUser._id);
+      const readByIds = new Set(message.readBy.map(r => r.user?._id || r.user));
+      const allRead = otherMembers.every(m => readByIds.has(m._id));
+      return allRead ? 'read' : 'delivered';
+    }
+    
+    // For direct chats, if readBy has at least one entry, it's read
+    return message.readBy.length > 0 ? 'read' : 'delivered';
+  };
+
+  const renderReadReceipts = () => {
+    const status = getReadReceiptStatus();
+    const readCount = message.readBy?.length || 0;
+    
+    return (
+      <TouchableOpacity
+        onPress={() => {
+          if (isGroupChat && readCount > 0) {
+            setShowReadReceipts(true);
+          }
+        }}
+        style={styles.readReceiptContainer}
+        activeOpacity={readCount > 0 && isGroupChat ? 0.7 : 1}
+      >
+        {status === 'sent' && (
+          <Ionicons name="checkmark" size={14} color="#9CA3AF" />
+        )}
+        {status === 'delivered' && (
+          <View style={styles.doubleCheckContainer}>
+            <Ionicons name="checkmark" size={14} color="#9CA3AF" style={styles.firstCheck} />
+            <Ionicons name="checkmark" size={14} color="#9CA3AF" style={styles.secondCheck} />
+          </View>
+        )}
+        {status === 'read' && (
+          <View style={styles.doubleCheckContainer}>
+            <Ionicons name="checkmark" size={14} color="#3B82F6" style={styles.firstCheck} />
+            <Ionicons name="checkmark" size={14} color="#3B82F6" style={styles.secondCheck} />
+          </View>
+        )}
+        {isGroupChat && readCount > 0 && (
+          <Text style={styles.readCountText}>{readCount}</Text>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  const renderReadReceiptsModal = () => {
+    if (!message.readBy || message.readBy.length === 0) {
+      return null;
+    }
+
+    const readByUsers = message.readBy
+      .map(r => {
+        const user = r.user || (typeof r === 'string' ? chatMembers.find(m => m._id === r) : null);
+        return user ? { user, readAt: r.readAt } : null;
+      })
+      .filter(Boolean) as Array<{ user: User; readAt?: string }>;
+
+    return (
+      <Modal
+        visible={showReadReceipts}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowReadReceipts(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowReadReceipts(false)}
+        >
+          <View style={styles.readReceiptsModal}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Read by</Text>
+              <TouchableOpacity onPress={() => setShowReadReceipts(false)}>
+                <Ionicons name="close" size={24} color="#1F2937" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.readReceiptsList}>
+              {readByUsers.map(({ user, readAt }) => (
+                <View key={user._id} style={styles.readReceiptItem}>
+                  <Image
+                    source={{ uri: user.avatar || user.profilePic || 'https://via.placeholder.com/40' }}
+                    style={styles.readReceiptAvatar}
+                  />
+                  <View style={styles.readReceiptInfo}>
+                    <Text style={styles.readReceiptName}>{user.name}</Text>
+                    {readAt && (
+                      <Text style={styles.readReceiptTime}>
+                        {new Date(readAt).toLocaleString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit'
+                        })}
+                      </Text>
+                    )}
+                  </View>
+                  <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                </View>
+              ))}
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    );
+  };
+
   return (
     <View style={[
       styles.container,
@@ -318,12 +510,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
           {/* Message content */}
           {message.content && (
-            <Text style={[
-              styles.messageText,
-              isCurrentUser ? styles.currentUserText : styles.otherUserText
+            <View style={[
+              styles.messageTextContainer,
+              isHighlighted && styles.highlightedMessage,
+              isCurrentSearchResult && styles.currentSearchResult
             ]}>
-              {message.content}
-            </Text>
+              <Text style={[
+                styles.messageText,
+                isCurrentUser ? styles.currentUserText : styles.otherUserText
+              ]}>
+                {searchTerm ? renderHighlightedText(message.content) : renderTextWithLinks(message.content)}
+              </Text>
+            </View>
           )}
 
           {/* Attachments */}
@@ -338,12 +536,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               {formatTime(message.createdAt)}
             </Text>
 
-            {/* Message status */}
-            {isCurrentUser && (
-              <Text style={styles.messageStatus}>
-                {message.readBy.length > 1 ? '✓✓' : '✓'}
-              </Text>
-            )}
+            {/* Enhanced Read Receipts */}
+            {isCurrentUser && renderReadReceipts()}
           </View>
 
           {/* Reactions */}
@@ -408,8 +602,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           alignment={menuPosition}
           onReply={handleReply} // Use the new handler
           onEdit={handleEdit} // Use the new handler
+          onForward={onForward} // Forward handler
         />
       )}
+
+      {/* Read Receipts Modal */}
+      {renderReadReceiptsModal()}
     </View>
   );
 };
@@ -500,6 +698,90 @@ const styles = StyleSheet.create({
   messageStatus: {
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.8)',
+  },
+  readReceiptContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 4,
+    gap: 2,
+  },
+  doubleCheckContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  firstCheck: {
+    marginRight: -4,
+  },
+  secondCheck: {
+    marginLeft: -4,
+  },
+  readCountText: {
+    fontSize: 10,
+    color: '#6B7280',
+    marginLeft: 2,
+    fontWeight: '500',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  readReceiptsModal: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    width: '85%',
+    maxHeight: '70%',
+    padding: 0,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  readReceiptsList: {
+    maxHeight: 400,
+  },
+  readReceiptItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  readReceiptAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+    backgroundColor: '#F3F4F6',
+  },
+  readReceiptInfo: {
+    flex: 1,
+  },
+  readReceiptName: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#1F2937',
+    marginBottom: 2,
+  },
+  readReceiptTime: {
+    fontSize: 12,
+    color: '#6B7280',
   },
   reactionsContainer: {
     position: 'absolute',
@@ -632,6 +914,31 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: 20,
     padding: 8,
+  },
+  // Search highlighting styles
+  messageTextContainer: {
+    position: 'relative',
+  },
+  highlightedMessage: {
+    backgroundColor: 'rgba(255, 235, 59, 0.2)',
+    borderRadius: 4,
+    padding: 2,
+  },
+  currentSearchResult: {
+    backgroundColor: 'rgba(33, 150, 243, 0.3)',
+    borderWidth: 2,
+    borderColor: '#2196F3',
+    borderRadius: 4,
+    padding: 2,
+  },
+  searchHighlight: {
+    backgroundColor: '#FFEB3B',
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  link: {
+    color: '#2196F3',
+    textDecorationLine: 'underline',
   },
 });
 

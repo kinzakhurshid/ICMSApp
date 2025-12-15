@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   TextInput,
@@ -148,6 +148,8 @@ const MessageInput: React.FC<{
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMentionPicker, setShowMentionPicker] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+  const mentionListRef = useRef<FlatList>(null);
   const [attachments, setAttachments] = useState<any[]>([]);
   const [pendingAttachments, setPendingAttachments] = useState<any[]>([]);
   const [showAttachmentPreview, setShowAttachmentPreview] = useState(false);
@@ -178,21 +180,32 @@ const MessageInput: React.FC<{
   }, []);
 
 
-  const filteredMembers = members.filter(member =>
-    member && member.name && member.name.toLowerCase().includes(mentionQuery.toLowerCase())
-  );
+  const filteredMembers = useMemo(() => {
+    return members.filter(member =>
+      member && member.name && 
+      (member.name.toLowerCase().includes(mentionQuery.toLowerCase()) ||
+       member.email?.toLowerCase().includes(mentionQuery.toLowerCase()))
+    );
+  }, [members, mentionQuery]);
+
+  // Reset selected index when filtered members change
+  useEffect(() => {
+    setSelectedMentionIndex(0);
+  }, [filteredMembers.length]);
   
 
   const handleTextChange = (text: string) => {
     setMessage(text);
     
-    // Handle mentions
-    const mentionMatch = text.match(/@(\w*)$/);
+    // Handle mentions - improved regex to match @ followed by any characters
+    const mentionMatch = text.match(/@([^\s@]*)$/);
     if (mentionMatch) {
       setMentionQuery(mentionMatch[1]);
       setShowMentionPicker(true);
+      setSelectedMentionIndex(0);
     } else {
       setShowMentionPicker(false);
+      setSelectedMentionIndex(0);
     }
 
     // Handle typing indicator
@@ -298,10 +311,54 @@ const MessageInput: React.FC<{
   };
 
   const handleMentionSelect = (member: User) => {
-    const newMessage = message.replace(/@\w*$/, `@${member.name} `);
+    // Replace the @mention part with @username
+    const newMessage = message.replace(/@[^\s@]*$/, `@${member.name} `);
     setMessage(newMessage);
     setShowMentionPicker(false);
-        inputRef.current?.focus();
+    setMentionQuery('');
+    setSelectedMentionIndex(0);
+    inputRef.current?.focus();
+  };
+
+  // Handle keyboard navigation for mentions
+  const handleKeyPress = (e: any) => {
+    if (!showMentionPicker || filteredMembers.length === 0) return;
+
+    if (e.nativeEvent.key === 'ArrowDown') {
+      e.preventDefault();
+      const nextIndex = (selectedMentionIndex + 1) % filteredMembers.length;
+      setSelectedMentionIndex(nextIndex);
+      // Scroll to selected item
+      setTimeout(() => {
+        mentionListRef.current?.scrollToIndex({ 
+          index: nextIndex, 
+          animated: true,
+          viewPosition: 0.5
+        });
+      }, 100);
+    } else if (e.nativeEvent.key === 'ArrowUp') {
+      e.preventDefault();
+      const prevIndex = selectedMentionIndex <= 0 
+        ? filteredMembers.length - 1 
+        : selectedMentionIndex - 1;
+      setSelectedMentionIndex(prevIndex);
+      // Scroll to selected item
+      setTimeout(() => {
+        mentionListRef.current?.scrollToIndex({ 
+          index: prevIndex, 
+          animated: true,
+          viewPosition: 0.5
+        });
+      }, 100);
+    } else if (e.nativeEvent.key === 'Enter' || e.nativeEvent.key === 'Tab') {
+      if (filteredMembers[selectedMentionIndex]) {
+        e.preventDefault();
+        handleMentionSelect(filteredMembers[selectedMentionIndex]);
+      }
+    } else if (e.nativeEvent.key === 'Escape') {
+      setShowMentionPicker(false);
+      setSelectedMentionIndex(0);
+    }
   };
 
   const handleAttachment = () => {
@@ -482,19 +539,51 @@ const MessageInput: React.FC<{
     </View>
   );
 
-  const renderMentionItem = ({ item }: { item: User }) => {
+  const renderMentionItem = ({ item, index }: { item: User; index: number }) => {
     if (!item || !item.name) return null;
     
+    const isSelected = index === selectedMentionIndex;
+    const getInitials = (name: string) => {
+      return name
+        .split(' ')
+        .map(n => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
+    };
+
     return (
       <TouchableOpacity
-        style={styles.mentionItem}
+        style={[
+          styles.mentionItem,
+          isSelected && styles.mentionItemSelected
+        ]}
         onPress={() => handleMentionSelect(item)}
+        activeOpacity={0.7}
       >
-        <Image
-          source={{ uri: item.avatar || item.profilePic || 'https://via.placeholder.com/32' }}
-          style={styles.mentionAvatar}
-        />
-        <Text style={styles.mentionName}>{item.name}</Text>
+        {item.avatar || item.profilePic ? (
+          <Image
+            source={{ uri: item.avatar || item.profilePic }}
+            style={styles.mentionAvatar}
+          />
+        ) : (
+          <View style={[styles.mentionAvatar, styles.mentionAvatarPlaceholder]}>
+            <Text style={styles.mentionAvatarText}>
+              {getInitials(item.name)}
+            </Text>
+          </View>
+        )}
+        <View style={styles.mentionInfo}>
+          <Text style={styles.mentionName}>{item.name}</Text>
+          {item.email && (
+            <Text style={styles.mentionEmail} numberOfLines={1}>
+              {item.email}
+            </Text>
+          )}
+        </View>
+        {isSelected && (
+          <Ionicons name="checkmark-circle" size={20} color="#3B82F6" />
+        )}
       </TouchableOpacity>
     );
   };
@@ -548,14 +637,29 @@ const MessageInput: React.FC<{
       )}
 
       {/* Mention Picker */}
-      {showMentionPicker && (
+      {showMentionPicker && filteredMembers.length > 0 && (
         <View style={styles.mentionPicker}>
+          <View style={styles.mentionPickerHeader}>
+            <Text style={styles.mentionPickerTitle}>
+              Mention someone ({filteredMembers.length})
+            </Text>
+            <Text style={styles.mentionPickerHint}>
+              ↑↓ to navigate • Enter/Tab to select
+            </Text>
+          </View>
           <FlatList
+            ref={mentionListRef}
             data={filteredMembers}
             keyExtractor={(item) => item._id}
             renderItem={renderMentionItem}
             style={styles.mentionList}
             keyboardShouldPersistTaps="handled"
+            getItemLayout={(data, index) => ({
+              length: 60,
+              offset: 60 * index,
+              index,
+            })}
+            initialScrollIndex={0}
           />
         </View>
       )}
@@ -610,9 +714,11 @@ const MessageInput: React.FC<{
             placeholder="Type a message..."
             value={message}
             onChangeText={handleTextChange}
+            onKeyPress={handleKeyPress}
             multiline
             maxLength={1000}
             editable={!disabled}
+            submitBehavior="blurAndSubmit"
           />
         </View>
 
@@ -778,10 +884,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   mentionPicker: {
-    maxHeight: 150,
+    maxHeight: 200,
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  mentionPickerHeader: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  mentionPickerTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 2,
+  },
+  mentionPickerHint: {
+    fontSize: 10,
+    color: '#9CA3AF',
   },
   mentionList: {
     maxHeight: 150,
@@ -793,15 +921,40 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
+  mentionItemSelected: {
+    backgroundColor: '#EFF6FF',
+    borderLeftWidth: 3,
+    borderLeftColor: '#3B82F6',
+  },
   mentionAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     marginRight: 12,
+    backgroundColor: '#F3F4F6',
+  },
+  mentionAvatarPlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#3B82F6',
+  },
+  mentionAvatarText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  mentionInfo: {
+    flex: 1,
   },
   mentionName: {
-    fontSize: 16,
-    color: '#000',
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#1F2937',
+    marginBottom: 2,
+  },
+  mentionEmail: {
+    fontSize: 12,
+    color: '#6B7280',
   },
   emojiPicker: {
     maxHeight: 200,

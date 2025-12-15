@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import useAxios from '../hooks/useAxios';
 import FormField from '../components/task/FormField';
@@ -45,6 +45,19 @@ export default function AddIdleTimeScreen() {
   useEffect(() => {
     loadEmployees();
   }, []);
+
+  // Reset form when screen is focused (user navigates to this screen)
+  useFocusEffect(
+    useCallback(() => {
+      // Reset form to default state when screen is focused
+      setEmployeeId('');
+      setDate(null);
+      setStartTime('');
+      setEndTime('');
+      setReason('');
+      setErrors({});
+    }, [])
+  );
 
   const loadEmployees = async () => {
     try {
@@ -110,10 +123,21 @@ export default function AddIdleTimeScreen() {
         data: payload,
       });
 
+      // Reset form after successful submission
+      setEmployeeId('');
+      setDate(null);
+      setStartTime('');
+      setEndTime('');
+      setReason('');
+      setErrors({});
+
       Alert.alert('Success', 'Idle time added successfully', [
         {
           text: 'OK',
-          onPress: () => navigation.goBack(),
+          onPress: () => {
+            // Refresh the idle time list by navigating back
+            navigation.goBack();
+          },
         },
       ]);
     } catch (error: any) {

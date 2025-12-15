@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Dimensions, Modal, Animated } from 'react-native';
 import { Chat, Message, User, ChatWithUnread, NewMessageAlertData } from '../types/chattypes';
 import { InboxNotification } from '../Context/NotificationContext';
@@ -364,9 +364,10 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ currentUser, initialChatI
 
   // Socket events are now handled globally by NotificationManager
   // Only keep the updateLastMessageEventListener for chat list updates
-  const eventHandler = {
+  // Memoize eventHandler to prevent constant re-registration
+  const eventHandler = useMemo(() => ({
     [UPDATE_LAST_MESSAGE]: updateLastMessageEventListener,
-  };
+  }), [updateLastMessageEventListener]);
 
   useSocketEvents(socket, eventHandler);
 
@@ -395,6 +396,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ currentUser, initialChatI
             currentUser={{ currentUser }}
             onMarkAsRead={() => markChatAsRead(selectedChat._id)}
             onBack={handleBackToList}
+            allChats={myChats}
           />
         </View>
       )}

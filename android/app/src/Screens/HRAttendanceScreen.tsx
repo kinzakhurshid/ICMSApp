@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -61,7 +61,8 @@ const HRAttendanceScreen: React.FC = () => {
     halfDay: 0,
     onLeave: 0,
   });
-  const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
+  const [allAttendanceData, setAllAttendanceData] = useState<AttendanceRecord[]>([]); // Store all fetched data
+  const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]); // Current page data
   const [selectedTab, setSelectedTab] = useState<'Day' | 'Week' | 'Month'>('Day');
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [customStart, setCustomStart] = useState('');
@@ -69,6 +70,7 @@ const HRAttendanceScreen: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [pageSize] = useState(50); // Items per page
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [startDate, setStartDate] = useState(new Date());
@@ -76,7 +78,7 @@ const HRAttendanceScreen: React.FC = () => {
 
   useEffect(() => {
     fetchAttendance();
-  }, [selectedTab, page]);
+  }, [fetchAttendance]); // Now depends on the memoized function
 
   useEffect(() => {
     fetchEmployees();
@@ -97,7 +99,16 @@ const HRAttendanceScreen: React.FC = () => {
   };
 
   const handleStartDateChange = (event: any, selectedDate?: Date) => {
+    // On Android, the picker can trigger onChange multiple times
+    // Only process if the user actually set a date (not dismissed)
+    if (event.type === 'dismissed') {
+      setShowStartDatePicker(false);
+      return;
+    }
+    
+    // Close the picker first to prevent it from opening again
     setShowStartDatePicker(false);
+    
     if (selectedDate) {
       setStartDate(selectedDate);
       setCustomStart(formatDate(selectedDate));
@@ -105,7 +116,16 @@ const HRAttendanceScreen: React.FC = () => {
   };
 
   const handleEndDateChange = (event: any, selectedDate?: Date) => {
+    // On Android, the picker can trigger onChange multiple times
+    // Only process if the user actually set a date (not dismissed)
+    if (event.type === 'dismissed') {
+      setShowEndDatePicker(false);
+      return;
+    }
+    
+    // Close the picker first to prevent it from opening again
     setShowEndDatePicker(false);
+    
     if (selectedDate) {
       setEndDate(selectedDate);
       setCustomEnd(formatDate(selectedDate));
@@ -138,7 +158,7 @@ const HRAttendanceScreen: React.FC = () => {
     }
   };
 
-  const fetchAttendance = async () => {
+  const fetchAttendance = useCallback(async () => {
     setIsFetching(true);
     try {
       console.log("🔍 Fetching attendance data...");
@@ -146,55 +166,87 @@ const HRAttendanceScreen: React.FC = () => {
       const today = new Date();
       const startDate = new Date();
 
-      // Overview filter (Day/Week/Month) only affects overview stats, not the list
-      // The list uses customStart/customEnd or employee filter
-      if (!customStart && !customEnd) {
-        if (selectedTab === 'Week') startDate.setDate(today.getDate() - 7);
-        else if (selectedTab === 'Month') startDate.setMonth(today.getMonth() - 1);
-        else startDate.setDate(today.getDate());
+      // Calculate date range based on selectedTab (Day/Week/Month)
+      // This affects BOTH stats and table data
+      const tableStartDate = new Date();
+      if (selectedTab === 'Week') {
+        tableStartDate.setDate(today.getDate() - 7);
+      } else if (selectedTab === 'Month') {
+        tableStartDate.setMonth(today.getMonth() - 1);
+      } else {
+        // Day
+        tableStartDate.setDate(today.getDate());
       }
 
-      // Fetch overview stats (controlled by selectedTab)
-      const overviewStartDate = new Date();
-      if (selectedTab === 'Week') overviewStartDate.setDate(today.getDate() - 7);
-      else if (selectedTab === 'Month') overviewStartDate.setMonth(today.getMonth() - 1);
-      else overviewStartDate.setDate(today.getDate());
+      // Use custom dates if set, otherwise use selectedTab date range
+      const finalStartDate = customStart || tableStartDate.toISOString().split('T')[0];
+      const finalEndDate = customEnd || today.toISOString().split('T')[0];
 
-      // Fetch overview stats separately
-      const overviewResponse = await callApi({
-        method: 'GET',
-        url: '/attendance/date-range',
-        params: {
-          startDate: overviewStartDate.toISOString().split('T')[0],
-          endDate: today.toISOString().split('T')[0],
-          page: 1,
-          limit: 1, // Just to get stats
-        },
-      });
+      console.log("🔍 Date range - SelectedTab:", selectedTab, "Start:", finalStartDate, "End:", finalEndDate);
 
-      // Fetch attendance list (controlled by employee filter and custom dates)
+      // Fetch attendance data with the same date range for both stats and table
+      const requestParams: any = {
+        startDate: finalStartDate,
+        endDate: finalEndDate,
+        page: 1, // Always fetch from page 1 to get all data
+        limit: 1000, // Fetch all records at once
+      };
+      
+      // Only include employeeId if it's selected
+      if (selectedEmployee) {
+        requestParams.employeeId = selectedEmployee;
+      }
+      
+      console.log("🔍 Fetching ALL attendance records - Params:", JSON.stringify(requestParams, null, 2));
+      
       const listResponse = await callApi({
         method: 'GET',
         url: '/attendance/date-range',
-        params: {
-          startDate: customStart || startDate.toISOString().split('T')[0],
-          endDate: customEnd || today.toISOString().split('T')[0],
-          employeeId: selectedEmployee || undefined,
-          page,
-          limit: 10,
-        },
+        params: requestParams,
       });
 
-      console.log("🔍 API Response:", listResponse);
+      console.log("🔍 API Response - Data length:", listResponse?.data?.length, "Total pages:", listResponse?.pagination?.totalPages);
+      console.log("🔍 API Response structure:", {
+        hasData: !!listResponse?.data,
+        isArray: Array.isArray(listResponse?.data),
+        dataType: typeof listResponse?.data,
+        pagination: listResponse?.pagination,
+        total: listResponse?.total,
+      });
 
       if (listResponse.success && listResponse.data) {
-        // Use overview stats from overview response
-        setStats(overviewResponse.stats || overviewResponse.data?.stats || { onTime: 0, late: 0, absent: 0, halfDay: 0, onLeave: 0 });
-        setAttendanceData(listResponse.data);
-        setTotalPages(listResponse.pagination?.totalPages || 1);
+        // Use stats from the list response (same date range as table data)
+        setStats(listResponse.stats || listResponse.data?.stats || { onTime: 0, late: 0, absent: 0, halfDay: 0, onLeave: 0 });
+        
+        // Extract all records from response
+        const allRecords = Array.isArray(listResponse.data) 
+          ? listResponse.data 
+          : (listResponse.data?.data || listResponse.data?.records || listResponse.data?.attendance || []);
+        
+        console.log("🔍 Total records fetched:", allRecords.length);
+        if (allRecords.length > 0) {
+          console.log("🔍 First record:", { id: allRecords[0]?._id || allRecords[0]?.id, employee: allRecords[0]?.employeeName });
+          console.log("🔍 Last record:", { id: allRecords[allRecords.length - 1]?._id || allRecords[allRecords.length - 1]?.id, employee: allRecords[allRecords.length - 1]?.employeeName });
+        }
+        
+        // Store all records - the useEffect will handle pagination
+        setAllAttendanceData(allRecords);
+        
+        // Calculate pagination client-side
+        const totalRecords = allRecords.length;
+        const calculatedTotalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
+        
+        console.log("🔍 Client-side pagination - Total records:", totalRecords, "Page size:", pageSize, "Total pages:", calculatedTotalPages);
+        setTotalPages(calculatedTotalPages);
+        
+        // Don't set attendanceData here - let the useEffect handle it to avoid race conditions
+        // The useEffect will automatically update attendanceData when allAttendanceData changes
       } else {
+        console.log("🔍 No data in response or unsuccessful");
+        setAllAttendanceData([]);
         setAttendanceData([]);
-        setStats(overviewResponse.stats || { onTime: 0, late: 0, absent: 0, halfDay: 0, onLeave: 0 });
+        setStats({ onTime: 0, late: 0, absent: 0, halfDay: 0, onLeave: 0 });
+        setTotalPages(1);
       }
       setLoading(false);
     } catch (error: any) {
@@ -204,7 +256,22 @@ const HRAttendanceScreen: React.FC = () => {
     } finally {
       setIsFetching(false);
     }
-  };
+  }, [selectedTab, selectedEmployee, customStart, customEnd, callApi, pageSize]); // Include all dependencies except page (we handle page client-side)
+  
+  // Update displayed data when page changes (client-side pagination)
+  useEffect(() => {
+    if (allAttendanceData.length === 0) {
+      // No data yet, don't update
+      return;
+    }
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const currentPageData = allAttendanceData.slice(startIndex, endIndex);
+    console.log("🔍 useEffect: Updating page", page, "- Records:", currentPageData.length, "Range:", startIndex + 1, "to", Math.min(endIndex, allAttendanceData.length), "of", allAttendanceData.length);
+    console.log("🔍 useEffect: First record:", currentPageData[0]?._id || currentPageData[0]?.id);
+    console.log("🔍 useEffect: Last record:", currentPageData[currentPageData.length - 1]?._id || currentPageData[currentPageData.length - 1]?.id);
+    setAttendanceData(currentPageData);
+  }, [page, allAttendanceData, pageSize]);
 
   const renderAttendanceCard = (
     title: string,
@@ -247,10 +314,43 @@ const HRAttendanceScreen: React.FC = () => {
     );
   };
 
-  const renderAttendanceRow = (record: AttendanceRecord, index: number) => {
+  const formatTimeOnly = (timeStr: string) => {
+    if (!timeStr || timeStr === '-') return '-';
+    // If it's a date-time string, extract only the time part
+    if (timeStr.includes('T') || timeStr.includes(' ')) {
+      try {
+        const date = new Date(timeStr);
+        if (!isNaN(date.getTime())) {
+          return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        }
+      } catch (e) {
+        // If parsing fails, try to extract time from string
+        const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
+        if (timeMatch) {
+          const hours = parseInt(timeMatch[1]);
+          const minutes = timeMatch[2];
+          const ampm = hours >= 12 ? 'PM' : 'AM';
+          const displayHours = hours % 12 || 12;
+          return `${displayHours}:${minutes} ${ampm}`;
+        }
+      }
+    }
+    // If it's already in HH:mm format, convert to 12-hour format
+    const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
+    if (timeMatch) {
+      const hours = parseInt(timeMatch[1]);
+      const minutes = timeMatch[2];
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = hours % 12 || 12;
+      return `${displayHours}:${minutes} ${ampm}`;
+    }
+    return timeStr;
+  };
+
+  const renderAttendanceRow = (record: AttendanceRecord, index: number, rowNumber?: number) => {
     const employeeName = record.employeeName || `${record.firstName || ''} ${record.lastName || ''}`.trim() || 'Unknown';
-    const timeIn = record.timeIn || record.checkIn || '-';
-    const timeOut = record.timeOut || record.checkOut || '-';
+    const timeIn = formatTimeOnly(record.timeIn || record.checkIn || '-');
+    const timeOut = formatTimeOnly(record.timeOut || record.checkOut || '-');
     const arrivalStatus = record.arrivalStatus || 'Unknown';
     
     return (
@@ -258,7 +358,7 @@ const HRAttendanceScreen: React.FC = () => {
         <View style={styles.attendanceCheckbox}>
           <Icon name="check-box-outline-blank" size={20} color="#666" />
         </View>
-        <Text style={styles.attendanceSr}>{index + 1}</Text>
+        <Text style={styles.attendanceSr}>{rowNumber !== undefined ? rowNumber : index + 1}</Text>
         <Text style={styles.attendanceEmployee}>{employeeName}</Text>
         <Text style={styles.attendanceDate}>{new Date(record.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</Text>
         <View style={[styles.statusBadge, { backgroundColor: record.status === 'Present' ? '#4CAF50' : '#F44336' }]}>
@@ -350,19 +450,34 @@ const HRAttendanceScreen: React.FC = () => {
         <View style={styles.timeSelector}>
           <TouchableOpacity 
             style={[styles.timeButton, selectedTab === 'Day' && styles.timeButtonActive]}
-            onPress={() => setSelectedTab('Day')}
+            onPress={() => {
+              setSelectedTab('Day');
+              setPage(1); // Reset to first page when filter changes
+              setCustomStart(''); // Clear custom dates to use filter date range
+              setCustomEnd('');
+            }}
           >
             <Text style={[styles.timeButtonText, selectedTab === 'Day' && styles.timeButtonTextActive]}>Day</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.timeButton, selectedTab === 'Week' && styles.timeButtonActive]}
-            onPress={() => setSelectedTab('Week')}
+            onPress={() => {
+              setSelectedTab('Week');
+              setPage(1); // Reset to first page when filter changes
+              setCustomStart(''); // Clear custom dates to use filter date range
+              setCustomEnd('');
+            }}
           >
             <Text style={[styles.timeButtonText, selectedTab === 'Week' && styles.timeButtonTextActive]}>Week</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.timeButton, selectedTab === 'Month' && styles.timeButtonActive]}
-            onPress={() => setSelectedTab('Month')}
+            onPress={() => {
+              setSelectedTab('Month');
+              setPage(1); // Reset to first page when filter changes
+              setCustomStart(''); // Clear custom dates to use filter date range
+              setCustomEnd('');
+            }}
           >
             <Text style={[styles.timeButtonText, selectedTab === 'Month' && styles.timeButtonTextActive]}>Month</Text>
           </TouchableOpacity>
@@ -373,7 +488,65 @@ const HRAttendanceScreen: React.FC = () => {
       <View style={styles.recordsCard}>
         <View style={styles.recordsHeader}>
           <Text style={styles.recordsTitle}>Attendance Records</Text>
-          <TouchableOpacity style={styles.exportButton}>
+          <TouchableOpacity 
+            style={styles.exportButton}
+            onPress={async () => {
+              try {
+                // Export all attendance records (or filtered ones)
+                const exportResponse = await callApi({
+                  method: 'GET',
+                  url: '/attendance/date-range',
+                  params: {
+                    startDate: customStart || new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
+                    endDate: customEnd || new Date().toISOString().split('T')[0],
+                    employeeId: selectedEmployee || undefined,
+                    page: 1,
+                    limit: 1000, // Get all records for export
+                  },
+                });
+
+                const recordsToExport = exportResponse.data || attendanceData || [];
+                
+                if (recordsToExport.length === 0) {
+                  Alert.alert('No Data', 'No attendance records to export');
+                  return;
+                }
+
+                // Use the exportToCsv utility function
+                const { exportToCsv } = require('../utills/utills');
+                await exportToCsv({
+                  filename: 'attendance_records',
+                  columns: [
+                    { key: 'sr', header: 'SR#' },
+                    { key: 'employee', header: 'Employee' },
+                    { key: 'date', header: 'Date' },
+                    { key: 'status', header: 'Status' },
+                    { key: 'timeIn', header: 'Time In' },
+                    { key: 'timeOut', header: 'Time Out' },
+                    { key: 'arrivalStatus', header: 'Arrival Status' },
+                  ],
+                  rows: recordsToExport.map((record: AttendanceRecord, idx: number) => {
+                    const employeeName = record.employeeName || `${record.firstName || ''} ${record.lastName || ''}`.trim() || 'Unknown';
+                    const timeIn = formatTimeOnly(record.timeIn || record.checkIn || '-');
+                    const timeOut = formatTimeOnly(record.timeOut || record.checkOut || '-');
+                    return {
+                      sr: idx + 1,
+                      employee: employeeName,
+                      date: new Date(record.date).toLocaleDateString('en-GB'),
+                      status: record.status,
+                      timeIn: timeIn,
+                      timeOut: timeOut,
+                      arrivalStatus: record.arrivalStatus || '-'
+                    };
+                  }),
+                });
+
+                Alert.alert('Success', `Exported ${recordsToExport.length} attendance record(s) successfully`);
+              } catch (error: any) {
+                Alert.alert('Error', error?.response?.data?.message || 'Failed to export attendance records');
+              }
+            }}
+          >
             <Text style={styles.exportText}>Export All</Text>
           </TouchableOpacity>
         </View>
@@ -471,6 +644,7 @@ const HRAttendanceScreen: React.FC = () => {
             mode="date"
             display="default"
             onChange={handleStartDateChange}
+            maximumDate={endDate || new Date()}
           />
         )}
         
@@ -480,31 +654,114 @@ const HRAttendanceScreen: React.FC = () => {
             mode="date"
             display="default"
             onChange={handleEndDateChange}
+            minimumDate={startDate}
+            maximumDate={new Date()}
           />
         )}
 
-        {/* Scrollable Table */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableScrollContainer}>
-          <View style={styles.tableContainer}>
-            {/* Table Header */}
-            <View style={styles.tableHeader}>
-              <View style={styles.headerCheckbox}>
-                <Icon name="check-box-outline-blank" size={20} color="#666" />
+        {/* Scrollable Table - Vertical scroll for rows, horizontal scroll for columns */}
+        <View style={styles.tableScrollContainer}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={true}
+            style={styles.tableHorizontalScroll}
+            contentContainerStyle={styles.tableHorizontalContent}
+          >
+            <View style={styles.tableContainer}>
+              {/* Table Header */}
+              <View style={styles.tableHeader}>
+                <View style={styles.headerCheckbox}>
+                  <Icon name="check-box-outline-blank" size={20} color="#666" />
+                </View>
+                <Text style={[styles.headerText, styles.headerSr]}>#</Text>
+                <Text style={[styles.headerText, styles.headerEmployee]}>EMPLOYEE</Text>
+                <Text style={[styles.headerText, styles.headerDate]}>DATE</Text>
+                <Text style={[styles.headerText, styles.headerStatus]}>STATUS</Text>
+                <Text style={[styles.headerText, styles.headerTimeIn]}>TIME IN</Text>
+                <Text style={[styles.headerText, styles.headerTimeOut]}>TIME OUT</Text>
+                <Text style={[styles.headerText, styles.headerArrival]}>ARRIVAL STATUS</Text>
+                <Text style={[styles.headerText, styles.headerOptions]}>ACTIONS</Text>
               </View>
-              <Text style={[styles.headerText, styles.headerSr]}>#</Text>
-              <Text style={[styles.headerText, styles.headerEmployee]}>EMPLOYEE</Text>
-              <Text style={[styles.headerText, styles.headerDate]}>DATE</Text>
-              <Text style={[styles.headerText, styles.headerStatus]}>STATUS</Text>
-              <Text style={[styles.headerText, styles.headerTimeIn]}>TIME IN</Text>
-              <Text style={[styles.headerText, styles.headerTimeOut]}>TIME OUT</Text>
-              <Text style={[styles.headerText, styles.headerArrival]}>ARRIVAL STATUS</Text>
-              <Text style={[styles.headerText, styles.headerOptions]}>ACTIONS</Text>
-            </View>
 
-            {/* Table Rows */}
-            {attendanceData.map((record, index) => renderAttendanceRow(record, index))}
+              {/* Table Rows - Scrollable vertically within the container */}
+              <ScrollView 
+                nestedScrollEnabled={true}
+                showsVerticalScrollIndicator={true}
+                style={styles.tableVerticalScroll}
+              >
+                {isFetching && attendanceData.length === 0 ? (
+                  <View style={styles.tableLoadingContainer}>
+                    <ActivityIndicator size="large" color="#FF6B35" />
+                    <Text style={styles.tableLoadingText}>Loading attendance data...</Text>
+                  </View>
+                ) : attendanceData.length === 0 ? (
+                  <View style={styles.emptyTableContainer}>
+                    <Text style={styles.emptyTableText}>No attendance records found</Text>
+                  </View>
+                ) : (
+                  <>
+                    {console.log("🔍 RENDERING: attendanceData.length =", attendanceData.length, "Page =", page, "Total records =", allAttendanceData.length)}
+                    {attendanceData.map((record, index) => {
+                      // Calculate the actual row number based on current page
+                      const rowNumber = (page - 1) * pageSize + index + 1;
+                      return renderAttendanceRow(record, index, rowNumber);
+                    })}
+                  </>
+                )}
+              </ScrollView>
+            </View>
+          </ScrollView>
+        </View>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <View style={styles.paginationContainer}>
+            <TouchableOpacity
+              style={[styles.paginationButton, (page === 1 || isFetching) && styles.paginationButtonDisabled]}
+              onPress={() => {
+                if (page > 1 && !isFetching) {
+                  setPage(page - 1);
+                }
+              }}
+              disabled={page === 1 || isFetching}
+            >
+              {isFetching && page > 1 ? (
+                <ActivityIndicator size="small" color="#9CA3AF" />
+              ) : (
+                <Text style={[styles.paginationButtonText, page === 1 && styles.paginationButtonTextDisabled]}>
+                  Previous
+                </Text>
+              )}
+            </TouchableOpacity>
+            
+            <View style={styles.paginationInfoContainer}>
+              {isFetching && (
+                <ActivityIndicator size="small" color="#FF6B35" style={{ marginRight: 8 }} />
+              )}
+              <Text style={styles.paginationInfo}>
+                Page {page} of {totalPages}
+              </Text>
+            </View>
+            
+            <TouchableOpacity
+              style={[styles.paginationButton, (page >= totalPages || isFetching) && styles.paginationButtonDisabled]}
+              onPress={() => {
+                if (page < totalPages && !isFetching) {
+                  setPage(page + 1);
+                }
+              }}
+              disabled={page >= totalPages || isFetching}
+            >
+              {isFetching && page < totalPages ? (
+                <ActivityIndicator size="small" color="#9CA3AF" />
+              ) : (
+                <Text style={[styles.paginationButtonText, page >= totalPages && styles.paginationButtonTextDisabled]}>
+                  Next
+                </Text>
+              )}
+            </TouchableOpacity>
           </View>
-        </ScrollView>
+        )}
       </View>
     </ScrollView>
     </View>
@@ -788,14 +1045,25 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   tableScrollContainer: {
-    maxHeight: 500,
+    height: 500,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    overflow: 'hidden',
+    backgroundColor: 'white',
+  },
+  tableHorizontalScroll: {
+    flex: 1,
+  },
+  tableHorizontalContent: {
+    flexGrow: 1,
   },
   tableContainer: {
     minWidth: 1200,
     backgroundColor: 'white',
+  },
+  tableVerticalScroll: {
+    maxHeight: 450, // Leave space for header
   },
   tableHeader: {
     flexDirection: 'row',
@@ -928,6 +1196,64 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 6,
     backgroundColor: '#F9FAFB',
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+    marginTop: 8,
+  },
+  paginationButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: '#FF6B35',
+  },
+  paginationButtonDisabled: {
+    backgroundColor: '#E5E7EB',
+  },
+  paginationButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  paginationButtonTextDisabled: {
+    color: '#9CA3AF',
+  },
+  paginationInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  paginationInfo: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  tableLoadingContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 200,
+  },
+  tableLoadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#666',
+  },
+  emptyTableContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 200,
+  },
+  emptyTableText: {
+    fontSize: 14,
+    color: '#999',
+    fontStyle: 'italic',
   },
 });
 

@@ -124,15 +124,12 @@ const ChatListItem: React.FC<Props> = ({ chat, currentUser, isSelected, onSelect
 
   const getUnreadCount = (): string => {
     try {
-      console.log('🔢 ChatListItem getUnreadCount for chat:', chat?.name, 'unreadCount:', chat?.unreadCount);
       if (!chat?.unreadCount || typeof chat.unreadCount !== 'number' || chat.unreadCount <= 0) {
         return '';
       }
       const count = chat.unreadCount > 99 ? "99+" : chat.unreadCount.toString();
-      console.log('🔢 Returning unread count:', count);
       return count;
     } catch (error) {
-      console.error('🔢 Error in getUnreadCount:', error);
       return '';
     }
   };

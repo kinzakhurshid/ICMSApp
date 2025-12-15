@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Feather from 'react-native-vector-icons/Feather';
 import { useSelector } from 'react-redux';
 import { RootState } from '../states/store';
@@ -157,6 +157,15 @@ const HrIdleTimeScreen: React.FC = () => {
     fetchRecords();
     fetchChart();
   }, [fetchRecords, fetchChart]);
+
+  // Refresh data when screen is focused (e.g., after adding idle time)
+  useFocusEffect(
+    useCallback(() => {
+      fetchRecords();
+      fetchChart();
+      fetchMetrics();
+    }, [fetchRecords, fetchChart, fetchMetrics])
+  );
 
   const handleDelete = async (recordId: string) => {
     if (!token) return;

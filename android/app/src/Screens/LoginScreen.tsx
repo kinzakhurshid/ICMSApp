@@ -123,8 +123,15 @@ const handleLogin = async () => {
     console.log('Error message:', error.message);
     const errorMessage =
       error.response?.data?.message || error.message || 'Login failed';
-    dispatch(loginFailure(errorMessage));
-    setErrors(prev => ({...prev, password: errorMessage}));
+    // Show "Invalid Credentials" for wrong password
+    const displayMessage = errorMessage.toLowerCase().includes('password') || 
+                          errorMessage.toLowerCase().includes('invalid') ||
+                          errorMessage.toLowerCase().includes('credential') ||
+                          error.response?.status === 401
+      ? 'Invalid Credentials'
+      : errorMessage;
+    dispatch(loginFailure(displayMessage));
+    setErrors(prev => ({...prev, password: displayMessage}));
   }
 };
   // const handleLogin = async () => {

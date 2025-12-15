@@ -17,13 +17,18 @@ const api = axios.create({
 
 // Request interceptor for logging and FormData handling
 api.interceptors.request.use(config => {
-  console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`);
+  // Only log POST/PUT/PATCH/DELETE requests to reduce noise from GET requests
+  const method = config.method?.toUpperCase();
+  const shouldLog = method && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+  
+  if (shouldLog) {
+    console.log(`[API] ${method} ${config.url}`);
+  }
   
   // Handle FormData requests
   if (config.data instanceof FormData) {
     // Don't set Content-Type for FormData, let axios handle it
     delete config.headers['Content-Type'];
-    console.log('[API] FormData request detected, removing Content-Type header');
   } else if (config.data && typeof config.data === 'object') {
     // Set Content-Type for JSON requests
     config.headers['Content-Type'] = 'application/json';
@@ -71,13 +76,31 @@ api.interceptors.response.use(response => {
     errorMessage = error.message || 'Request configuration error';
   }
 
-  console.error('[API] Error details:', {
-    url: error.config?.url,
-    method: error.config?.method,
-    error: errorMessage
-  });
+  // Don't log 404 errors for getMemberDetails endpoint (expected)
+  const isExpected404 = 
+    error.config?.url?.includes('/chats/getMemberDetails/') && 
+    (error.response?.status === 404 || errorMessage === 'Resource not found');
+  
+  if (!isExpected404) {
+    console.error('[API] Error details:', {
+      url: error.config?.url,
+      method: error.config?.method,
+      error: errorMessage
+    });
+  }
 
-  return Promise.reject(errorMessage);
+  // For expected 404s, reject with the original error object instead of just the message string
+  // This allows the catch blocks to check error.response.status
+  if (isExpected404) {
+    return Promise.reject(error);
+  }
+
+  // For other errors, reject with an error object that has the message and original error
+  const apiError: any = new Error(errorMessage);
+  apiError.response = error.response;
+  apiError.config = error.config;
+  apiError.originalError = error;
+  return Promise.reject(apiError);
 });
 
 // Health check endpoint
@@ -160,20 +183,40 @@ export const sendMessage = async (chatId: string, messageData: {
 }, token: string) => {
   try {
     // Use the correct endpoint that exists on the server
-    const response = await api.post(`/chats/send`, {
+    // Build request body - only include defined values to avoid server errors
+    const requestBody: any = {
       chatId,
       content: messageData.content,
       type: messageData.type,
       attachments: messageData.attachments || [],
-      replyTo: messageData.replyTo,
       mentions: messageData.mentions || []
-    }, {
+    };
+    
+    // Only include replyTo if it's provided (not undefined)
+    if (messageData.replyTo) {
+      requestBody.replyTo = messageData.replyTo;
+    }
+    
+    console.log('🔍 [sendMessage] Request body:', JSON.stringify(requestBody, null, 2));
+    
+    const response = await api.post(`/chats/send`, requestBody, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
+    
+    console.log('🔍 [sendMessage] Response:', response.data);
     return response.data;
-  } catch (error) {
-    console.error('Failed to send message:', error);
-    throw error;
+  } catch (error: any) {
+    console.error('🔍 [sendMessage] Failed to send message:', error);
+    console.error('🔍 [sendMessage] Error response:', error?.response?.data);
+    console.error('🔍 [sendMessage] Error status:', error?.response?.status);
+    console.error('🔍 [sendMessage] Full error:', JSON.stringify(error?.response?.data, null, 2));
+    
+    // Re-throw with more context
+    const errorMessage = error?.response?.data?.error || error?.response?.data?.message || error?.message || 'Failed to send message';
+    const apiError: any = new Error(errorMessage);
+    apiError.response = error.response;
+    apiError.originalError = error;
+    throw apiError;
   }
 };
 
@@ -308,8 +351,19 @@ export const getChatMembers = async (chatId: string, token: string) => {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     return response.data;
-  } catch (error) {
-    console.error('Failed to fetch chat members:', error);
+  } catch (error: any) {
+    // Don't log 404 or "Resource not found" errors - they're expected when endpoint doesn't exist
+    // The error might be a string from the interceptor or an error object
+    const errorString = typeof error === 'string' ? error : error?.message || '';
+    const isExpectedError = 
+      error?.response?.status === 404 || 
+      errorString === 'Resource not found' ||
+      errorString.includes('Resource not found');
+    
+    // Silently suppress expected errors - don't log them at all
+    if (!isExpectedError) {
+      console.error('Failed to fetch chat members:', error);
+    }
     throw error;
   }
 };

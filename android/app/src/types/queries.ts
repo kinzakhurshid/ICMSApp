@@ -6,6 +6,12 @@ export interface OrgQueryEmployee {
   designation?: string;
 }
 
+export interface OrgQueryComment {
+  comment: string;
+  createdAt?: string;
+  createdBy?: string;
+}
+
 export interface OrgQuery {
   _id: string;
   subject?: string;
@@ -13,6 +19,7 @@ export interface OrgQuery {
   status?: string;
   createdAt?: string;
   employeeId?: OrgQueryEmployee;
+  comments?: OrgQueryComment[];
 }
 
 export interface OrgQueryListResponse {

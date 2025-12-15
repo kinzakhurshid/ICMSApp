@@ -12,6 +12,7 @@ interface ChatHeaderProps {
   onStartVoiceCall?: () => void;
   onStartVideoCall?: () => void;
   onSearch?: () => void;
+  onMediaLinks?: () => void;
   isInCall?: boolean;
   showCallButtons?: boolean;
   pinnedMessagesCount?: number;
@@ -26,6 +27,8 @@ const ChatHeaderNew: React.FC<ChatHeaderProps> = ({
   onStartVoiceCall,
   onStartVideoCall,
   onSearch,
+  onMediaLinks,
+  onManageMembers,
   isInCall = false,
   showCallButtons = false,
   pinnedMessagesCount = 0,
@@ -89,7 +92,8 @@ const ChatHeaderNew: React.FC<ChatHeaderProps> = ({
     }
   };
 
-  const shouldShowCallButtons = !chat.isGroup && !isInCall && isOtherUserOnline && showCallButtons;
+  // Show call buttons for direct messages when user is online
+  const shouldShowCallButtons = !chat.isGroup && isOtherUserOnline;
 
   return (
     <View style={styles.container}>
@@ -137,14 +141,47 @@ const ChatHeaderNew: React.FC<ChatHeaderProps> = ({
           <Ionicons name="search" size={22} color="#6B7280" />
         </TouchableOpacity>
 
-        {/* Voice Call Button - Only show for direct messages */}
-        {!chat.isGroup && onStartVoiceCall && (
-          <TouchableOpacity 
-            style={styles.actionButton} 
-            onPress={onStartVoiceCall}
-          >
-            <Ionicons name="call" size={22} color="#6B7280" />
-          </TouchableOpacity>
+        {/* Call Buttons - Only show for direct messages when user is online */}
+        {!chat.isGroup && (onStartVoiceCall || onStartVideoCall) && isOtherUserOnline && (
+          <View style={styles.callButtonsContainer}>
+            {/* Voice Call Button */}
+            {onStartVoiceCall && (
+              <TouchableOpacity 
+                style={[
+                  styles.callButton,
+                  styles.voiceCallButton,
+                  isInCall && styles.callButtonActive
+                ]} 
+                onPress={onStartVoiceCall}
+                activeOpacity={0.7}
+              >
+                <Ionicons 
+                  name={isInCall ? "call" : "call"} 
+                  size={20} 
+                  color="#FFFFFF" 
+                />
+              </TouchableOpacity>
+            )}
+
+            {/* Video Call Button */}
+            {onStartVideoCall && (
+              <TouchableOpacity 
+                style={[
+                  styles.callButton,
+                  styles.videoCallButton,
+                  isInCall && styles.callButtonActive
+                ]} 
+                onPress={onStartVideoCall}
+                activeOpacity={0.7}
+              >
+                <Ionicons 
+                  name={isInCall ? "videocam" : "videocam-outline"} 
+                  size={20} 
+                  color="#FFFFFF" 
+                />
+              </TouchableOpacity>
+            )}
+          </View>
         )}
 
         {/* Menu Button */}
@@ -214,6 +251,40 @@ const ChatHeaderNew: React.FC<ChatHeaderProps> = ({
                 <Ionicons name="call" size={20} color="#3B82F6" />
                 <Text style={styles.menuItemText}>Voice Call</Text>
               </TouchableOpacity>
+            )}
+            
+            <View style={styles.menuDivider} />
+            
+            {/* Media & Links */}
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={() => {
+                // This will be handled by parent component
+                if (onMediaLinks) {
+                  onMediaLinks();
+                }
+                setMenuVisible(false);
+              }}
+            >
+              <Ionicons name="images" size={20} color="#6B7280" />
+              <Text style={styles.menuItemText}>Media & Links</Text>
+            </TouchableOpacity>
+            
+            {/* Manage Members - Only for group chats */}
+            {chat.isGroup && onManageMembers && (
+              <>
+                <View style={styles.menuDivider} />
+                <TouchableOpacity 
+                  style={styles.menuItem}
+                  onPress={() => {
+                    onManageMembers();
+                    setMenuVisible(false);
+                  }}
+                >
+                  <Ionicons name="people" size={20} color="#3B82F6" />
+                  <Text style={styles.menuItemText}>Manage Members</Text>
+                </TouchableOpacity>
+              </>
             )}
             
             <View style={styles.menuDivider} />
@@ -320,6 +391,33 @@ const styles = StyleSheet.create({
   actionButton: {
     padding: 8,
     marginLeft: 4,
+  },
+  callButtonsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+    gap: 6,
+  },
+  callButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+  },
+  voiceCallButton: {
+    backgroundColor: '#10B981',
+  },
+  videoCallButton: {
+    backgroundColor: '#3B82F6',
+  },
+  callButtonActive: {
+    backgroundColor: '#EF4444',
   },
   menuOverlay: {
     flex: 1,
