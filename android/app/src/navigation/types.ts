@@ -29,6 +29,7 @@ export type ProjectStackParamList = {
   ProjectList: undefined;
   ProjectDetail: { projectId: string };
   CreateProject: undefined;
+  EditProject: { projectId: string };
 };
 
 export type TaskStackParamList = {

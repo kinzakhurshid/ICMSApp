@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import useAxios from '../hooks/useAxios';
 import FormField from '../components/task/FormField';
@@ -17,6 +17,8 @@ import DaySelector from '../components/attendance/DaySelector';
 
 export default function AddIdleTimePresetScreen() {
   const navigation = useNavigation();
+  const route = useRoute<any>();
+  const redirectTo = (route.params as any)?.redirectTo as string | undefined;
   const { callApi } = useAxios();
 
   const [submitting, setSubmitting] = useState(false);
@@ -31,6 +33,19 @@ export default function AddIdleTimePresetScreen() {
 
   // Errors
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Clear form each time the screen is focused so stale values aren't kept
+  useFocusEffect(
+    useCallback(() => {
+      setName('');
+      setStartTime('');
+      setEndTime('');
+      setDaysOfWeek([1, 2, 3, 4, 5]);
+      setIsActive(true);
+      setAutoApply(true);
+      setErrors({});
+    }, [])
+  );
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -86,7 +101,13 @@ export default function AddIdleTimePresetScreen() {
       Alert.alert('Success', 'Idle time preset created successfully', [
         {
           text: 'OK',
-          onPress: () => navigation.goBack(),
+          onPress: () => {
+            if (redirectTo) {
+              (navigation as any).navigate(redirectTo);
+            } else {
+              navigation.goBack();
+            }
+          },
         },
       ]);
     } catch (error: any) {
@@ -101,6 +122,18 @@ export default function AddIdleTimePresetScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => {
+            if (redirectTo) {
+              (navigation as any).navigate(redirectTo);
+            } else {
+              navigation.goBack();
+            }
+          }}
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={22} color="#111827" />
+        </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Add Idle Time Preset</Text>
         </View>
@@ -184,7 +217,13 @@ export default function AddIdleTimePresetScreen() {
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.cancelButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => {
+            if (redirectTo) {
+              (navigation as any).navigate(redirectTo);
+            } else {
+              navigation.goBack();
+            }
+          }}
           disabled={submitting}
         >
           <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -219,6 +258,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+  },
+  backButton: {
+    marginRight: 12,
+    padding: 4,
   },
   headerContent: {
     flex: 1,

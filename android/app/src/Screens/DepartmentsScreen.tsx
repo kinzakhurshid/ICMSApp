@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Feather from 'react-native-vector-icons/Feather';
 import useAxios from '../hooks/useAxios';
 import DepartmentEmployeeChart from '../components/DepartmentEmployeeChart';
@@ -24,7 +24,15 @@ const DepartmentsScreen: React.FC = () => {
       console.log('Dept stats error', e);
     }
   };
+  
   useEffect(() => { fetchStats(); }, []);
+  
+  // Refresh stats when screen comes into focus (e.g., after creating a department)
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchStats();
+    }, [])
+  );
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>

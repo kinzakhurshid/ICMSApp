@@ -42,7 +42,8 @@ const NotificationsScreen: React.FC = () => {
   } = useNotifications();
   
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'unread' | 'inbox' | 'general'>('all');
+  // Two main tabs: "general" (system / app notifications) and "inbox" (chat/message)
+  const [filter, setFilter] = useState<'inbox' | 'general'>('general');
 
   useEffect(() => {
     fetchNotifications();
@@ -157,10 +158,10 @@ const NotificationsScreen: React.FC = () => {
   };
 
   const filteredNotifications = notifications.filter(notification => {
-    if (filter === 'unread') return !notification.read;
-    if (filter === 'inbox') return notification.type === 'message' || notification.chat;
-    if (filter === 'general') return notification.type !== 'message' && !notification.chat;
-    return true; // 'all' - show all notifications
+    const isInboxNotification = notification.type === 'message' || !!notification.chat;
+    if (filter === 'inbox') return isInboxNotification;
+    if (filter === 'general') return !isInboxNotification;
+    return true;
   });
 
 
@@ -182,12 +183,8 @@ const NotificationsScreen: React.FC = () => {
   };
 
   const renderNotificationItem = ({ item }: { item: InboxNotification }) => {
-    // Debug logging to understand the data structure
-    console.log('🔍 Notification item data:', JSON.stringify(item, null, 2));
-    console.log('🔍 Sender data:', item.sender);
-    console.log('🔍 Related message:', item.relatedMessage);
-    console.log('🔍 Body:', item.body);
-    
+    const isInboxNotification = item.type === 'message' || !!item.chat;
+
     // Extract sender name from various sources
     const senderObj = typeof item.sender === 'object' ? item.sender : undefined;
     const senderName =
@@ -196,10 +193,9 @@ const NotificationsScreen: React.FC = () => {
       item.metadata?.senderName ||
       extractSenderNameFromMessage(item.body || '') ||
       extractSenderNameFromMessage(item.relatedMessage?.content || '') ||
-      item.title || // fall back to notification title for system / task notifications
+      // For general notifications, prefer the title as the main label
+      item.title ||
       'System Notification';
-    
-    console.log('🔍 Extracted sender name:', senderName);
     
     return (
       <TouchableOpacity
@@ -222,7 +218,7 @@ const NotificationsScreen: React.FC = () => {
             />
             <View style={styles.messageIconContainer}>
               <Text style={styles.messageIcon}>
-                💬
+                {isInboxNotification ? '💬' : '🔔'}
               </Text>
             </View>
           </View>
@@ -235,9 +231,15 @@ const NotificationsScreen: React.FC = () => {
               <Text style={styles.timeText}>{formatTime(item.createdAt)}</Text>
             </View>
             
-            <Text style={styles.chatName} numberOfLines={1}>
-              {item.chat?.name ? `in ${item.chat.name}` : 'in Chat'}
-            </Text>
+            {isInboxNotification ? (
+              <Text style={styles.chatName} numberOfLines={1}>
+                {item.chat?.name ? `in ${item.chat.name}` : 'Inbox message'}
+              </Text>
+            ) : (
+              <Text style={styles.chatName} numberOfLines={1}>
+                {item.module ? `${item.module} update` : 'General notification'}
+              </Text>
+            )}
             
             <Text
               style={[
@@ -246,15 +248,7 @@ const NotificationsScreen: React.FC = () => {
               ]}
               numberOfLines={2}
             >
-              {(() => {
-                // Use the same logic as NotificationPopup for consistency
-                const messageContent = item.body || item.relatedMessage?.content || 'New message';
-                console.log('🔍 NotificationsScreen message content:', messageContent);
-                console.log('🔍 NotificationsScreen item body:', item.body);
-                console.log('🔍 NotificationsScreen relatedMessage content:', item.relatedMessage?.content);
-                console.log('🔍 NotificationsScreen relatedMessage:', JSON.stringify(item.relatedMessage, null, 2));
-                return messageContent;
-              })()}
+              {item.body || item.relatedMessage?.content || (isInboxNotification ? 'New message' : 'New notification')}
             </Text>
           </View>
 
@@ -275,9 +269,13 @@ const NotificationsScreen: React.FC = () => {
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <Bell size={48} color="#D1D5DB" />
-      <Text style={styles.emptyStateTitle}>No notifications yet</Text>
+      <Text style={styles.emptyStateTitle}>
+        {filter === 'inbox' ? 'No inbox messages yet' : 'No general notifications'}
+      </Text>
       <Text style={styles.emptyStateSubtitle}>
-        You'll see notifications for new messages and mentions here
+        {filter === 'inbox'
+          ? "You'll see chat and message notifications here"
+          : "You'll see system and app updates here"}
       </Text>
     </View>
   );
@@ -285,22 +283,22 @@ const NotificationsScreen: React.FC = () => {
   return (
     <View style={styles.container}>
 
-      {/* Filter Tabs */}
+      {/* Tabs: General & Inbox */}
       <View style={styles.filterContainer}>
         <TouchableOpacity
-          style={[styles.filterTab, filter === 'all' && styles.activeFilterTab]}
-          onPress={() => setFilter('all')}
+          style={[styles.filterTab, filter === 'general' && styles.activeFilterTab]}
+          onPress={() => setFilter('general')}
         >
-          <Text style={[styles.filterTabText, filter === 'all' && styles.activeFilterTabText]}>
-            All
+          <Text style={[styles.filterTabText, filter === 'general' && styles.activeFilterTabText]}>
+            General
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.filterTab, filter === 'unread' && styles.activeFilterTab]}
-          onPress={() => setFilter('unread')}
+          style={[styles.filterTab, filter === 'inbox' && styles.activeFilterTab]}
+          onPress={() => setFilter('inbox')}
         >
-          <Text style={[styles.filterTabText, filter === 'unread' && styles.activeFilterTabText]}>
-            Unread
+          <Text style={[styles.filterTabText, filter === 'inbox' && styles.activeFilterTabText]}>
+            Inbox
           </Text>
         </TouchableOpacity>
       </View>

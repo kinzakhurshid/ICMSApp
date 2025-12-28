@@ -76,6 +76,8 @@ const PMNavigator: React.FC = () => {
         options={{
           title: 'Sprint Details',
           drawerItemStyle: { display: 'none' },
+          // Use screen's own header and back handling
+          headerShown: false,
         }}
       />
       <Drawer.Screen
@@ -84,6 +86,8 @@ const PMNavigator: React.FC = () => {
         options={{
           title: 'Sprint Overview',
           drawerItemStyle: { display: 'none' },
+          // Use screen's own header and back handling
+          headerShown: false,
         }}
       />
       <Drawer.Screen
@@ -92,6 +96,7 @@ const PMNavigator: React.FC = () => {
         options={{
           title: 'Edit Sprint',
           drawerItemStyle: { display: 'none' },
+          headerShown: false,
         }}
       />
       <Drawer.Screen
@@ -100,6 +105,7 @@ const PMNavigator: React.FC = () => {
         options={{
           title: 'Create Sprint',
           drawerItemStyle: { display: 'none' },
+          headerShown: false,
         }}
       />
       <Drawer.Screen
@@ -118,6 +124,7 @@ const PMNavigator: React.FC = () => {
         options={{
           title: 'Create Meeting',
           drawerItemStyle: { display: 'none' },
+          headerShown: false,
         }}
       />
       <Drawer.Screen
@@ -126,6 +133,7 @@ const PMNavigator: React.FC = () => {
         options={{
           title: 'Edit Meeting',
           drawerItemStyle: { display: 'none' },
+          headerShown: false,
         }}
       />
       <Drawer.Screen

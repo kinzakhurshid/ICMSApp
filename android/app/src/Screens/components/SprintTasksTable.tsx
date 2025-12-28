@@ -81,7 +81,7 @@ export const SprintTasksTable: React.FC<SprintTasksTableProps> = ({
 
   if (tasks.length === 0) {
     return (
-      <View style={styles.container}>
+      <View style={styles.emptyWrapper}>
         <View style={styles.emptyContainer}>
           <Ionicons name="list-outline" size={48} color="#9CA3AF" />
           <Text style={styles.emptyText}>No tasks in this sprint yet.</Text>
@@ -204,6 +204,11 @@ const styles = StyleSheet.create({
     elevation: 0,
     minWidth: Math.max(width - 32, 730),
   },
+  emptyWrapper: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   loadingContainer: {
     padding: 32,
     alignItems: 'center',
@@ -216,6 +221,8 @@ const styles = StyleSheet.create({
   emptyContainer: {
     padding: 32,
     alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
   },
   emptyText: {
     marginTop: 8,

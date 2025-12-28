@@ -9,10 +9,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import useAxios from '../hooks/useAxios';
-import { exportToCsv } from '../utills/utills';
+import { exportToXlsx } from '../utills/utills';
+import SearchableSelect from './SearchableSelect';
 
 interface Employee {
   _id: string;
@@ -26,6 +27,11 @@ interface Employee {
   hireDate?: string;
   gender: string;
   avatar?: string;
+  department?: string;
+  role?: string;
+  status?: string;
+  jobType?: string;
+  type?: string;
 }
 
 const EmployeeTable: React.FC = () => {
@@ -36,10 +42,23 @@ const EmployeeTable: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    department: '',
+    role: '',
+    gender: '',
+    status: '',
+    type: '',
+  });
+  const [availableDepartments, setAvailableDepartments] = useState<string[]>([]);
+  const [availableRoles, setAvailableRoles] = useState<string[]>([]);
+  const [availableTypes, setAvailableTypes] = useState<string[]>([]);
 
   useEffect(() => {
-    fetchEmployees();
-  }, []);
+    setPage(1); // Reset to first page when filters change
+  }, [filters, searchTerm]);
 
   const fetchEmployees = async () => {
     try {
@@ -72,9 +91,22 @@ const EmployeeTable: React.FC = () => {
         hireDate: emp.hireDate || emp.joiningDate || emp.createdAt,
         gender: emp.gender || 'N/A',
         avatar: emp.avatar || emp.profileImage || emp.profilePicture,
+        department: emp.department?.name || emp.department || 'N/A',
+        role: emp.role || 'N/A',
+        status: emp.status || 'Active',
+        jobType: emp.jobType || emp.type || 'N/A',
+        type: emp.jobType || emp.type || 'N/A',
       }));
 
       setEmployees(mappedEmployees);
+      
+      // Extract unique departments, roles, and types for filters
+      const departments = [...new Set(mappedEmployees.map(emp => emp.department).filter(Boolean))] as string[];
+      const roles = [...new Set(mappedEmployees.map(emp => emp.role).filter(Boolean))] as string[];
+      const types = [...new Set(mappedEmployees.map(emp => emp.jobType || emp.type).filter(t => Boolean(t) && t !== 'N/A'))] as string[];
+      setAvailableDepartments(departments);
+      setAvailableRoles(roles);
+      setAvailableTypes(types);
     } catch (error) {
       console.error('Error fetching employees:', error);
       Alert.alert('Error', 'Failed to load employees');
@@ -84,6 +116,18 @@ const EmployeeTable: React.FC = () => {
     }
   };
 
+  // Initial load on mount
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
+  // Refresh employees when screen comes into focus (e.g., after editing)
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchEmployees();
+    }, [])
+  );
+
   const handleSelectEmployee = (id: string) => {
     setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(empId => empId !== id) : [...prev, id],
@@ -91,10 +135,13 @@ const EmployeeTable: React.FC = () => {
   };
 
   const handleSelectAll = () => {
-    if (selectedIds.length === employees.length) {
+    if (filteredEmployees.length === 0) {
+      return;
+    }
+    if (selectedIds.length === filteredEmployees.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(employees.map(emp => emp._id));
+      setSelectedIds(filteredEmployees.map(emp => emp._id));
     }
   };
 
@@ -111,12 +158,16 @@ const EmployeeTable: React.FC = () => {
 
   const deleteEmployee = async (id: string) => {
     try {
-      await callApi({ method: 'DELETE', url: `/employee/${id}` });
+      await callApi({ method: 'DELETE', url: `/employee/deleteOne/${id}` });
       setEmployees(prev => prev.filter(emp => emp._id !== id));
+      setSelectedIds(prev => prev.filter(empId => empId !== id));
       Alert.alert('Success', 'Employee deleted successfully');
-    } catch (error) {
+      // Refresh the list
+      fetchEmployees();
+    } catch (error: any) {
       console.error('Error deleting employee:', error);
-      Alert.alert('Error', 'Failed to delete employee');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to delete employee';
+      Alert.alert('Error', errorMessage);
     }
   };
 
@@ -129,14 +180,44 @@ const EmployeeTable: React.FC = () => {
   };
 
   const filteredEmployees = employees.filter(emp => {
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
-    return (
-      (emp.firstName || '').toLowerCase().includes(search) ||
-      (emp.lastName || '').toLowerCase().includes(search) ||
-      (emp.email || '').toLowerCase().includes(search) ||
-      (emp.position || '').toLowerCase().includes(search)
-    );
+    // Search filter
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      const matchesSearch = (
+        (emp.firstName || '').toLowerCase().includes(search) ||
+        (emp.lastName || '').toLowerCase().includes(search) ||
+        (emp.email || '').toLowerCase().includes(search) ||
+        (emp.position || '').toLowerCase().includes(search)
+      );
+      if (!matchesSearch) return false;
+    }
+    
+    // Department filter
+    if (filters.department && emp.department !== filters.department) {
+      return false;
+    }
+    
+    // Role filter
+    if (filters.role && emp.role !== filters.role) {
+      return false;
+    }
+    
+    // Gender filter
+    if (filters.gender && emp.gender !== filters.gender) {
+      return false;
+    }
+    
+    // Status filter
+    if (filters.status && emp.status !== filters.status) {
+      return false;
+    }
+    
+    // Type filter
+    if (filters.type && (emp.jobType || emp.type) !== filters.type) {
+      return false;
+    }
+    
+    return true;
   });
 
   const formatDate = (dateString: string) => {
@@ -157,6 +238,12 @@ const EmployeeTable: React.FC = () => {
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
+
+  const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const endIndex = startIndex + PAGE_SIZE;
+  const paginatedEmployees = filteredEmployees.slice(startIndex, endIndex);
 
   if (loading) {
     return (
@@ -186,55 +273,195 @@ const EmployeeTable: React.FC = () => {
           </View>
 
           <TouchableOpacity
-            style={styles.filterButton}
-            onPress={() => {
-              Alert.alert('Filter', 'Filter options will be available here');
-            }}
+            style={[styles.filterButton, showFilters && styles.filterButtonActive]}
+            onPress={() => setShowFilters(!showFilters)}
           >
-            <Icon name="filter-list" size={20} color="#666" />
+            <Icon name="filter-list" size={16} color={showFilters ? "#FF6B35" : "#666"} />
+            <Text style={[styles.filterButtonText, showFilters && styles.filterButtonTextActive]}>Filters</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.exportButton}
-            onPress={() => {
-              if (!employees.length) {
+            onPress={async () => {
+              const employeesToExport = selectedIds.length > 0 
+                ? employees.filter(emp => selectedIds.includes(emp._id))
+                : filteredEmployees;
+              
+              if (!employeesToExport.length) {
                 Alert.alert('Export', 'No employees to export.');
                 return;
               }
-              exportToCsv({
-                filename: 'employees.csv',
-                columns: [
-                  { key: 'name', header: 'Name' },
-                  { key: 'email', header: 'Email' },
-                  { key: 'position', header: 'Position' },
-                  { key: 'contact', header: 'Contact' },
-                  { key: 'joiningDate', header: 'Joining Date' },
-                  { key: 'gender', header: 'Gender' },
-                ],
-                rows: employees.map(emp => ({
-                  name: `${emp.firstName} ${emp.lastName}`,
-                  email: emp.email,
-                  position: emp.position,
+
+              try {
+                // Format dates properly for export
+                const formatDateForExport = (dateString: string) => {
+                  if (!dateString || dateString === 'N/A') return 'N/A';
+                  try {
+                    const date = new Date(dateString);
+                    if (isNaN(date.getTime())) return 'N/A';
+                    return date.toLocaleDateString('en-GB', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                    });
+                  } catch {
+                    return dateString;
+                  }
+                };
+
+                const exportData = employeesToExport.map(emp => ({
+                  name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'N/A',
+                  email: emp.email || 'N/A',
+                  position: emp.position || 'N/A',
+                  department: emp.department || 'N/A',
+                  role: emp.role || 'N/A',
                   contact: emp.contactNumber || emp.contact || 'N/A',
-                  joiningDate: emp.hireDate || emp.joiningDate || 'N/A',
-                  gender: emp.gender,
-                })),
-              });
+                  joiningDate: formatDateForExport(emp.hireDate || emp.joiningDate || ''),
+                  gender: emp.gender || 'N/A',
+                  status: emp.status || 'Active',
+                }));
+
+                await exportToXlsx({
+                  filename: `employees_${new Date().toISOString().split('T')[0]}`,
+                  columns: [
+                    { key: 'name', header: 'Name' },
+                    { key: 'email', header: 'Email' },
+                    { key: 'position', header: 'Position' },
+                    { key: 'department', header: 'Department' },
+                    { key: 'role', header: 'Role' },
+                    { key: 'contact', header: 'Contact' },
+                    { key: 'joiningDate', header: 'Joining Date' },
+                    { key: 'gender', header: 'Gender' },
+                    { key: 'status', header: 'Status' },
+                  ],
+                  rows: exportData,
+                });
+                Alert.alert('Success', `Exported ${employeesToExport.length} employee(s) successfully. The file has been saved to your Downloads folder.`);
+              } catch (error: any) {
+                console.error('Failed to export employees to XLSX:', error);
+                Alert.alert('Export Error', error?.message || 'Failed to export employees. Please try again.');
+              }
             }}
           >
             <Icon name="download" size={16} color="white" />
-            <Text style={styles.exportText}>Export All</Text>
+            <Text style={styles.exportText}>Export {selectedIds.length > 0 ? `(${selectedIds.length})` : 'All'}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.addButton}
-            onPress={() => (navigation as any).navigate('CreateEmployee')}
+            onPress={() => (navigation as any).navigate('CreateEmployee', { redirectTo: 'HREmployees' })}
           >
             <Icon name="add" size={16} color="white" />
             <Text style={styles.addText}>Add</Text>
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Filters */}
+      {showFilters && (
+        <View style={styles.filtersContainer}>
+          <Text style={styles.filtersTitle}>Filter Employees</Text>
+          <View style={styles.filtersRow}>
+            <SearchableSelect
+              label="Department"
+              placeholder="All Departments"
+              options={[
+                { value: '', label: 'All Departments' },
+                ...availableDepartments.map(dept => ({
+                  value: dept,
+                  label: dept,
+                })),
+              ]}
+              value={filters.department}
+              onChange={(value) => {
+                setFilters({ ...filters, department: value });
+                setPage(1);
+              }}
+              containerStyle={styles.filterSelect}
+            />
+            
+            <SearchableSelect
+              label="Role"
+              placeholder="All Roles"
+              options={[
+                { value: '', label: 'All Roles' },
+                ...availableRoles.map(role => ({
+                  value: role,
+                  label: role,
+                })),
+              ]}
+              value={filters.role}
+              onChange={(value) => {
+                setFilters({ ...filters, role: value });
+                setPage(1);
+              }}
+              containerStyle={styles.filterSelect}
+            />
+            
+            <SearchableSelect
+              label="Gender"
+              placeholder="All Genders"
+              options={[
+                { value: '', label: 'All Genders' },
+                { value: 'Male', label: 'Male' },
+                { value: 'Female', label: 'Female' },
+                { value: 'Other', label: 'Other' },
+              ]}
+              value={filters.gender}
+              onChange={(value) => {
+                setFilters({ ...filters, gender: value });
+                setPage(1);
+              }}
+              containerStyle={styles.filterSelect}
+            />
+            
+            <SearchableSelect
+              label="Status"
+              placeholder="All Statuses"
+              options={[
+                { value: '', label: 'All Statuses' },
+                { value: 'Active', label: 'Active' },
+                { value: 'Inactive', label: 'Inactive' },
+                { value: 'On Leave', label: 'On Leave' },
+              ]}
+              value={filters.status}
+              onChange={(value) => {
+                setFilters({ ...filters, status: value });
+                setPage(1);
+              }}
+              containerStyle={styles.filterSelect}
+            />
+            
+            <SearchableSelect
+              label="Type"
+              placeholder="All Types"
+              options={[
+                { value: '', label: 'All Types' },
+                ...availableTypes.map(type => ({
+                  value: type,
+                  label: type,
+                })),
+              ]}
+              value={filters.type}
+              onChange={(value) => {
+                setFilters({ ...filters, type: value });
+                setPage(1);
+              }}
+              containerStyle={styles.filterSelect}
+            />
+          </View>
+          
+          <TouchableOpacity
+            style={styles.clearFiltersButton}
+            onPress={() => {
+              setFilters({ department: '', role: '', gender: '', status: '', type: '' });
+              setPage(1);
+            }}
+          >
+            <Text style={styles.clearFiltersText}>Clear Filters</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Table */}
       <ScrollView
@@ -243,13 +470,13 @@ const EmployeeTable: React.FC = () => {
         showsHorizontalScrollIndicator
         style={styles.tableScrollContainer}
       >
-        <View style={styles.tableContainer}>
+          <View style={styles.tableContainer}>
           {/* Header row */}
           <View style={styles.tableHeader}>
             <TouchableOpacity style={styles.checkboxHeader} onPress={handleSelectAll}>
               <Icon
                 name={
-                  selectedIds.length === employees.length && employees.length > 0
+                  selectedIds.length === filteredEmployees.length && filteredEmployees.length > 0
                     ? 'check-box'
                     : 'check-box-outline-blank'
                 }
@@ -277,7 +504,7 @@ const EmployeeTable: React.FC = () => {
               </Text>
             </View>
           ) : (
-            filteredEmployees.map((employee, index) => (
+            paginatedEmployees.map((employee, index) => (
               <TouchableOpacity
                 key={employee._id}
                 style={styles.tableRow}
@@ -302,7 +529,7 @@ const EmployeeTable: React.FC = () => {
                   />
                 </TouchableOpacity>
 
-                <Text style={[styles.cellText, styles.srCol]}>{index + 1}</Text>
+                <Text style={[styles.cellText, styles.srCol]}>{startIndex + index + 1}</Text>
 
                 <View style={styles.nameCell}>
                   <View style={styles.avatarContainer}>
@@ -352,6 +579,51 @@ const EmployeeTable: React.FC = () => {
           )}
         </View>
       </ScrollView>
+      
+      {/* Pagination footer */}
+      {filteredEmployees.length > 0 && (
+        <View style={styles.paginationContainer}>
+          <Text style={styles.paginationText}>
+            Showing {startIndex + 1}-{Math.min(endIndex, filteredEmployees.length)} of {filteredEmployees.length} employees
+          </Text>
+          <View style={styles.paginationButtons}>
+            <TouchableOpacity
+              style={[styles.pageButton, currentPage === 1 && styles.pageButtonDisabled]}
+              disabled={currentPage === 1}
+              onPress={() => setPage(prev => Math.max(1, prev - 1))}
+            >
+              <Text
+                style={[
+                  styles.pageButtonText,
+                  currentPage === 1 && styles.pageButtonTextDisabled,
+                ]}
+              >
+                Prev
+              </Text>
+            </TouchableOpacity>
+            <Text style={styles.pageIndicator}>
+              Page {currentPage} of {totalPages}
+            </Text>
+            <TouchableOpacity
+              style={[
+                styles.pageButton,
+                currentPage === totalPages && styles.pageButtonDisabled,
+              ]}
+              disabled={currentPage === totalPages}
+              onPress={() => setPage(prev => Math.min(totalPages, prev + 1))}
+            >
+              <Text
+                style={[
+                  styles.pageButtonText,
+                  currentPage === totalPages && styles.pageButtonTextDisabled,
+                ]}
+              >
+                Next
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -413,9 +685,62 @@ const styles = StyleSheet.create({
   filterButton: {
     backgroundColor: 'white',
     borderRadius: 8,
-    padding: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  filterButtonActive: {
+    borderColor: '#FF6B35',
+    backgroundColor: '#FFF7ED',
+  },
+  filterButtonText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+  },
+  filterButtonTextActive: {
+    color: '#FF6B35',
+  },
+  filtersContainer: {
+    marginTop: 12,
+    marginBottom: 12,
+    padding: 16,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  filtersTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  filtersRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 12,
+  },
+  filterSelect: {
+    flex: 1,
+    minWidth: 150,
+  },
+  clearFiltersButton: {
+    alignSelf: 'flex-end',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#F3F4F6',
+  },
+  clearFiltersText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '500',
   },
   exportButton: {
     backgroundColor: '#FF6B35',
@@ -547,6 +872,43 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
+  },
+  paginationContainer: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  paginationText: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  paginationButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pageButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FF6B35',
+  },
+  pageButtonDisabled: {
+    borderColor: '#E5E7EB',
+  },
+  pageButtonText: {
+    fontSize: 12,
+    color: '#FF6B35',
+    fontWeight: '600',
+  },
+  pageButtonTextDisabled: {
+    color: '#9CA3AF',
+  },
+  pageIndicator: {
+    fontSize: 12,
+    color: '#111827',
   },
 });
 

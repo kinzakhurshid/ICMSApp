@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,8 @@ import {
   Dimensions,
   ActivityIndicator,
   Alert,
-  Modal
+  Modal,
+  Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -20,6 +21,7 @@ import { useSelector } from "react-redux";
 import { RootState } from "../states/store";
 import dayjs from 'dayjs';
 import useAxios from '../hooks/useAxios';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 interface DashboardStatsResponse {
   totalProjects: number;
@@ -85,6 +87,7 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
   const [dashbStats, setDashStats] = useState<DashboardStatsResponse>();
   const { currentUser, token } = useSelector((state: RootState) => state.user);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'todo' | 'in_progress' | 'in_review' | 'blocked'>('all');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
@@ -96,6 +99,12 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('year');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [startDatePickerValue, setStartDatePickerValue] = useState(new Date());
+  const [endDatePickerValue, setEndDatePickerValue] = useState(new Date());
+  const [activeTaskCount, setActiveTaskCount] = useState(0);
+  const [completedTaskCount, setCompletedTaskCount] = useState(0);
 
   useEffect(() => {
     // Only fetch once we actually have an organization id
@@ -108,7 +117,7 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
     // Re-fetch tasks whenever filters change AND we have an organization id
     if (!currentUser?.organization) return;
 
-    // Reset pagination to page 1 when tab or filters change
+    // Reset pagination to page 1 when tab or filters change (excluding page itself)
     setPagination(prev => ({ ...prev, page: 1 }));
 
     const timeoutId = setTimeout(() => {
@@ -116,7 +125,14 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, activeTab, timeFilter, customStartDate, customEndDate, currentUser?.organization]);
+  }, [searchQuery, activeTab, statusFilter, timeFilter, customStartDate, customEndDate, currentUser?.organization]);
+
+  // Re-fetch tasks when the page changes
+  useEffect(() => {
+    if (!currentUser?.organization) return;
+    fetchTasks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagination.page]);
 
   const fetchDashboardStats = async () => {
     try {
@@ -217,15 +233,25 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
     try {
       setLoading(prev => ({ ...prev, tasks: true }));
 
-      const params = {
+      // When statusFilter is applied, use a higher limit to get more tasks for client-side filtering
+      // Otherwise use normal pagination limit
+      const limitToUse = (activeTab === 'active' && statusFilter !== 'all') 
+        ? 100  // Fetch more tasks when filtering by status so we have enough to filter client-side
+        : pagination.limit;
+
+      const params: any = {
         organizationId: currentUser.organization,
         status: activeTab === 'active' ? 'active' : 'completed',
         search: searchQuery,
-        page: pagination.page,
-        limit: pagination.limit,
+        page: statusFilter !== 'all' ? 1 : pagination.page, // Always use page 1 when filtering
+        limit: limitToUse,
         isBug: 'false',
         ...getDateRange(),
       };
+
+      // Note: Status filter (todo/in_progress/etc) is handled client-side
+      // because the API might not support filtering by specific status types
+      // The API returns all active tasks, and we filter them by status client-side
 
       console.log('API Request Params:', params);
 
@@ -248,6 +274,13 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
         limit: paginationData.limit || 10,
         total: paginationData.total || 0,
       });
+
+      // Update counts for the current tab
+      if (activeTab === 'active' && statusFilter === 'all') {
+        setActiveTaskCount(paginationData.total || 0);
+      } else if (activeTab === 'completed') {
+        setCompletedTaskCount(paginationData.total || 0);
+      }
     } catch (err) {
       console.error('Failed to fetch tasks:', err);
     } finally {
@@ -272,10 +305,45 @@ const DashboardUI = ({ navigation }: { navigation: any }) => {
     }
   };
 
+  const handleStartDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowStartDatePicker(false);
+      if (event.type !== 'dismissed' && selectedDate) {
+        const isoDate = selectedDate.toISOString().split('T')[0];
+        setCustomStartDate(isoDate);
+        setStartDatePickerValue(selectedDate);
+        setTimeFilter('custom');
+      }
+    } else {
+      // iOS: just update the picker value, user will confirm with Done button
+      if (event.type !== 'dismissed' && selectedDate) {
+        setStartDatePickerValue(selectedDate);
+      }
+    }
+  };
+
+  const handleEndDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowEndDatePicker(false);
+      if (event.type !== 'dismissed' && selectedDate) {
+        const isoDate = selectedDate.toISOString().split('T')[0];
+        setCustomEndDate(isoDate);
+        setEndDatePickerValue(selectedDate);
+        setTimeFilter('custom');
+      }
+    } else {
+      // iOS: just update the picker value, user will confirm with Done button
+      if (event.type !== 'dismissed' && selectedDate) {
+        setEndDatePickerValue(selectedDate);
+      }
+    }
+  };
+
   const applyCustomDateRange = () => {
     if (customStartDate && customEndDate) {
+      setTimeFilter('custom');
       setShowDateFilter(false);
-      fetchTasks();
+      // fetchTasks will be called by useEffect when customStartDate/customEndDate change
     } else {
       Alert.alert('Error', 'Please select both start and end dates');
     }
@@ -321,20 +389,24 @@ const cards: CardData[] = [
   ];
 
 
-  const filteredTasks = (tasks: Task[] = []) => {
-    return tasks.filter(task => {
-      const project = task.projectId?.name || '';
-      const taskName = task.title || '';
-      const assignee = task.assignedTo?.[0] ? 
-        `${task.assignedTo[0].firstName} ${task.assignedTo[0].lastName}` : '';
-      
-      return (
-        project.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        taskName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        assignee.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    });
-  };
+  // Apply client-side filtering for status filter (todo/in_progress/etc)
+  // This is needed because the API might not support filtering by specific status types
+  // Server-side filtering handles: active/completed tab, search, date range, pagination
+  // Client-side filtering handles: specific status types (todo, in_progress, in_review, blocked)
+  const visibleTasks = useMemo(() => {
+    if (activeTab === 'completed') {
+      // For completed tab, show all completed tasks
+      return tasks;
+    }
+    
+    // For active tab, filter by statusFilter if not 'all'
+    if (statusFilter === 'all') {
+      return tasks;
+    }
+    
+    // Filter tasks by the selected status
+    return tasks.filter(task => task.status === statusFilter);
+  }, [tasks, activeTab, statusFilter]);
 
   const scrollRef = React.useRef<ScrollView>(null);
   const [scrollPosition, setScrollPosition] = React.useState(0);
@@ -426,7 +498,23 @@ const cards: CardData[] = [
       <View style={styles.taskSection}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Tasks</Text>
-          <TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              // Navigate to full Tasks list under Tasks tab
+              try {
+                const parent = navigation?.getParent?.();
+                if (parent) {
+                  parent.navigate('TasksTab', { screen: 'TaskList' });
+                } else if (navigation?.navigate) {
+                  // Try alternative navigation method
+                  navigation.navigate('TasksTab' as never, { screen: 'TaskList' } as never);
+                }
+              } catch (error) {
+                console.error('Navigation error:', error);
+                Alert.alert('Error', 'Unable to navigate to Tasks screen');
+              }
+            }}
+          >
             <Text style={styles.sectionActionText}>View All</Text>
           </TouchableOpacity>
         </View>
@@ -486,23 +574,91 @@ const cards: CardData[] = [
               <View style={styles.customDateContainer}>
                 <View style={styles.dateInputContainer}>
                   <Text style={styles.dateLabel}>Start Date</Text>
-                  <TextInput
-                    style={styles.dateInput}
-                    placeholder="YYYY-MM-DD"
-                    value={customStartDate}
-                    onChangeText={setCustomStartDate}
-                    onFocus={() => setTimeFilter('custom')}
-                  />
+                  <TouchableOpacity
+                    style={styles.dateInputButton}
+                    onPress={() => setShowStartDatePicker(true)}
+                  >
+                    <Text style={[styles.dateInputText, !customStartDate && styles.dateInputPlaceholder]}>
+                      {customStartDate ? dayjs(customStartDate).format('YYYY-MM-DD') : 'Select start date'}
+                    </Text>
+                    <Ionicons name="calendar-outline" size={20} color="#666" />
+                  </TouchableOpacity>
+                  {showStartDatePicker && (
+                    <>
+                      <DateTimePicker
+                        value={startDatePickerValue}
+                        mode="date"
+                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                        onChange={handleStartDateChange}
+                        maximumDate={customEndDate ? new Date(customEndDate) : undefined}
+                      />
+                      {Platform.OS === 'ios' && (
+                        <View style={styles.iosPickerButtons}>
+                          <TouchableOpacity
+                            style={styles.iosPickerButton}
+                            onPress={() => {
+                              const isoDate = startDatePickerValue.toISOString().split('T')[0];
+                              setCustomStartDate(isoDate);
+                              setShowStartDatePicker(false);
+                              setTimeFilter('custom');
+                            }}
+                          >
+                            <Text style={styles.iosPickerButtonText}>Done</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.iosPickerButton}
+                            onPress={() => setShowStartDatePicker(false)}
+                          >
+                            <Text style={styles.iosPickerButtonText}>Cancel</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </>
+                  )}
                 </View>
                 <View style={styles.dateInputContainer}>
                   <Text style={styles.dateLabel}>End Date</Text>
-                  <TextInput
-                    style={styles.dateInput}
-                    placeholder="YYYY-MM-DD"
-                    value={customEndDate}
-                    onChangeText={setCustomEndDate}
-                    onFocus={() => setTimeFilter('custom')}
-                  />
+                  <TouchableOpacity
+                    style={styles.dateInputButton}
+                    onPress={() => setShowEndDatePicker(true)}
+                  >
+                    <Text style={[styles.dateInputText, !customEndDate && styles.dateInputPlaceholder]}>
+                      {customEndDate ? dayjs(customEndDate).format('YYYY-MM-DD') : 'Select end date'}
+                    </Text>
+                    <Ionicons name="calendar-outline" size={20} color="#666" />
+                  </TouchableOpacity>
+                  {showEndDatePicker && (
+                    <>
+                      <DateTimePicker
+                        value={endDatePickerValue}
+                        mode="date"
+                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                        onChange={handleEndDateChange}
+                        minimumDate={customStartDate ? new Date(customStartDate) : undefined}
+                      />
+                      {Platform.OS === 'ios' && (
+                        <View style={styles.iosPickerButtons}>
+                          <TouchableOpacity
+                            style={styles.iosPickerButton}
+                            onPress={() => {
+                              const isoDate = endDatePickerValue.toISOString().split('T')[0];
+                              setCustomEndDate(isoDate);
+                              setShowEndDatePicker(false);
+                              setTimeFilter('custom');
+                            }}
+                          >
+                            <Text style={styles.iosPickerButtonText}>Done</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.iosPickerButton}
+                            onPress={() => setShowEndDatePicker(false)}
+                          >
+                            <Text style={styles.iosPickerButtonText}>Cancel</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </>
+                  )}
                 </View>
               </View>
 
@@ -542,25 +698,61 @@ const cards: CardData[] = [
             style={[styles.tabButton, activeTab === 'active' && styles.activeTab]}
             onPress={() => {
               setActiveTab('active');
+              setStatusFilter('all');
               setPagination(prev => ({ ...prev, page: 1 })); // Reset pagination on tab change
             }}
           >
             <Text style={[styles.tabText, activeTab === 'active' && styles.activeTabText]}>
-              Active ({tasks.filter(task => task.status === 'todo' || task.status === 'in_progress').length})
+              Active ({activeTab === 'active' ? pagination.total : activeTaskCount || 0})
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tabButton, activeTab === 'completed' && styles.activeTab]}
             onPress={() => {
               setActiveTab('completed');
+              setStatusFilter('all');
               setPagination(prev => ({ ...prev, page: 1 })); // Reset pagination on tab change
             }}
           >
             <Text style={[styles.tabText, activeTab === 'completed' && styles.activeTabText]}>
-              Completed ({tasks.filter(task => task.status === 'completed').length})
+              Completed ({activeTab === 'completed' ? pagination.total : completedTaskCount || 0})
             </Text>
           </TouchableOpacity>
         </View>
+
+        {/* Status Filter Chips (for Active tab) */}
+        {activeTab === 'active' && (
+          <View style={styles.statusFilterContainer}>
+            {[
+              { key: 'all', label: 'All' },
+              { key: 'todo', label: 'To Do' },
+              { key: 'in_progress', label: 'In Progress' },
+              { key: 'in_review', label: 'In Review' },
+              { key: 'blocked', label: 'Blocked' },
+            ].map(filter => (
+              <TouchableOpacity
+                key={filter.key}
+                style={[
+                  styles.statusFilterChip,
+                  statusFilter === filter.key && styles.statusFilterChipActive,
+                ]}
+                onPress={() => {
+                  setStatusFilter(filter.key as any);
+                  setPagination(prev => ({ ...prev, page: 1 }));
+                }}
+              >
+                <Text
+                  style={[
+                    styles.statusFilterText,
+                    statusFilter === filter.key && styles.statusFilterTextActive,
+                  ]}
+                >
+                  {filter.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         {loading.tasks ? (
           <View style={styles.loadingTasks}>
@@ -592,14 +784,44 @@ const cards: CardData[] = [
                 </View>
 
                 {/* Rows */}
-                {filteredTasks(tasks).map((item, index) => {
+                {visibleTasks.map((item, index) => {
                   const assignee = item.assignedTo?.[0];
                   const assigneeName = assignee ? `${assignee.firstName} ${assignee.lastName}` : 'Unassigned';
+                  // Calculate index: if statusFilter is 'all', use pagination offset, otherwise use array index
+                  // When filtering client-side, we show indices based on filtered results
+                  const displayIndex = statusFilter === 'all' 
+                    ? (pagination.page - 1) * pagination.limit + index + 1
+                    : index + 1;
                   
                   return (
-                    <View key={item._id} style={styles.tableRow}>
+                    <TouchableOpacity
+                      key={item._id}
+                      style={styles.tableRow}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        // Open task detail in Tasks tab stack
+                        try {
+                          const parent = navigation?.getParent?.();
+                          if (parent) {
+                            parent.navigate('TasksTab', {
+                              screen: 'TaskDetail',
+                              params: { taskId: item._id },
+                            });
+                          } else if (navigation?.navigate) {
+                            // Fallback navigation
+                            navigation.navigate('TasksTab' as never, {
+                              screen: 'TaskDetail',
+                              params: { taskId: item._id },
+                            } as never);
+                          }
+                        } catch (error) {
+                          console.error('Navigation error:', error);
+                          Alert.alert('Error', 'Unable to open task details');
+                        }
+                      }}
+                    >
                       <View style={[styles.rowCell, styles.indexCell]}>
-                        <Text style={styles.rowText}>{index + 1}</Text>
+                        <Text style={styles.rowText}>{displayIndex}</Text>
                       </View>
                       <View style={[styles.rowCell, styles.projectCell]}>
                         <Text style={styles.rowText} numberOfLines={1}>{item.projectId?.name || 'No Project'}</Text>
@@ -627,8 +849,11 @@ const cards: CardData[] = [
                       <View style={[styles.rowCell, styles.statusCell]}>
                         <View style={[
                           styles.statusBadge,
-                          item.status === 'completed' ? styles.completedBadge : 
-                          item.status === 'in_progress' ? styles.inProgressBadge : styles.todoBadge
+                          item.status === 'completed'
+                            ? styles.completedBadge
+                            : item.status === 'in_progress'
+                            ? styles.inProgressBadge
+                            : styles.todoBadge
                         ]}>
                           <Text style={styles.statusText}>
                             {item.status === 'completed' ? 'Done' : 
@@ -636,11 +861,11 @@ const cards: CardData[] = [
                           </Text>
                         </View>
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   );
                 })}
 
-                {filteredTasks(tasks).length === 0 && (
+                {visibleTasks.length === 0 && (
                   <View style={styles.emptyState}>
                     <Text style={styles.emptyStateText}>No tasks found</Text>
                   </View>
@@ -649,14 +874,14 @@ const cards: CardData[] = [
             </ScrollView>
 
             {/* Pagination Controls */}
-            {pagination.total > pagination.limit && (
+            {/* Only show pagination when statusFilter is 'all' because client-side filtering conflicts with pagination */}
+            {statusFilter === 'all' && pagination.total > pagination.limit && (
               <View style={styles.paginationContainer}>
                 <TouchableOpacity
                   style={[styles.paginationButton, pagination.page === 1 && styles.paginationButtonDisabled]}
                   onPress={() => {
                     if (pagination.page > 1) {
                       setPagination(prev => ({ ...prev, page: prev.page - 1 }));
-                      fetchTasks();
                     }
                   }}
                   disabled={pagination.page === 1}
@@ -669,11 +894,14 @@ const cards: CardData[] = [
                 </Text>
                 
                 <TouchableOpacity
-                  style={[styles.paginationButton, pagination.page >= Math.ceil(pagination.total / pagination.limit) && styles.paginationButtonDisabled]}
+                  style={[
+                    styles.paginationButton,
+                    pagination.page >= Math.ceil(pagination.total / pagination.limit) &&
+                      styles.paginationButtonDisabled,
+                  ]}
                   onPress={() => {
                     if (pagination.page < Math.ceil(pagination.total / pagination.limit)) {
                       setPagination(prev => ({ ...prev, page: prev.page + 1 }));
-                      fetchTasks();
                     }
                   }}
                   disabled={pagination.page >= Math.ceil(pagination.total / pagination.limit)}
@@ -943,6 +1171,44 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     fontSize: 14,
+    color: '#333',
+    backgroundColor: '#FFF',
+  },
+  dateInputButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 10,
+    backgroundColor: '#FFF',
+    minHeight: 44,
+  },
+  dateInputText: {
+    fontSize: 14,
+    color: '#333',
+    flex: 1,
+  },
+  dateInputPlaceholder: {
+    color: '#999',
+  },
+  iosPickerButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 10,
+    gap: 10,
+  },
+  iosPickerButton: {
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 5,
+    backgroundColor: '#FF5722',
+  },
+  iosPickerButtonText: {
+    color: '#FFF',
+    fontWeight: '600',
+    fontSize: 14,
   },
   modalButtons: {
     flexDirection: 'row',
@@ -982,6 +1248,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginTop: 2,
+  },
+  statusFilterContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 20,
+    marginBottom: 10,
+    gap: 8,
+  },
+  statusFilterChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#f0f0f0',
+  },
+  statusFilterChipActive: {
+    backgroundColor: '#FF5722',
+  },
+  statusFilterText: {
+    fontSize: 12,
+    color: '#555',
+  },
+  statusFilterTextActive: {
+    color: '#FFF',
+    fontWeight: '600',
   },
 });
 

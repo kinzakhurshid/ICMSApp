@@ -145,8 +145,18 @@ export default function EditAccessoryScreen() {
         data: payload,
       });
 
+      const redirectTo = (route.params as any)?.redirectTo;
       Alert.alert('Success', 'Accessory updated successfully', [
-        { text: 'OK', onPress: () => navigation.goBack() },
+        { 
+          text: 'OK', 
+          onPress: () => {
+            if (redirectTo) {
+              (navigation as any).navigate(redirectTo);
+            } else {
+              navigation.goBack();
+            }
+          },
+        },
       ]);
     } catch (error: any) {
       console.error('Error updating accessory:', error);
@@ -374,6 +384,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+
 
 
 

@@ -71,6 +71,20 @@ export default function EditTaskScreen() {
   const { currentUser } = useSelector((state: RootState) => state.user);
   const { callApi } = useAxios();
 
+  // Smart back navigation: go back if possible, otherwise navigate to TaskDetail or TaskList
+  const handleBack = () => {
+    if (navigation.canGoBack && typeof navigation.canGoBack === 'function' && navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      // Navigate explicitly to TaskDetail if we have taskId, otherwise TaskList
+      if (taskId) {
+        navigation.navigate('TaskDetail' as never, { taskId } as never);
+      } else {
+        navigation.navigate('TaskList' as never);
+      }
+    }
+  };
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [task, setTask] = useState<TaskData | null>(null);
@@ -144,6 +158,12 @@ export default function EditTaskScreen() {
         const taskData = taskResponse.task;
         setTask(taskData);
         
+        console.log('📋 Task data loaded:', {
+          hasAttachment: !!taskData.attachment,
+          attachment: taskData.attachment,
+          attachments: taskData.attachments,
+        });
+        
         // Populate form
         setTitle(taskData.title || '');
         setDescription(taskData.description || '');
@@ -161,6 +181,12 @@ export default function EditTaskScreen() {
         setDependencies(taskData.dependencies?.map((d: any) => d._id || d) || []);
         setLink(taskData.link || '');
         setLabels(taskData.labels || []);
+        
+        // Handle existing attachment - set attachmentAction to 'keep' if attachment exists
+        const hasAttachment = taskData.attachment || (typeof taskData.attachments === 'string' && taskData.attachments.trim() !== '');
+        if (hasAttachment) {
+          setAttachmentAction('keep');
+        }
       }
 
       // Load employees
@@ -168,9 +194,11 @@ export default function EditTaskScreen() {
         method: 'GET',
         url: '/employee',
       });
-      if (employeesResponse?.data) {
-        setEmployees(Array.isArray(employeesResponse.data) ? employeesResponse.data : []);
-      }
+      // Handle different response structures
+      const employeesList = Array.isArray(employeesResponse) 
+        ? employeesResponse 
+        : employeesResponse?.data || employeesResponse?.employees || [];
+      setEmployees(employeesList);
 
       // Load running projects
       const projectsResponse = await callApi({
@@ -183,7 +211,7 @@ export default function EditTaskScreen() {
     } catch (error: any) {
       console.error('Error loading initial data:', error);
       Alert.alert('Error', 'Failed to load task data');
-      navigation.goBack();
+      handleBack();
     } finally {
       setLoading(false);
     }
@@ -270,73 +298,104 @@ export default function EditTaskScreen() {
       setSubmitting(true);
 
       const formData = new FormData();
-      
+
+      // Append core fields
       formData.append('title', title.trim());
       formData.append('description', description.trim());
       formData.append('priority', priority);
       formData.append('status', status);
-      assignedTo.forEach((id) => {
-        formData.append('assignedTo[]', id);
-      });
       formData.append('projectId', projectId);
-      formData.append('startDate', startDate!.toISOString());
-      formData.append('dueDate', dueDate!.toISOString());
+      
+      // Format dates as YYYY-MM-DD (same as CreateTaskScreen)
+      formData.append('startDate', startDate!.toISOString().split('T')[0]);
+      formData.append('dueDate', dueDate!.toISOString().split('T')[0]);
       formData.append('estimatedHours', estimatedHours.toString());
       formData.append('isBug', isBug.toString());
       
+      // Add assigned users with [] notation
+      assignedTo.forEach((userId) => {
+        formData.append('assignedTo[]', userId);
+      });
+      
+      // Add bug fields if bug
       if (isBug) {
         formData.append('expectedResult', expectedResult.trim());
         formData.append('actualResult', actualResult.trim());
       }
       
+      // Add sprints (can be multiple)
       if (sprintId.length > 0) {
         sprintId.forEach((id) => {
           formData.append('sprintId[]', id);
         });
       }
       
+      // Add dependencies
       if (dependencies.length > 0) {
-        dependencies.forEach((id) => {
-          formData.append('dependencies[]', id);
+        dependencies.forEach((taskId) => {
+          formData.append('dependencies[]', taskId);
         });
       }
       
-      if (link.trim()) {
-        formData.append('link', link.trim());
-      }
-      
+      // Add labels
       if (labels.length > 0) {
         labels.forEach((label) => {
           formData.append('labels[]', label);
         });
       }
       
-      formData.append('assignedBy', currentUser?._id || '');
-      formData.append('organizationId', currentUser?.organization || '');
-      formData.append('attachmentAction', attachmentAction);
-
-      if (attachment && attachmentAction === 'replace') {
-        formData.append('file', {
-          uri: attachment.uri,
-          name: attachment.name,
-          type: attachment.type,
-        } as any);
+      // Add link if present
+      if (link.trim()) {
+        formData.append('link', link.trim());
       }
+      
+      // Extra metadata
+      const assignedById = (currentUser as any)?._id || (currentUser as any)?.employeeId || (currentUser as any)?.employee?._id;
+      const orgId = (currentUser as any)?.organizationId || (currentUser as any)?.organization;
+      
+      formData.append('assignedBy', assignedById || '');
+      formData.append('organizationId', orgId || '');
+      
+      // Handle attachment - use 'document' to match CreateTaskScreen
+      if (attachment && attachmentAction === 'replace') {
+        // Upload new document (matching CreateTaskScreen field name)
+        formData.append('document', {
+          uri: attachment.uri,
+          type: attachment.type || 'application/octet-stream',
+          name: attachment.name || 'attachment',
+        } as any);
+        // When document is sent, server should replace the existing one
+      } else if (attachmentAction === 'remove') {
+        // Send attachmentAction to remove the document
+        // Server might accept this field only for removal
+        formData.append('attachmentAction', 'remove');
+      }
+      // For 'keep', don't send any attachment fields - server keeps existing attachment
+
+      console.log('📤 Updating task:', {
+        taskId,
+        title: title.trim(),
+        priority,
+        status,
+        assignedToCount: assignedTo.length,
+        sprintIdCount: sprintId.length,
+        dependenciesCount: dependencies.length,
+        labelsCount: labels.length,
+        hasAttachment: !!attachment,
+        attachmentAction: attachmentAction || 'keep',
+      });
 
       const response = await callApi({
         method: 'PUT',
         url: `/task/${taskId}/sprint`,
         data: formData,
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
       });
 
       if (response?.success) {
         Alert.alert('Success', 'Task updated successfully', [
           {
             text: 'OK',
-            onPress: () => navigation.goBack(),
+            onPress: handleBack,
           },
         ]);
       } else {
@@ -383,7 +442,7 @@ export default function EditTaskScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
@@ -513,25 +572,54 @@ export default function EditTaskScreen() {
               setAttachmentAction(file ? 'replace' : 'remove');
             }}
           />
-          {task?.attachment && !attachment && (
-            <View style={styles.attachmentActions}>
-              <Text style={styles.attachmentInfo}>Current: {task.attachment.filename}</Text>
-              <View style={styles.attachmentButtons}>
-                <TouchableOpacity
-                  style={[styles.attachmentButton, attachmentAction === 'keep' && styles.attachmentButtonActive]}
-                  onPress={() => setAttachmentAction('keep')}
-                >
-                  <Text style={styles.attachmentButtonText}>Keep</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.attachmentButton, attachmentAction === 'remove' && styles.attachmentButtonActive]}
-                  onPress={() => setAttachmentAction('remove')}
-                >
-                  <Text style={styles.attachmentButtonText}>Remove</Text>
-                </TouchableOpacity>
+          {/* Show existing attachment info */}
+          {(() => {
+            // Check for existing attachment - can be task.attachments (string URL) or task.attachment (object)
+            const attachmentUrl = typeof task?.attachments === 'string' ? task.attachments.trim() : null;
+            const attachmentObject = task?.attachment;
+            const hasExistingAttachment = (attachmentUrl && attachmentUrl !== '') || attachmentObject;
+            
+            // Get attachment name/display text
+            let attachmentName = 'Document';
+            if (attachmentObject?.filename) {
+              attachmentName = attachmentObject.filename;
+            } else if (attachmentObject?.name) {
+              attachmentName = attachmentObject.name;
+            } else if (attachmentUrl) {
+              // Extract filename from URL
+              const urlParts = attachmentUrl.split('/');
+              attachmentName = urlParts[urlParts.length - 1] || 'Document';
+            }
+            
+            return hasExistingAttachment && !attachment ? (
+              <View style={styles.attachmentActions}>
+                <View style={styles.existingAttachmentInfo}>
+                  <Ionicons name="document-text" size={20} color="#6b7280" />
+                  <Text style={styles.attachmentInfo}>
+                    Current: {attachmentName}
+                  </Text>
+                </View>
+                <View style={styles.attachmentButtons}>
+                  <TouchableOpacity
+                    style={[styles.attachmentButton, attachmentAction === 'keep' && styles.attachmentButtonActive]}
+                    onPress={() => setAttachmentAction('keep')}
+                  >
+                    <Text style={[styles.attachmentButtonText, attachmentAction === 'keep' && styles.attachmentButtonTextActive]}>
+                      Keep
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.attachmentButton, attachmentAction === 'remove' && styles.attachmentButtonActive]}
+                    onPress={() => setAttachmentAction('remove')}
+                  >
+                    <Text style={[styles.attachmentButtonText, attachmentAction === 'remove' && styles.attachmentButtonTextActive]}>
+                      Remove
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          )}
+            ) : null;
+          })()}
         </FormSection>
 
         {/* Link Section */}
@@ -578,7 +666,7 @@ export default function EditTaskScreen() {
         <View style={styles.actionButtons}>
           <TouchableOpacity
             style={styles.cancelButton}
-            onPress={() => navigation.goBack()}
+            onPress={handleBack}
             disabled={submitting}
           >
             <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -686,10 +774,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
     borderRadius: 8,
   },
+  existingAttachmentInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+    padding: 8,
+    backgroundColor: '#fff',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
   attachmentInfo: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginBottom: 8,
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+    flex: 1,
   },
   attachmentButtons: {
     flexDirection: 'row',
@@ -711,6 +811,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#374151',
     fontWeight: '600',
+  },
+  attachmentButtonTextActive: {
+    color: '#fff',
   },
   actionButtons: {
     flexDirection: 'row',

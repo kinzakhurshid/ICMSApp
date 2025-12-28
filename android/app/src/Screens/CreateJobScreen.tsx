@@ -11,23 +11,26 @@ import {
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import useAxios from '../hooks/useAxios';
+import DropdownField from '../components/task/DropdownField';
+import DatePickerField from '../components/task/DatePickerField';
 
 interface FormData {
   position: string;
   jobType: string;
   officeTiming: string;
   location: string;
-  workMode: 'Onsite' | 'Remote';
-  startDate: string;
-  endDate: string;
+  workMode: 'Onsite' | 'Remote' | 'Hybrid';
+  startDate: Date | null;
+  endDate: Date | null;
   status: 'Open' | 'Closed';
   description: string;
   responsibilities: string[];
   requirements: string[];
+  skills: string[];
   salaryRange: string;
   experienceLevel: string;
   education: string;
-  numberOfPositions: string; // keep as string in UI, cast on submit
+  numberOfPositions: string;
 }
 
 const CreateJobScreen: React.FC = () => {
@@ -40,17 +43,60 @@ const CreateJobScreen: React.FC = () => {
     officeTiming: '',
     location: '',
     workMode: 'Onsite',
-    startDate: '',
-    endDate: '',
+    startDate: null,
+    endDate: null,
     status: 'Open',
     description: '',
     responsibilities: [],
     requirements: [],
+    skills: [],
     salaryRange: '',
     experienceLevel: '',
     education: '',
     numberOfPositions: '1',
   });
+
+  const [newResponsibility, setNewResponsibility] = useState('');
+  const [newRequirement, setNewRequirement] = useState('');
+  const [newSkill, setNewSkill] = useState('');
+
+  const jobTypeOptions = [
+    { label: 'Full-time', value: 'Full-time' },
+    { label: 'Part-time', value: 'Part-time' },
+    { label: 'Contract', value: 'Contract' },
+    { label: 'Internship', value: 'Internship' },
+    { label: 'Remote', value: 'Remote' },
+    { label: 'Freelance', value: 'Freelance' },
+  ];
+
+  const experienceLevelOptions = [
+    { label: 'Entry Level', value: 'Entry Level' },
+    { label: 'Junior', value: 'Junior' },
+    { label: 'Mid Level', value: 'Mid Level' },
+    { label: 'Senior', value: 'Senior' },
+    { label: 'Lead', value: 'Lead' },
+    { label: 'Executive', value: 'Executive' },
+  ];
+
+  const educationLevelOptions = [
+    { label: 'High School', value: 'High School' },
+    { label: 'Associate Degree', value: 'Associate Degree' },
+    { label: 'Bachelor\'s Degree', value: 'Bachelor\'s Degree' },
+    { label: 'Master\'s Degree', value: 'Master\'s Degree' },
+    { label: 'PhD', value: 'PhD' },
+    { label: 'No Formal Education Required', value: 'No Formal Education Required' },
+  ];
+
+  const workModeOptions = [
+    { label: 'Onsite', value: 'Onsite' },
+    { label: 'Remote', value: 'Remote' },
+    { label: 'Hybrid', value: 'Hybrid' },
+  ];
+
+  const statusOptions = [
+    { label: 'Open', value: 'Open' },
+    { label: 'Closed', value: 'Closed' },
+  ];
 
   const [loading, setLoading] = useState(false);
   const [generatingDesc, setGeneratingDesc] = useState(false);
@@ -63,16 +109,21 @@ const CreateJobScreen: React.FC = () => {
 
   const validateForm = () => {
     if (!formData.position.trim()) return 'Position is required';
-    if (!formData.jobType.trim()) return 'Job type is required';
+    if (!formData.jobType) return 'Job type is required';
     if (!formData.location.trim()) return 'Location is required';
-    if (!formData.experienceLevel.trim()) return 'Experience level is required';
-    if (!formData.education.trim()) return 'Education is required';
+    if (!formData.experienceLevel) return 'Experience level is required';
+    if (!formData.education) return 'Education is required';
     if (!formData.salaryRange.trim()) return 'Salary range is required';
     if (!formData.officeTiming.trim()) return 'Office timing is required';
-    if (!formData.startDate.trim()) return 'Start date is required';
-    if (!formData.endDate.trim()) return 'End date is required';
+    if (!formData.startDate) return 'Start date is required';
+    if (!formData.endDate) return 'End date is required';
     if (!formData.description.trim()) return 'Description is required';
+    if (formData.responsibilities.length === 0) return 'At least one responsibility is required';
+    if (formData.requirements.length === 0) return 'At least one requirement is required';
     if (formData.position.length > 100) return 'Position must be 100 characters or less';
+    if (formData.endDate && formData.startDate && formData.endDate < formData.startDate) {
+      return 'End date must be after start date';
+    }
     return null;
   };
 
@@ -90,19 +141,20 @@ const CreateJobScreen: React.FC = () => {
 
       const payload = {
         position: formData.position.trim(),
-        jobType: formData.jobType.trim(),
+        jobType: formData.jobType,
         officeTiming: formData.officeTiming.trim(),
         location: formData.location.trim(),
         workMode: formData.workMode,
-        startDate: formData.startDate ? new Date(formData.startDate).toISOString() : undefined,
-        endDate: formData.endDate ? new Date(formData.endDate).toISOString() : undefined,
+        startDate: formData.startDate ? formData.startDate.toISOString() : undefined,
+        endDate: formData.endDate ? formData.endDate.toISOString() : undefined,
         status: formData.status,
         description: formData.description.trim(),
         responsibilities: formData.responsibilities,
         requirements: formData.requirements,
+        skills: formData.skills,
         salaryRange: formData.salaryRange.trim(),
-        experienceLevel: formData.experienceLevel.trim(),
-        education: formData.education.trim(),
+        experienceLevel: formData.experienceLevel,
+        education: formData.education,
         numberOfPositions,
         templateId: '1',
       };
@@ -128,33 +180,54 @@ const CreateJobScreen: React.FC = () => {
   };
 
   const handleAddResponsibility = () => {
-    Alert.prompt(
-      'Add Responsibility',
-      '',
-      (text) => {
-        if (text && text.trim()) {
-          setFormData(prev => ({
-            ...prev,
-            responsibilities: [...prev.responsibilities, text.trim()],
-          }));
-        }
-      }
-    );
+    if (newResponsibility.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        responsibilities: [...prev.responsibilities, newResponsibility.trim()],
+      }));
+      setNewResponsibility('');
+    }
+  };
+
+  const handleRemoveResponsibility = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      responsibilities: prev.responsibilities.filter((_, i) => i !== index),
+    }));
   };
 
   const handleAddRequirement = () => {
-    Alert.prompt(
-      'Add Requirement',
-      '',
-      (text) => {
-        if (text && text.trim()) {
-          setFormData(prev => ({
-            ...prev,
-            requirements: [...prev.requirements, text.trim()],
-          }));
-        }
-      }
-    );
+    if (newRequirement.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        requirements: [...prev.requirements, newRequirement.trim()],
+      }));
+      setNewRequirement('');
+    }
+  };
+
+  const handleRemoveRequirement = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      requirements: prev.requirements.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleAddSkill = () => {
+    if (newSkill.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        skills: [...prev.skills, newSkill.trim()],
+      }));
+      setNewSkill('');
+    }
+  };
+
+  const handleRemoveSkill = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      skills: prev.skills.filter((_, i) => i !== index),
+    }));
   };
 
   const cleanLines = (text: string) =>
@@ -315,16 +388,16 @@ Format as plain lines without markdown or numbering.
           <Text style={styles.helpText}>{formData.position.length}/100 characters</Text>
         </View>
 
-        {/* Row: Job Type, Location, Work Mode */}
+        {/* Row: Job Type, Location */}
         <View style={styles.row}>
           <View style={styles.col}>
-            <Text style={styles.label}>Job Type *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Full-time"
-              placeholderTextColor="#9CA3AF"
+            <DropdownField
+              label="Job Type"
+              required
               value={formData.jobType}
-              onChangeText={(text) => updateField('jobType', text)}
+              options={jobTypeOptions}
+              onSelect={(value) => updateField('jobType', value)}
+              placeholder="Select job type"
             />
           </View>
           <View style={styles.col}>
@@ -341,15 +414,13 @@ Format as plain lines without markdown or numbering.
 
         <View style={styles.row}>
           <View style={styles.col}>
-            <Text style={styles.label}>Work Mode *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Onsite or Remote"
-              placeholderTextColor="#9CA3AF"
+            <DropdownField
+              label="Work Mode"
+              required
               value={formData.workMode}
-              onChangeText={(text) =>
-                updateField('workMode', text.toLowerCase().includes('remote') ? 'Remote' : 'Onsite')
-              }
+              options={workModeOptions}
+              onSelect={(value) => updateField('workMode', value as 'Onsite' | 'Remote' | 'Hybrid')}
+              placeholder="Select work mode"
             />
           </View>
           <View style={styles.col}>
@@ -368,28 +439,28 @@ Format as plain lines without markdown or numbering.
         {/* Row: Experience, Education */}
         <View style={styles.row}>
           <View style={styles.col}>
-            <Text style={styles.label}>Experience Level *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Mid Level"
-              placeholderTextColor="#9CA3AF"
+            <DropdownField
+              label="Experience Level"
+              required
               value={formData.experienceLevel}
-              onChangeText={(text) => updateField('experienceLevel', text)}
+              options={experienceLevelOptions}
+              onSelect={(value) => updateField('experienceLevel', value)}
+              placeholder="Select experience level"
             />
           </View>
           <View style={styles.col}>
-            <Text style={styles.label}>Education *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. BS Computer Science"
-              placeholderTextColor="#9CA3AF"
+            <DropdownField
+              label="Education Level"
+              required
               value={formData.education}
-              onChangeText={(text) => updateField('education', text)}
+              options={educationLevelOptions}
+              onSelect={(value) => updateField('education', value)}
+              placeholder="Select education level"
             />
           </View>
         </View>
 
-        {/* Row: Salary, Status, Office Timing */}
+        {/* Row: Salary, Status */}
         <View style={styles.row}>
           <View style={styles.col}>
             <Text style={styles.label}>Salary Range *</Text>
@@ -402,18 +473,13 @@ Format as plain lines without markdown or numbering.
             />
           </View>
           <View style={styles.col}>
-            <Text style={styles.label}>Status *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Open or Closed"
-              placeholderTextColor="#9CA3AF"
+            <DropdownField
+              label="Status"
+              required
               value={formData.status}
-              onChangeText={(text) =>
-                updateField(
-                  'status',
-                  text.toLowerCase().startsWith('c') ? 'Closed' : 'Open',
-                )
-              }
+              options={statusOptions}
+              onSelect={(value) => updateField('status', value as 'Open' | 'Closed')}
+              placeholder="Select status"
             />
           </View>
         </View>
@@ -432,23 +498,21 @@ Format as plain lines without markdown or numbering.
         {/* Dates */}
         <View style={styles.row}>
           <View style={styles.col}>
-            <Text style={styles.label}>Start Date *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor="#9CA3AF"
+            <DatePickerField
+              label="Start Date"
+              required
               value={formData.startDate}
-              onChangeText={(text) => updateField('startDate', text)}
+              onChange={(date) => setFormData(prev => ({ ...prev, startDate: date }))}
+              minimumDate={new Date()}
             />
           </View>
           <View style={styles.col}>
-            <Text style={styles.label}>End Date *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor="#9CA3AF"
+            <DatePickerField
+              label="End Date"
+              required
               value={formData.endDate}
-              onChangeText={(text) => updateField('endDate', text)}
+              onChange={(date) => setFormData(prev => ({ ...prev, endDate: date }))}
+              minimumDate={formData.startDate || new Date()}
             />
           </View>
         </View>
@@ -481,9 +545,6 @@ Format as plain lines without markdown or numbering.
         <View style={styles.fieldGroup}>
           <View style={styles.labelRow}>
             <Text style={styles.label}>Responsibilities *</Text>
-            <TouchableOpacity style={styles.smallButton} onPress={handleAddResponsibility}>
-              <Text style={styles.smallButtonText}>Add</Text>
-            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.smallButton, { marginLeft: 8 }]}
               onPress={handleGenerateResponsibilitiesAI}
@@ -494,10 +555,26 @@ Format as plain lines without markdown or numbering.
               </Text>
             </TouchableOpacity>
           </View>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={[styles.input, styles.listInput]}
+              placeholder="Enter a responsibility..."
+              placeholderTextColor="#9CA3AF"
+              value={newResponsibility}
+              onChangeText={setNewResponsibility}
+              onSubmitEditing={handleAddResponsibility}
+            />
+            <TouchableOpacity style={styles.addButton} onPress={handleAddResponsibility}>
+              <Icon name="add" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
           {formData.responsibilities.map((item, idx) => (
-            <Text key={idx} style={styles.listItem}>
-              • {item}
-            </Text>
+            <View key={idx} style={styles.listItemRow}>
+              <Text style={styles.listItem}>• {item}</Text>
+              <TouchableOpacity onPress={() => handleRemoveResponsibility(idx)}>
+                <Icon name="close" size={18} color="#F44336" />
+              </TouchableOpacity>
+            </View>
           ))}
         </View>
 
@@ -505,9 +582,6 @@ Format as plain lines without markdown or numbering.
         <View style={styles.fieldGroup}>
           <View style={styles.labelRow}>
             <Text style={styles.label}>Requirements *</Text>
-            <TouchableOpacity style={styles.smallButton} onPress={handleAddRequirement}>
-              <Text style={styles.smallButtonText}>Add</Text>
-            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.smallButton, { marginLeft: 8 }]}
               onPress={handleGenerateRequirementsAI}
@@ -518,10 +592,52 @@ Format as plain lines without markdown or numbering.
               </Text>
             </TouchableOpacity>
           </View>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={[styles.input, styles.listInput]}
+              placeholder="Enter a requirement..."
+              placeholderTextColor="#9CA3AF"
+              value={newRequirement}
+              onChangeText={setNewRequirement}
+              onSubmitEditing={handleAddRequirement}
+            />
+            <TouchableOpacity style={styles.addButton} onPress={handleAddRequirement}>
+              <Icon name="add" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
           {formData.requirements.map((item, idx) => (
-            <Text key={idx} style={styles.listItem}>
-              • {item}
-            </Text>
+            <View key={idx} style={styles.listItemRow}>
+              <Text style={styles.listItem}>• {item}</Text>
+              <TouchableOpacity onPress={() => handleRemoveRequirement(idx)}>
+                <Icon name="close" size={18} color="#F44336" />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+
+        {/* Skills Required */}
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>Skills Required</Text>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={[styles.input, styles.listInput]}
+              placeholder="Enter a skill..."
+              placeholderTextColor="#9CA3AF"
+              value={newSkill}
+              onChangeText={setNewSkill}
+              onSubmitEditing={handleAddSkill}
+            />
+            <TouchableOpacity style={styles.addButton} onPress={handleAddSkill}>
+              <Icon name="add" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+          {formData.skills.map((item, idx) => (
+            <View key={idx} style={styles.listItemRow}>
+              <Text style={styles.listItem}>• {item}</Text>
+              <TouchableOpacity onPress={() => handleRemoveSkill(idx)}>
+                <Icon name="close" size={18} color="#F44336" />
+              </TouchableOpacity>
+            </View>
           ))}
         </View>
 
@@ -620,6 +736,30 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#374151',
     marginTop: 4,
+    flex: 1,
+  },
+  listItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingVertical: 4,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  listInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  addButton: {
+    backgroundColor: '#FF6B35',
+    borderRadius: 8,
+    padding: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   smallButton: {
     backgroundColor: '#FF6B35',

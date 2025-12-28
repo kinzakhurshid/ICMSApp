@@ -120,6 +120,7 @@ export default function TaskDetailScreen() {
   const [isProjectManager, setIsProjectManager] = useState(false);
   const [progressInput, setProgressInput] = useState('');
   const [updatingProgress, setUpdatingProgress] = useState(false);
+  const [updatingFollow, setUpdatingFollow] = useState(false);
 
   // Handle back navigation - ensure we go back to TaskList, not Home
   const handleGoBack = useCallback(() => {
@@ -210,12 +211,53 @@ export default function TaskDetailScreen() {
         const taskData = response.task;
         setTask(taskData);
         
-        // Check if current user is following
-        const userEmployeeId = (currentUser as any)?.employee?._id || currentUser?._id;
-        const isUserFollowing = taskData.followers?.some(
-          (f: Employee) => f._id === userEmployeeId
-        ) || false;
-        setIsFollowing(isUserFollowing);
+        // Check if current user is following - need to check BOTH user ID and employee ID
+        // because the API might store either one
+        const userEmployeeId = (currentUser as any)?.employee?._id;
+        const userId = (currentUser as any)?._id;
+        const allPossibleIds = [
+          userEmployeeId,
+          userId,
+          (currentUser as any)?.id,
+          (currentUser as any)?.user?._id,
+          (currentUser as any)?.user?.id,
+        ].filter(Boolean); // Remove undefined/null values
+                              
+        if (allPossibleIds.length > 0 && taskData.followers && Array.isArray(taskData.followers)) {
+          const isUserFollowing = taskData.followers.some(
+            (f: Employee | any) => {
+              // Check all possible ID fields in follower object
+              const followerId = f._id || f.id || (f as any)._id;
+              // Check if follower ID matches ANY of the user's possible IDs
+              const matches = allPossibleIds.some(userId => 
+                String(followerId) === String(userId)
+              );
+              if (matches) {
+                console.log('✅ User found in followers:', { followerId, matchedIds: allPossibleIds, follower: f });
+              }
+              return matches;
+            }
+          );
+          console.log('🔍 Follow check result:', { 
+            userEmployeeId,
+            userId,
+            allPossibleIds, 
+            followersCount: taskData.followers.length, 
+            isUserFollowing,
+            followerIds: taskData.followers.map((f: any) => f._id || f.id),
+            currentUserStructure: {
+              employeeId: (currentUser as any)?.employee?._id,
+              userId: (currentUser as any)?._id,
+              id: (currentUser as any)?.id,
+              user_id: (currentUser as any)?.user?._id,
+            }
+          });
+          setIsFollowing(isUserFollowing);
+        } else {
+          console.log('⚠️ Follow check skipped:', { allPossibleIds, hasFollowers: !!taskData.followers });
+          setIsFollowing(false);
+        }
+        setUpdatingFollow(false); // Reset follow updating state
 
         // Check if current user is project manager
         const projectManagerId = taskData.projectId?.projectManager;
@@ -273,21 +315,69 @@ export default function TaskDetailScreen() {
   };
 
   const handleFollow = async () => {
+    // Prevent multiple rapid clicks - if already updating, ignore
+    if (updatingFollow) {
+      console.log('Follow/unfollow already in progress, ignoring click');
+      return;
+    }
+    
+    // Get current user ID - API likely uses currentUser._id, but we need to check both
+    // Based on logs: followers have ID "68d15c695a5275d9a0d1d5b4" which is likely currentUser._id
+    const userId = (currentUser as any)?._id; // This is what API probably uses
+    const userEmployeeId = (currentUser as any)?.employee?._id;
+    
+    console.log('🔍 [Follow] Current user IDs:', {
+      userId: userId,
+      employeeId: userEmployeeId,
+      id: (currentUser as any)?.id,
+      fullCurrentUser: currentUser
+    });
+    
+    // API should use the authenticated user's ID automatically, but we'll use userId if available
+    const idToUse = userId || userEmployeeId || (currentUser as any)?.id;
+    
+    if (!idToUse) {
+      Alert.alert('Error', 'User ID not found');
+      return;
+    }
+
+    // Save the current state to revert if needed
+    const previousFollowingState = isFollowing;
+    const newFollowingState = !isFollowing;
+    
+    // Optimistically update UI immediately to prevent double-clicks
+    setIsFollowing(newFollowingState);
+    setUpdatingFollow(true);
+    
     try {
       const endpoint = isFollowing ? `/task/${taskId}/unfollow` : `/task/${taskId}/follow`;
       const response = await callApi({
         method: 'POST',
         url: endpoint,
       });
+      
       if (response?.success) {
-        setIsFollowing(!isFollowing);
-        Alert.alert('Success', isFollowing ? 'Unfollowed task' : 'Following task');
-        fetchTaskDetails(); // Refresh to get updated followers list
+        // Success - refresh to sync with server, but maintain optimistic state until refresh completes
+        // The optimistic update (newFollowingState) will be confirmed or corrected by fetchTaskDetails
+        try {
+          await fetchTaskDetails();
+        } catch (refreshError) {
+          // If refresh fails, keep the optimistic state since API call succeeded
+          console.error('Error refreshing task details after follow:', refreshError);
+          // Keep the optimistic update since the API call succeeded
+        }
       } else {
+        // Failed - revert the optimistic update
+        setIsFollowing(previousFollowingState);
         Alert.alert('Error', 'Failed to update follow status');
       }
     } catch (error: any) {
-      Alert.alert('Error', 'Failed to update follow status');
+      // Error - revert the optimistic update
+      setIsFollowing(previousFollowingState);
+      console.error('Error updating follow status:', error);
+      Alert.alert('Error', 'Failed to update follow status. Please try again.');
+    } finally {
+      setUpdatingFollow(false);
     }
   };
 
@@ -414,13 +504,25 @@ export default function TaskDetailScreen() {
         <Text style={styles.headerTitle}>Task Overview</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity
-            style={[styles.followButton, isFollowing && styles.followButtonActive]}
+            style={[
+              styles.followButton, 
+              isFollowing && styles.followButtonActive,
+              updatingFollow && styles.followButtonDisabled
+            ]}
             onPress={handleFollow}
+            disabled={updatingFollow}
+            activeOpacity={0.7}
           >
-            <Ionicons name={isFollowing ? 'eye' : 'eye-outline'} size={18} color={isFollowing ? '#fff' : '#f97316'} />
-            <Text style={[styles.followButtonText, isFollowing && styles.followButtonTextActive]}>
-              Follow
-            </Text>
+            {updatingFollow ? (
+              <ActivityIndicator size="small" color={isFollowing ? '#fff' : '#f97316'} />
+            ) : (
+              <>
+                <Ionicons name={isFollowing ? 'eye' : 'eye-outline'} size={18} color={isFollowing ? '#fff' : '#f97316'} />
+                <Text style={[styles.followButtonText, isFollowing && styles.followButtonTextActive]}>
+                  {isFollowing ? 'Following' : 'Follow'}
+                </Text>
+              </>
+            )}
           </TouchableOpacity>
           {showEditDelete && (
             <>
@@ -454,64 +556,6 @@ export default function TaskDetailScreen() {
         <View style={styles.twoColumnContainer}>
           {/* Left Column */}
           <View style={[styles.leftColumn, width < 768 && styles.fullWidthColumn]}>
-            {/* Task Progress Card */}
-            {showProgress && (
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>Task Progress</Text>
-                <View style={styles.progressBarContainer}>
-                  <View style={styles.progressBarBackground}>
-                    <View 
-                      style={[
-                        styles.progressBarFill, 
-                        { width: `${task.progress || 0}%` }
-                      ]} 
-                    />
-                  </View>
-                  <Text style={styles.progressPercentage}>{task.progress || 0}%</Text>
-                </View>
-                <View style={styles.progressInputContainer}>
-                  <TextInput
-                    style={styles.progressInput}
-                    value={progressInput}
-                    onChangeText={setProgressInput}
-                    keyboardType="numeric"
-                    placeholder="0-100"
-                    placeholderTextColor="#9ca3af"
-                  />
-                  <View style={styles.progressArrows}>
-                    <TouchableOpacity
-                      onPress={() => {
-                        const val = Math.max(0, Number(progressInput) - 1);
-                        setProgressInput(String(val));
-                      }}
-                    >
-                      <Ionicons name="chevron-up" size={16} color="#6b7280" />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => {
-                        const val = Math.min(100, Number(progressInput) + 1);
-                        setProgressInput(String(val));
-                      }}
-                    >
-                      <Ionicons name="chevron-down" size={16} color="#6b7280" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-                <Text style={styles.progressHint}>Enter 0-100</Text>
-                <TouchableOpacity
-                  style={styles.updateProgressButton}
-                  onPress={handleUpdateProgress}
-                  disabled={updatingProgress || !progressInput.trim()}
-                >
-                  {updatingProgress ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={styles.updateProgressButtonText}>Update Progress</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            )}
-
             {/* Task Details Card */}
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Task Details</Text>
@@ -545,65 +589,67 @@ export default function TaskDetailScreen() {
               </View>
 
               {/* Task Progress Section */}
-              <View style={styles.progressSection}>
-                <Text style={styles.progressSectionTitle}>Task Progress</Text>
-                <View style={styles.progressBarContainer}>
-                  <View style={styles.progressBarBackground}>
-                    <View 
-                      style={[
-                        styles.progressBarFill, 
-                        { width: `${task.progress || 0}%` }
-                      ]} 
+              {showProgress && (
+                <View style={styles.progressSection}>
+                  <Text style={styles.progressSectionTitle}>Task Progress</Text>
+                  <View style={styles.progressBarContainer}>
+                    <View style={styles.progressBarBackground}>
+                      <View 
+                        style={[
+                          styles.progressBarFill, 
+                          { width: `${task.progress || 0}%` }
+                        ]} 
+                      />
+                    </View>
+                    <Text style={styles.progressPercentage}>{task.progress || 0}%</Text>
+                  </View>
+                  <View style={styles.progressInputContainer}>
+                    <TextInput
+                      style={styles.progressInput}
+                      value={progressInput}
+                      onChangeText={setProgressInput}
+                      keyboardType="numeric"
+                      placeholder="0-100"
+                      placeholderTextColor="#9ca3af"
                     />
+                    <View style={styles.progressArrows}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          const val = Math.min(100, Number(progressInput || 0) + 1);
+                          setProgressInput(String(val));
+                        }}
+                        style={styles.arrowButton}
+                      >
+                        <Ionicons name="chevron-up" size={16} color="#6b7280" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => {
+                          const val = Math.max(0, Number(progressInput || 0) - 1);
+                          setProgressInput(String(val));
+                        }}
+                        style={styles.arrowButton}
+                      >
+                        <Ionicons name="chevron-down" size={16} color="#6b7280" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                  <Text style={styles.progressPercentage}>{task.progress || 0}%</Text>
+                  <Text style={styles.progressHint}>Enter 0-100</Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.updateProgressButton,
+                      (updatingProgress || !progressInput.trim()) && styles.updateProgressButtonDisabled
+                    ]}
+                    onPress={handleUpdateProgress}
+                    disabled={updatingProgress || !progressInput.trim()}
+                  >
+                    {updatingProgress ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.updateProgressButtonText}>Update Progress</Text>
+                    )}
+                  </TouchableOpacity>
                 </View>
-                <View style={styles.progressInputContainer}>
-                  <TextInput
-                    style={styles.progressInput}
-                    value={progressInput}
-                    onChangeText={setProgressInput}
-                    keyboardType="numeric"
-                    placeholder="0-100"
-                    placeholderTextColor="#9ca3af"
-                  />
-                  <View style={styles.progressArrows}>
-                    <TouchableOpacity
-                      onPress={() => {
-                        const val = Math.max(0, Number(progressInput || 0) - 1);
-                        setProgressInput(String(val));
-                      }}
-                      style={styles.arrowButton}
-                    >
-                      <Ionicons name="chevron-up" size={16} color="#6b7280" />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => {
-                        const val = Math.min(100, Number(progressInput || 0) + 1);
-                        setProgressInput(String(val));
-                      }}
-                      style={styles.arrowButton}
-                    >
-                      <Ionicons name="chevron-down" size={16} color="#6b7280" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-                <Text style={styles.progressHint}>Enter 0-100</Text>
-                <TouchableOpacity
-                  style={[
-                    styles.updateProgressButton,
-                    (updatingProgress || !progressInput.trim()) && styles.updateProgressButtonDisabled
-                  ]}
-                  onPress={handleUpdateProgress}
-                  disabled={updatingProgress || !progressInput.trim()}
-                >
-                  {updatingProgress ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={styles.updateProgressButtonText}>Update Progress</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
+              )}
 
               {task.labels && task.labels.length > 0 && (
                 <View style={styles.detailRow}>
@@ -626,9 +672,9 @@ export default function TaskDetailScreen() {
             {task.sprintId && task.sprintId.length > 0 && (
               <View style={styles.card}>
                 <Text style={styles.cardTitle}>Sprints ({task.sprintId.length})</Text>
-                {task.sprintId.map((sprint) => (
+                {task.sprintId.map((sprint, index) => (
                   <TouchableOpacity 
-                    key={sprint._id} 
+                    key={`${sprint._id || 'sprint'}-${index}`} 
                     style={styles.sprintCard}
                     onPress={() => {
                       (navigation as any).navigate('SprintDetail', { sprintId: sprint._id });
@@ -675,13 +721,13 @@ export default function TaskDetailScreen() {
               </View>
               {task.comments && task.comments.length > 0 ? (
                 <View style={styles.commentsList}>
-                  {task.comments.map((comment) => {
+                  {task.comments.map((comment, index) => {
                     const createdBy = comment.createdBy as any;
                     const avatarUri = createdBy?.profileImage || (currentUser as any)?.profilePic;
                     const name = createdBy?.name || 'Unknown';
 
                     return (
-                      <View key={comment._id} style={styles.commentItem}>
+                      <View key={`${comment._id || 'comment'}-${index}`} style={styles.commentItem}>
                         {avatarUri ? (
                           <Image source={{ uri: avatarUri }} style={styles.commentUserAvatar} />
                         ) : (
@@ -723,7 +769,7 @@ export default function TaskDetailScreen() {
               
               <Text style={styles.assignmentLabel}>Assigned To:</Text>
               {task.assignedTo && task.assignedTo.length > 0 ? (
-                task.assignedTo.map((user) => {
+                task.assignedTo.map((user, index) => {
                   if (!user || typeof user !== 'object') return null;
                   const avatarUri = user.profileImage;
                   const firstName = user.firstName || '';
@@ -731,7 +777,7 @@ export default function TaskDetailScreen() {
                   const email = user.email || '';
 
                   return (
-                    <View key={user._id} style={styles.assignmentRow}>
+                    <View key={`${user._id || 'assignee'}-${index}`} style={styles.assignmentRow}>
                       {avatarUri ? (
                         <Image source={{ uri: avatarUri }} style={styles.assignmentAvatar} />
                       ) : (
@@ -839,8 +885,8 @@ export default function TaskDetailScreen() {
             {task.followers && task.followers.length > 0 && (
               <View style={styles.card}>
                 <Text style={styles.cardTitle}>Followers ({task.followers.length})</Text>
-                {task.followers.map((follower) => (
-                  <View key={follower._id} style={styles.assignmentRow}>
+                {task.followers.map((follower, index) => (
+                  <View key={`${follower._id || 'follower'}-${index}`} style={styles.assignmentRow}>
                     {follower.profileImage ? (
                       <Image source={{ uri: follower.profileImage }} style={styles.assignmentAvatar} />
                     ) : (
@@ -885,8 +931,8 @@ export default function TaskDetailScreen() {
             {task.checklist && task.checklist.length > 0 && (
               <View style={styles.card}>
                 <Text style={styles.cardTitle}>Checklist ({task.checklist.length})</Text>
-                {task.checklist.map((item) => (
-                  <View key={item._id} style={styles.checklistItem}>
+                {task.checklist.map((item, index) => (
+                  <View key={`${item._id || 'check'}-${index}`} style={styles.checklistItem}>
                     <Ionicons
                       name={item.completed ? 'checkbox' : 'checkbox-outline'}
                       size={20}
@@ -911,14 +957,44 @@ export default function TaskDetailScreen() {
                 <Text style={styles.cardTitle}>Attachments</Text>
                 <TouchableOpacity
                   style={styles.attachmentRow}
-                  onPress={() => {
-                    if (task.attachments) {
-                      Linking.openURL(task.attachments);
+                  onPress={async () => {
+                    try {
+                      const url = task.attachments?.trim();
+                      if (!url) {
+                        Alert.alert('Attachment', 'No attachment URL available for this task.');
+                        return;
+                      }
+
+                      // Try to ensure the URL has a valid scheme
+                      const normalizedUrl =
+                        url.startsWith('http://') || url.startsWith('https://')
+                          ? url
+                          : `https://${url}`;
+
+                      const supported = await Linking.canOpenURL(normalizedUrl);
+                      if (!supported) {
+                        Alert.alert(
+                          'Attachment',
+                          'Cannot open this attachment on your device. Please contact your administrator.'
+                        );
+                        return;
+                      }
+
+                      await Linking.openURL(normalizedUrl);
+                    } catch (error) {
+                      console.error('Error opening attachment:', error);
+                      Alert.alert(
+                        'Attachment',
+                        'Failed to open attachment. Please try again later.'
+                      );
                     }
                   }}
+                  activeOpacity={0.7}
                 >
                   <Ionicons name="document-attach-outline" size={20} color="#3b82f6" />
-                  <Text style={styles.attachmentText}>Download Attachment</Text>
+                  <Text style={styles.attachmentText} numberOfLines={1}>
+                    Download Attachment
+                  </Text>
                   <Ionicons name="download-outline" size={20} color="#3b82f6" />
                 </TouchableOpacity>
               </View>
@@ -1038,6 +1114,9 @@ const styles = StyleSheet.create({
   },
   followButtonTextActive: {
     color: '#fff',
+  },
+  followButtonDisabled: {
+    opacity: 0.6,
   },
   editButton: {
     paddingHorizontal: 12,

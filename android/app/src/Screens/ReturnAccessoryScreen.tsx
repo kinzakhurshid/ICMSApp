@@ -38,6 +38,7 @@ const conditionOptions = [
 export default function ReturnAccessoryScreen() {
   const navigation = useNavigation();
   const route = useRoute();
+  const redirectTo = (route.params as any)?.redirectTo as string | undefined;
   const { callApi } = useAxios();
 
   const [submitting, setSubmitting] = useState(false);
@@ -128,7 +129,13 @@ export default function ReturnAccessoryScreen() {
       Alert.alert('Success', 'Accessory returned successfully', [
         {
           text: 'OK',
-          onPress: () => navigation.goBack(),
+          onPress: () => {
+            if (redirectTo) {
+              (navigation as any).navigate(redirectTo);
+            } else {
+              navigation.goBack();
+            }
+          },
         },
       ]);
     } catch (error: any) {

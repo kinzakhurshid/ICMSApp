@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,8 @@ import HiringCard from '../components/HiringCard';
 import HiringTable from '../components/HiringTable';
 
 const { width } = Dimensions.get('window');
+const CARD_WIDTH = width * 0.8;
+const CARD_MARGIN = 16;
 
 interface Hiring {
   id: string;
@@ -61,6 +63,7 @@ const HiringScreen: React.FC = () => {
     location: '',
   });
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const carouselScrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     fetchHirings();
@@ -70,6 +73,17 @@ const HiringScreen: React.FC = () => {
   useEffect(() => {
     fetchHirings();
   }, [page, searchTerm, filters]);
+
+  // Scroll carousel when index changes
+  useEffect(() => {
+    if (carouselScrollRef.current && openHirings.length > 0) {
+      const scrollX = currentCardIndex * (CARD_WIDTH + CARD_MARGIN);
+      carouselScrollRef.current.scrollTo({
+        x: scrollX,
+        animated: true,
+      });
+    }
+  }, [currentCardIndex, openHirings.length]);
 
   const fetchHirings = async () => {
     try {
@@ -122,12 +136,12 @@ const HiringScreen: React.FC = () => {
 
   const handleOpenDetails = (id: string) => {
     // Navigate to hiring details screen
-    console.log('Opening details for hiring:', id);
+    (navigation as any).navigate('HiringDetail', { hiringId: id });
   };
 
   const handleEdit = (id: string) => {
     // Navigate to edit screen
-    console.log('Editing hiring:', id);
+    (navigation as any).navigate('EditHiring', { hiringId: id });
   };
 
   const scrollToNextCard = () => {
@@ -190,12 +204,15 @@ const HiringScreen: React.FC = () => {
           {openHirings.length > 0 ? (
             <View style={styles.carouselContainer}>
               <ScrollView
+                ref={carouselScrollRef}
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 pagingEnabled
+                snapToInterval={CARD_WIDTH + CARD_MARGIN}
+                decelerationRate="fast"
                 onMomentumScrollEnd={(event) => {
-                  const index = Math.round(event.nativeEvent.contentOffset.x / (width * 0.8 + 16));
-                  setCurrentCardIndex(index);
+                  const index = Math.round(event.nativeEvent.contentOffset.x / (CARD_WIDTH + CARD_MARGIN));
+                  setCurrentCardIndex(Math.min(index, openHirings.length - 1));
                 }}
                 style={styles.cardsScrollView}
               >

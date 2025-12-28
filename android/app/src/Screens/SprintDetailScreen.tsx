@@ -27,7 +27,38 @@ import { stringToColor, formatDate } from './utils';
 export default function SprintDetailsScreen() {
   const navigation = useNavigation();
   const route = useRoute();
+  const { from } = (route.params as { sprintId: string; from?: string }) || {};
   const { callApi, loading } = useAxios();
+
+  // Smart back navigation:
+  // - If opened explicitly from SprintBoard, always go back to SprintBoard
+  // - Otherwise, rely on normal stack history (goBack)
+  const handleBack = () => {
+    try {
+      if (from === 'SprintBoard') {
+        const parent = (navigation as any).getParent?.();
+        if (parent) {
+          parent.navigate('SprintBoard' as never);
+          return;
+        }
+        (navigation as any).navigate('SprintBoard');
+        return;
+      }
+
+      if (
+        (navigation as any).canGoBack &&
+        typeof (navigation as any).canGoBack === 'function' &&
+        (navigation as any).canGoBack()
+      ) {
+        (navigation as any).goBack();
+      }
+    } catch (error) {
+      console.error('Navigation error in handleBack:', error);
+      if ((navigation as any).goBack) {
+        (navigation as any).goBack();
+      }
+    }
+  };
 
   const [sprint, setSprint] = useState<ISprint | null>(null);
   const [allTasks, setAllTasks] = useState<TaskDetails[]>([]);
@@ -346,7 +377,7 @@ export default function SprintDetailsScreen() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
-            onPress={() => navigation.goBack()}
+            onPress={handleBack}
             style={styles.backButton}
           >
             <Ionicons name="arrow-back" size={20} color="#6B7280" />
@@ -366,15 +397,15 @@ export default function SprintDetailsScreen() {
                 <Text style={styles.sprintName}>{sprint.name}</Text>
                 {sprint.completed ? (
                   <View style={[styles.statusBadge, styles.completedBadge]}>
-                    <Text style={styles.statusText}>Completed</Text>
+                    <Text style={[styles.statusText, styles.completedStatusText]}>Completed</Text>
                   </View>
                 ) : sprint.started ? (
                   <View style={[styles.statusBadge, styles.startedBadge]}>
-                    <Text style={styles.statusText}>Started</Text>
+                    <Text style={[styles.statusText, styles.startedStatusText]}>Started</Text>
                   </View>
                 ) : (
                   <View style={[styles.statusBadge, styles.notStartedBadge]}>
-                    <Text style={styles.statusText}>Not started</Text>
+                    <Text style={[styles.statusText, styles.notStartedStatusText]}>Not started</Text>
                   </View>
                 )}
               </View>
@@ -521,6 +552,26 @@ export default function SprintDetailsScreen() {
             tasks={sprint.tasks}
             onRemoveTask={handleRemoveTask}
             isLoading={isLoading}
+            onTaskPress={(taskId) => {
+              // Navigate to TaskDetail screen
+              // Try to navigate via parent navigator first (TasksTab stack)
+              const parent = navigation.getParent();
+              if (parent) {
+                try {
+                  parent.navigate('TasksTab' as never, {
+                    screen: 'TaskDetail',
+                    params: { taskId },
+                  } as never);
+                } catch (error) {
+                  console.error('Navigation error to TaskDetail:', error);
+                  // Fallback: try direct navigation
+                  (navigation as any).navigate('TaskDetail', { taskId });
+                }
+              } else {
+                // Fallback: try direct navigation
+                (navigation as any).navigate('TaskDetail', { taskId });
+              }
+            }}
           />
         </View>
       </ScrollView>
@@ -628,6 +679,16 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     fontWeight: '500',
+    color: '#374151',
+  },
+  completedStatusText: {
+    color: '#166534',
+  },
+  startedStatusText: {
+    color: '#166534',
+  },
+  notStartedStatusText: {
+    color: '#92400E',
   },
   sprintGoal: {
     fontSize: 14,

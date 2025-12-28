@@ -37,7 +37,10 @@ const HrIdleTimeScreen: React.FC = () => {
   const [recordsLoading, setRecordsLoading] = useState(false);
 
   const [presets, setPresets] = useState<IdleTimePreset[]>([]);
+  const [presetsTotal, setPresetsTotal] = useState(0);
   const [presetsLoading, setPresetsLoading] = useState(false);
+  const [presetsPage, setPresetsPage] = useState(1);
+  const [presetsPageSize] = useState(10);
 
   const [chartData, setChartData] = useState<IdleChartPoint[]>([]);
   const [chartLoading, setChartLoading] = useState(false);
@@ -76,14 +79,20 @@ const HrIdleTimeScreen: React.FC = () => {
     if (!token) return;
     setPresetsLoading(true);
     try {
-      const data = await fetchIdleTimePresets(token);
-      setPresets(data || []);
+      const response = await fetchIdleTimePresets(token, {
+        page: presetsPage,
+        limit: presetsPageSize,
+      });
+      setPresets(response.data || []);
+      // Use total from response, or fallback to data length if total is 0
+      const totalCount = response.total > 0 ? response.total : (response.data?.length || 0);
+      setPresetsTotal(totalCount);
     } catch (error) {
       console.log('Idle presets error', error);
     } finally {
       setPresetsLoading(false);
     }
-  }, [token]);
+  }, [token, presetsPage, presetsPageSize]);
 
   const fetchRecords = useCallback(async () => {
     if (!token) return;
@@ -164,7 +173,8 @@ const HrIdleTimeScreen: React.FC = () => {
       fetchRecords();
       fetchChart();
       fetchMetrics();
-    }, [fetchRecords, fetchChart, fetchMetrics])
+      fetchPresets();
+    }, [fetchRecords, fetchChart, fetchMetrics, fetchPresets])
   );
 
   const handleDelete = async (recordId: string) => {
@@ -184,6 +194,10 @@ const HrIdleTimeScreen: React.FC = () => {
 
   const canPrev = page > 1;
   const canNext = page < totalPages;
+
+  const handleEditRecord = (record: IdleTimeRecord) => {
+    (navigation as any).navigate('EditIdleTime', { recordId: record._id });
+  };
 
   return (
     <View style={styles.container}>
@@ -239,7 +253,7 @@ const HrIdleTimeScreen: React.FC = () => {
             <Text style={styles.sectionTitle}>Idle Time Records</Text>
             <TouchableOpacity 
               style={styles.addIdleTimeButton}
-              onPress={() => (navigation as any).navigate('AddIdleTime')}
+              onPress={() => (navigation as any).navigate('AddIdleTime', { redirectTo: 'HRIdleTime' })}
             >
               <Feather name="plus" size={18} color="#fff" />
               <Text style={styles.addIdleTimeText}>Add Idle Time</Text>
@@ -336,13 +350,20 @@ const HrIdleTimeScreen: React.FC = () => {
                   <Text style={[styles.cell, { width: 260 }]} numberOfLines={1}>
                     {record.reason || '-'}
                   </Text>
-                  <TouchableOpacity
-                    style={[styles.cell, styles.deleteCell, { width: 100 }]}
-                    onPress={() => handleDelete(record._id)}
-                  >
-                    <Feather name="trash-2" size={16} color="#EF4444" />
-                    <Text style={styles.deleteText}>Delete</Text>
-                  </TouchableOpacity>
+                  <View style={[styles.cell, styles.actionCell, { width: 100 }]}>
+                    <TouchableOpacity
+                      style={styles.iconButton}
+                      onPress={() => handleEditRecord(record)}
+                    >
+                      <Feather name="edit-2" size={16} color="#4B5563" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.iconButton}
+                      onPress={() => handleDelete(record._id)}
+                    >
+                      <Feather name="trash-2" size={16} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ))
             )}
@@ -362,9 +383,7 @@ const HrIdleTimeScreen: React.FC = () => {
             >
               <Text style={[styles.pageBtnText, !canPrev && styles.pageBtnTextDisabled]}>Prev</Text>
             </TouchableOpacity>
-            <Text style={styles.pageIndicator}>
-              Page {page} of {totalPages}
-            </Text>
+            <Text style={styles.pageIndicator}>Page {page} of {totalPages}</Text>
             <TouchableOpacity
               style={[styles.pageBtn, !canNext && styles.pageBtnDisabled]}
               disabled={!canNext}
@@ -382,7 +401,13 @@ const HrIdleTimeScreen: React.FC = () => {
           <ActivityIndicator color="#FB923C" />
         </View>
       ) : (
-        <IdleTimePresetsCard data={presets} />
+          <IdleTimePresetsCard 
+            data={presets} 
+            total={presetsTotal}
+            page={presetsPage}
+            pageSize={presetsPageSize}
+            onPageChange={setPresetsPage}
+          />
       )}
       </ScrollView>
     </View>
@@ -519,6 +544,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+  },
+  actionCell: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 8,
+  },
+  iconButton: {
+    paddingHorizontal: 4,
+    paddingVertical: 4,
   },
   deleteText: { color: '#EF4444', fontWeight: '600' },
   loadingRow: { paddingVertical: 40, alignItems: 'center' },

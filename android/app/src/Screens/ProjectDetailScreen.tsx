@@ -11,6 +11,7 @@ import {
   Alert,
   Linking,
   TextInput,
+  Modal,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -86,14 +87,63 @@ export default function ProjectDetailScreen({ navigation, route }: { navigation:
   const [activeTab, setActiveTab] = useState<'details' | 'tasks'>('details');
   const [viewMode, setViewMode] = useState<'board' | 'list'>('board'); // Default to board view as per design
   const [searchQuery, setSearchQuery] = useState('');
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  
+  const statusOptions = ['Not Started', 'In Progress', 'On Hold', 'Completed', 'Cancelled', 'Upcoming'];
 
   const { callApi } = useAxios();
   const { currentUser } = useSelector((state: RootState) => state.user);
   const projectId = route.params?.projectId;
 
   const handleEditProject = () => {
-    // Navigate to edit project screen
+    if (!projectId) {
+      Alert.alert('Error', 'Project ID not found');
+      return;
+    }
     navigation.navigate('EditProject', { projectId });
+  };
+  
+  const handleStatusChange = async (newStatus: string) => {
+    if (!project || !projectId) return;
+    
+    try {
+      console.log('Updating project status:', { projectId, newStatus });
+      
+      const response = await callApi({
+        method: 'PUT',
+        url: `/projects/${projectId}/status`,
+        data: { status: newStatus },
+      });
+      
+      console.log('Status update response:', response);
+      
+      if (response) {
+        // Update local project state immediately
+        setProject({ ...project, status: newStatus });
+        setShowStatusModal(false);
+        
+        // Optionally refresh project data to get latest from server
+        try {
+          const refreshResponse = await callApi({
+            method: 'GET',
+            url: `/projects/${projectId}`,
+          });
+          const refreshedProject = (refreshResponse as any)?.data || refreshResponse;
+          if (refreshedProject) {
+            setProject(refreshedProject);
+          }
+        } catch (refreshError) {
+          console.error('Error refreshing project:', refreshError);
+          // Continue even if refresh fails - we already updated local state
+        }
+        
+        Alert.alert('Success', `Project status updated to ${newStatus}!`);
+      }
+    } catch (error: any) {
+      console.error('Error updating project status:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to update project status';
+      Alert.alert('Error', errorMessage);
+    }
   };
 
   const handleTaskClick = (taskId: string) => {
@@ -134,18 +184,20 @@ export default function ProjectDetailScreen({ navigation, route }: { navigation:
     }
 
     try {
-      // For React Native, we'll open the file URL directly
-      if (project.fileUrl?.startsWith('http')) {
-        const supported = await Linking.canOpenURL(project.fileUrl);
-        if (supported) {
-          await Linking.openURL(project.fileUrl);
-        } else {
-          Alert.alert('Error', 'Cannot open this file type');
-        }
+      const url = project.fileUrl;
+      console.log('Attempting to open project document URL:', url);
+
+      const canOpen = await Linking.canOpenURL(url);
+      if (!canOpen) {
+        // Try to open anyway; some Android devices return false incorrectly
+        await Linking.openURL(url);
+        return;
       }
+
+      await Linking.openURL(url);
     } catch (error) {
       console.error('Download error:', error);
-      Alert.alert('Error', 'Failed to download file');
+      Alert.alert('Error', 'Failed to download/open file');
     }
   };
 
@@ -485,16 +537,34 @@ export default function ProjectDetailScreen({ navigation, route }: { navigation:
           <View style={styles.actionButtons}>
             <TouchableOpacity 
               style={styles.createTaskButton}
-              onPress={() => navigation.navigate('CreateTask', { projectId })}
+              onPress={() => {
+                try {
+                  const parent = navigation.getParent();
+                  if (parent) {
+                    parent.navigate('TasksTab', {
+                      screen: 'CreateTask',
+                      params: { projectId },
+                    });
+                  } else {
+                    navigation.navigate('CreateTask' as never, { projectId } as never);
+                  }
+                } catch (e) {
+                  console.error('Navigation error to CreateTask:', e);
+                  Alert.alert('Navigation Error', 'Unable to open Create Task screen');
+                }
+              }}
             >
               <Ionicons name="add" size={18} color="#fff" />
               <Text style={styles.createTaskButtonText}>Task</Text>
               </TouchableOpacity>
             
-            <View style={styles.statusDropdown}>
+            <TouchableOpacity 
+              style={styles.statusDropdown}
+              onPress={() => setShowStatusModal(true)}
+            >
               <Text style={styles.statusDropdownText}>{project?.status || 'Not Started'}</Text>
               <Ionicons name="chevron-down" size={16} color="#6B7280" />
-            </View>
+            </TouchableOpacity>
             
             <TouchableOpacity onPress={handleEditProject} style={styles.editButton}>
               <Ionicons name="create-outline" size={16} color="#374151" />
@@ -719,14 +789,30 @@ export default function ProjectDetailScreen({ navigation, route }: { navigation:
                             {formatDate(sprint.startDate)} - {formatDate(sprint.endDate)}
                       </Text>
                     </View>
-                        <View style={[
-                          styles.sprintStatusBadge,
-                          { backgroundColor: sprint.completed ? '#10b981' : '#f97316' }
-                        ]}>
-                          <Text style={styles.sprintStatusText}>
-                            {sprint.completed ? 'Completed' : 'Active'}
-                          </Text>
-                  </View>
+                        <View style={styles.sprintActions}>
+                          <View style={[
+                            styles.sprintStatusBadge,
+                            { backgroundColor: sprint.completed ? '#10b981' : '#f97316' }
+                          ]}>
+                            <Text style={styles.sprintStatusText}>
+                              {sprint.completed ? 'Completed' : 'Active'}
+                            </Text>
+                          </View>
+                          <TouchableOpacity
+                            style={styles.sprintViewButton}
+                            onPress={() => {
+                              // Navigate to sprint details
+                              const parent = navigation.getParent();
+                              if (parent) {
+                                parent.navigate('SprintBoard', { screen: 'SprintDetailNew', params: { sprintId: sprint._id } });
+                              } else {
+                                navigation.navigate('SprintDetailNew' as never, { sprintId: sprint._id } as never);
+                              }
+                            }}
+                          >
+                            <Text style={styles.sprintViewButtonText}>View</Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     ))
                   ) : (
@@ -806,7 +892,22 @@ export default function ProjectDetailScreen({ navigation, route }: { navigation:
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.createTaskButtonLarge}
-                    onPress={() => navigation.navigate('CreateTask', { projectId })}
+                    onPress={() => {
+                      try {
+                        const parent = navigation.getParent();
+                        if (parent) {
+                          parent.navigate('TasksTab', {
+                            screen: 'CreateTask',
+                            params: { projectId },
+                          });
+                        } else {
+                          navigation.navigate('CreateTask' as never, { projectId } as never);
+                        }
+                      } catch (e) {
+                        console.error('Navigation error to CreateTask:', e);
+                        Alert.alert('Navigation Error', 'Unable to open Create Task screen');
+                      }
+                    }}
                   >
                     <Ionicons name="add" size={20} color="#fff" />
                     <Text style={styles.createTaskButtonLargeText}>Create Task</Text>
@@ -1106,6 +1207,50 @@ export default function ProjectDetailScreen({ navigation, route }: { navigation:
           )}
         </View>
       </ScrollView>
+      
+      {/* Status Modal */}
+      <Modal
+        visible={showStatusModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowStatusModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowStatusModal(false)}
+        >
+          <View style={styles.statusModalContent}>
+            <Text style={styles.statusModalTitle}>Select Status</Text>
+            {statusOptions.map((status) => (
+              <TouchableOpacity
+                key={status}
+                style={[
+                  styles.statusOption,
+                  project?.status === status && styles.statusOptionActive
+                ]}
+                onPress={() => handleStatusChange(status)}
+              >
+                <Text style={[
+                  styles.statusOptionText,
+                  project?.status === status && styles.statusOptionTextActive
+                ]}>
+                  {status}
+                </Text>
+                {project?.status === status && (
+                  <Ionicons name="checkmark" size={20} color="#f97316" />
+                )}
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={styles.statusModalCancel}
+              onPress={() => setShowStatusModal(false)}
+            >
+              <Text style={styles.statusModalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -1402,8 +1547,9 @@ const styles = StyleSheet.create({
     minWidth: 100,
   },
   viewButtonActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#fef3e2',
     borderColor: '#f97316',
+    borderWidth: 2,
   },
   viewButtonText: {
     fontSize: 14,
@@ -1729,6 +1875,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6b7280',
   },
+  sprintActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   sprintStatusBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -1739,12 +1890,76 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
+  sprintViewButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#f97316',
+  },
+  sprintViewButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#fff',
+  },
   noSprintsText: {
     fontSize: 14,
     color: '#9ca3af',
     fontStyle: 'italic',
     textAlign: 'center',
     paddingVertical: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statusModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    width: '80%',
+    maxWidth: 400,
+  },
+  statusModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 16,
+  },
+  statusOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: '#f9fafb',
+  },
+  statusOptionActive: {
+    backgroundColor: '#fef3e2',
+    borderWidth: 1,
+    borderColor: '#f97316',
+  },
+  statusOptionText: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  statusOptionTextActive: {
+    color: '#f97316',
+    fontWeight: '600',
+  },
+  statusModalCancel: {
+    marginTop: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  statusModalCancelText: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '600',
   },
   documentItem: {
     flexDirection: 'row',

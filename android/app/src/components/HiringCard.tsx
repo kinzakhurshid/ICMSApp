@@ -73,9 +73,6 @@ const HiringCard: React.FC<HiringCardProps> = ({
           <Text style={[styles.daysLeft, { color: getStatusColor(hiring.endDate) }]}>
             {getDaysLeft(hiring.endDate)}
           </Text>
-          <TouchableOpacity style={styles.moreButton}>
-            <Icon name="more-vert" size={20} color="#666" />
-          </TouchableOpacity>
         </View>
       </View>
 

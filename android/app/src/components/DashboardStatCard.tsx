@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 type Props = {
@@ -13,13 +13,15 @@ type Props = {
   ringColor?: string;
   ringTrack?: string;
   rightHint?: string; // e.g., "October"
+  onPress?: () => void; // Navigation handler
 };
 
 import ProgressRing from './ProgressRing';
 
-const DashboardStatCard: React.FC<Props> = ({ title, value, subtitleLeft, subtitleRight, progressPercent, iconName = 'dashboard', iconBg = 'rgba(255,87,34,0.1)', ringColor = '#7C3AED', ringTrack = '#E5E7EB', rightHint }) => {
+const DashboardStatCard: React.FC<Props> = ({ title, value, subtitleLeft, subtitleRight, progressPercent, iconName = 'dashboard', iconBg = 'rgba(255,87,34,0.1)', ringColor = '#7C3AED', ringTrack = '#E5E7EB', rightHint, onPress }) => {
+  const CardWrapper = onPress ? TouchableOpacity : View;
   return (
-    <View style={styles.card}>
+    <CardWrapper style={styles.card} onPress={onPress} activeOpacity={onPress ? 0.7 : 1}>
       <View style={styles.topRow}>
         <View style={styles.iconWrap}> 
           <View style={[styles.iconBadge, { backgroundColor: iconBg }]}> 
@@ -31,21 +33,28 @@ const DashboardStatCard: React.FC<Props> = ({ title, value, subtitleLeft, subtit
       </View>
       <View style={[styles.midRow]}> 
         <Text style={styles.value}>{String(value)}</Text>
-        {typeof progressPercent === 'number' && (
-          <ProgressRing size={38} stroke={6} progress={progressPercent} color={ringColor} trackColor={ringTrack} />
-        )}
+        {/* Don't show progress ring at all */}
       </View>
       <View style={styles.footerRow}>
         {subtitleLeft ? (
           <View style={styles.footerContent}>
-            <Text style={[styles.badge, styles.badgeGreen]}>{subtitleLeft}</Text>
-            {subtitleRight ? <Text style={[styles.badge, styles.badgeGray, styles.badgeNextLine]}>{subtitleRight}</Text> : null}
+            <Text style={[
+              styles.badge, 
+              subtitleLeft.includes('↓') || subtitleLeft.includes('-') || (subtitleLeft.includes('%') && parseFloat(subtitleLeft.replace(/[↑↓%]/g, '')) < 0)
+                ? styles.badgeRed 
+                : styles.badgeGreen
+            ]}>{subtitleLeft}</Text>
+            {subtitleRight && !subtitleRight.includes('NaN') && !isNaN(parseFloat(String(subtitleRight).replace('%',''))) ? (
+              <Text style={[styles.badge, styles.badgeGray, styles.badgeNextLine]}>{subtitleRight}</Text>
+            ) : null}
           </View>
         ) : (
-          subtitleRight ? <Text style={[styles.badge, styles.badgeGray]}>{subtitleRight}</Text> : <View />
+          subtitleRight && !subtitleRight.includes('NaN') && !isNaN(parseFloat(String(subtitleRight).replace('%',''))) ? (
+            <Text style={[styles.badge, styles.badgeGray]}>{subtitleRight}</Text>
+          ) : <View />
         )}
       </View>
-    </View>
+    </CardWrapper>
   );
 };
 
@@ -104,6 +113,10 @@ const styles = StyleSheet.create({
   badgeGreen: {
     backgroundColor: 'rgba(34,197,94,0.15)',
     color: '#059669',
+  },
+  badgeRed: {
+    backgroundColor: 'rgba(239,68,68,0.15)',
+    color: '#DC2626',
   },
   badgeGray: {
     backgroundColor: 'rgba(107,114,128,0.12)',

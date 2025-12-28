@@ -115,17 +115,19 @@ const HiringTable: React.FC<HiringTableProps> = ({
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Hiring Positions</Text>
-        <View style={styles.headerActions}>
-          <View style={styles.searchContainer}>
-            <Icon name="search" size={20} color="#666" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search positions..."
-              placeholderTextColor="#999"
-              value={searchTerm}
-              onChangeText={setSearchTerm}
-            />
-          </View>
+      </View>
+      
+      {/* Search Bar - Separate row with spacing */}
+      <View style={styles.searchRow}>
+        <View style={styles.searchContainer}>
+          <Icon name="search" size={20} color="#666" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search positions..."
+            placeholderTextColor="#999"
+            value={searchTerm}
+            onChangeText={setSearchTerm}
+          />
         </View>
       </View>
 
@@ -228,7 +230,12 @@ const HiringTable: React.FC<HiringTableProps> = ({
 
           {/* Table Rows */}
           {hirings.map((hiring) => (
-            <View key={hiring.id} style={styles.tableRow}>
+            <TouchableOpacity 
+              key={hiring.id} 
+              style={styles.tableRow}
+              onPress={() => onView(hiring.id)}
+              activeOpacity={0.7}
+            >
               <View style={styles.positionCol}>
                 <Text style={styles.cellText}>{hiring.position}</Text>
               </View>
@@ -277,7 +284,7 @@ const HiringTable: React.FC<HiringTableProps> = ({
                   </TouchableOpacity>
                 </View>
               </View>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
       </ScrollView>
@@ -325,25 +332,20 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   title: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
   },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+  searchRow: {
+    marginBottom: 16,
   },
   newJobRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginBottom: 8,
+    marginBottom: 16,
   },
   newJobButton: {
     flexDirection: 'row',

@@ -145,18 +145,18 @@ const MeetingScreen: React.FC = () => {
             cancelled: m.cancelled
           });
           
-          // Preserve the original status if it exists, otherwise determine from other fields
+          // Prioritize boolean fields (isCompleted, isCancelled) over status field
+          // This ensures that completed meetings always show as "Completed" not "Scheduled"
           let status = m.status;
           
-          // If no status field, try to determine from other fields
-          if (!status) {
-            if (m.isCompleted === true) {
-              status = "Completed";
-            } else if (m.isCancelled === true || m.cancelled === true) {
-              status = "Cancelled";
-            } else {
-              status = "Scheduled";
-            }
+          // Check boolean fields first - they take priority over status field
+          if (m.isCompleted === true) {
+            status = "Completed";
+          } else if (m.isCancelled === true || m.cancelled === true) {
+            status = "Cancelled";
+          } else if (!status) {
+            // Only default to "Scheduled" if no status is provided and meeting is not completed/cancelled
+            status = "Scheduled";
           }
           
           console.log(`🔍 Meeting ${index + 1} final status:`, status);
@@ -345,66 +345,69 @@ const MeetingScreen: React.FC = () => {
     const statusCounts = { Scheduled: 0, Completed: 0, Cancelled: 0 };
     
     meetings.forEach((m) => {
+      // Use the normalized status that was set in meetingsWithStatus
       const status = (m.status || '').toString().trim();
-      const statusLower = status.toLowerCase();
       
-      // Map various status formats to our categories
-      if (
-        status === 'Scheduled' || 
-        statusLower === 'scheduled' || 
-        statusLower === 'upcoming' || 
-        statusLower === 'in progress' || 
-        statusLower === 'in-progress' ||
-        statusLower === 'inprogress' ||
-        status === 'IN PROGRESS'
-      ) {
-        statusCounts.Scheduled++;
-      } else if (
-        status === 'Completed' || 
-        statusLower === 'completed' || 
-        statusLower === 'done' || 
-        statusLower === 'finished'
-      ) {
+      // Since we already normalized the status in meetingsWithStatus, we can directly check
+      if (status === 'Completed') {
         statusCounts.Completed++;
-      } else if (
-        status === 'Cancelled' || 
-        statusLower === 'cancelled' || 
-        statusLower === 'canceled'
-      ) {
+      } else if (status === 'Cancelled') {
         statusCounts.Cancelled++;
       } else {
-        // Default to Scheduled if status doesn't match any category (most meetings are scheduled/upcoming)
-        console.log(`🔍 Unknown status "${status}" - defaulting to Scheduled`);
+        // Everything else is Scheduled (including "Scheduled", "Upcoming", etc.)
         statusCounts.Scheduled++;
       }
     });
     
     console.log('🔍 Pie chart status counts:', statusCounts);
+    console.log('🔍 Total meetings:', meetings.length);
     
-    // Always show all three categories, even if count is 0 (for consistent display)
-    return [
-      { 
+    // Filter out zero-count categories to avoid pie chart rendering issues
+    // But always show at least one category for consistent display
+    const pieChartData = [];
+    
+    if (statusCounts.Scheduled > 0) {
+      pieChartData.push({ 
         name: `Scheduled`, 
         population: statusCounts.Scheduled, 
         color: "#FF0004", 
         legendFontColor: "#333", 
         legendFontSize: 12 
-      },
-      { 
+      });
+    }
+    
+    if (statusCounts.Completed > 0) {
+      pieChartData.push({ 
         name: `Completed`, 
         population: statusCounts.Completed, 
         color: "#D7AA00", 
         legendFontColor: "#333", 
         legendFontSize: 12 
-      },
-      { 
+      });
+    }
+    
+    if (statusCounts.Cancelled > 0) {
+      pieChartData.push({ 
         name: `Cancelled`, 
         population: statusCounts.Cancelled, 
         color: "#FF5900", 
         legendFontColor: "#333", 
         legendFontSize: 12 
-      },
-    ];
+      });
+    }
+    
+    // If no meetings, show empty state data
+    if (pieChartData.length === 0) {
+      pieChartData.push({ 
+        name: `No Meetings`, 
+        population: 1, 
+        color: "#CCCCCC", 
+        legendFontColor: "#333", 
+        legendFontSize: 12 
+      });
+    }
+    
+    return pieChartData;
   };
 
   const pieChartData = getPieChartData();
@@ -450,7 +453,7 @@ const MeetingScreen: React.FC = () => {
         {/* Pie Chart */}
         <View style={styles.chartContainer}>
           <Text style={styles.sectionTitle}>Meeting Status Distribution</Text>
-          {pieChartData.length > 0 ? (
+          {pieChartData.length > 0 && pieChartData[0].population > 0 ? (
             <View style={styles.pieChartWrapper}>
               <PieChart
                 data={pieChartData}
@@ -459,9 +462,10 @@ const MeetingScreen: React.FC = () => {
                 chartConfig={chartConfig}
                 accessor="population"
                 backgroundColor="transparent"
-                paddingLeft="0"
-                center={[0, 10]}
+                paddingLeft="15"
+                center={[10, 10]}
                 absolute
+                hasLegend={true}
               />
             </View>
           ) : (
@@ -734,7 +738,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
-    overflow: 'hidden',
+    overflow: 'visible',
+    paddingVertical: 10,
   },
   carouselContainer: {
     backgroundColor: '#FFFFFF',

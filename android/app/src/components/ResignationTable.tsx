@@ -40,6 +40,9 @@ interface ResignationTableProps {
     separationType: string;
     search: string;
   };
+  entriesPerPage?: number;
+  onEntriesPerPageChange?: (limit: number) => void;
+  onResignationClick?: (resignation: Resignation) => void;
 }
 
 const ResignationTable: React.FC<ResignationTableProps> = ({
@@ -54,6 +57,9 @@ const ResignationTable: React.FC<ResignationTableProps> = ({
   onPageChange,
   onFilterChange,
   filters,
+  entriesPerPage = 10,
+  onEntriesPerPageChange,
+  onResignationClick,
 }) => {
   const [showFilters, setShowFilters] = useState(false);
   const [searchTerm, setSearchTerm] = useState(filters.search);
@@ -111,53 +117,62 @@ const ResignationTable: React.FC<ResignationTableProps> = ({
     );
   };
 
-  const renderTableRow = (resignation: Resignation, index: number, showActions: boolean = true) => (
-    <View key={resignation._id} style={styles.tableRow}>
+  const renderTableRow = (resignation: Resignation, index: number, showActions: boolean = true, isPending: boolean = false) => (
+    <TouchableOpacity 
+      key={resignation._id} 
+      style={styles.tableRow}
+      onPress={() => onResignationClick && onResignationClick(resignation)}
+      activeOpacity={0.7}
+    >
       <View style={styles.srCol}>
-        <Text style={styles.cellText}>{index + 1}</Text>
+        <Text style={[styles.cellText, { textAlign: 'center' }]}>{isPending ? index + 1 : (currentPage - 1) * entriesPerPage + index + 1}</Text>
       </View>
       <View style={styles.employeeCol}>
-        <Text style={styles.cellText}>{resignation.name}</Text>
+        <Text style={[styles.cellText, { textAlign: 'left' }]} numberOfLines={1}>{resignation.name || '-'}</Text>
       </View>
       <View style={styles.designationCol}>
-        <Text style={styles.cellText}>{resignation.designation}</Text>
+        <Text style={[styles.cellText, { textAlign: 'left' }]} numberOfLines={1}>{resignation.designation || '-'}</Text>
       </View>
       <View style={styles.typeCol}>
-        <Text style={styles.cellText}>{resignation.separationType}</Text>
+        <Text style={[styles.cellText, { textAlign: 'center' }]}>{resignation.separationType || '-'}</Text>
       </View>
       <View style={styles.effectiveCol}>
-        <Text style={styles.cellText}>{formatDate(resignation.effectiveFrom)}</Text>
+        <Text style={[styles.cellText, { textAlign: 'center' }]}>{formatDate(resignation.effectiveFrom)}</Text>
       </View>
       <View style={styles.lastDayCol}>
-        <Text style={styles.cellText}>{formatDate(resignation.lastWorkingDay)}</Text>
+        <Text style={[styles.cellText, { textAlign: 'center' }]}>{formatDate(resignation.lastWorkingDay)}</Text>
       </View>
       <View style={styles.reasonCol}>
-        <Text style={styles.cellText} numberOfLines={2}>{resignation.reason}</Text>
+        <Text style={[styles.cellText, { textAlign: 'left' }]} numberOfLines={2}>{resignation.reason || '-'}</Text>
       </View>
       <View style={styles.submittedCol}>
-        <Text style={styles.cellText}>{formatDate(resignation.submittedOn)}</Text>
+        <Text style={[styles.cellText, { textAlign: 'center' }]}>{formatDate(resignation.submittedOn)}</Text>
       </View>
-      {showActions && (
-        <View style={styles.statusCol}>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusBgColor(resignation.status) }]}>
-            <Text style={[styles.statusText, { color: getStatusColor(resignation.status) }]}>
-              {resignation.status}
-            </Text>
-          </View>
+      <View style={styles.statusCol}>
+        <View style={[styles.statusBadge, { backgroundColor: getStatusBgColor(resignation.status || 'Requested') }]}>
+          <Text style={[styles.statusText, { color: getStatusColor(resignation.status || 'Requested') }]}>
+            {resignation.status || 'Requested'}
+          </Text>
         </View>
-      )}
+      </View>
       <View style={styles.actionsCol}>
         {showActions ? (
           <View style={styles.actionsContainer}>
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={() => handleStatusUpdate(resignation._id, 'Accepted')}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleStatusUpdate(resignation._id, 'Accepted');
+              }}
             >
               <Icon name="check" size={16} color="#4CAF50" />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={() => handleStatusUpdate(resignation._id, 'Rejected')}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleStatusUpdate(resignation._id, 'Rejected');
+              }}
             >
               <Icon name="close" size={16} color="#F44336" />
             </TouchableOpacity>
@@ -165,13 +180,16 @@ const ResignationTable: React.FC<ResignationTableProps> = ({
         ) : (
           <TouchableOpacity
             style={styles.deleteButton}
-            onPress={() => handleDelete(resignation._id)}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleDelete(resignation._id);
+            }}
           >
             <Icon name="delete" size={16} color="#F44336" />
           </TouchableOpacity>
         )}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -188,37 +206,40 @@ const ResignationTable: React.FC<ResignationTableProps> = ({
               {/* Table Header */}
               <View style={styles.tableHeader}>
                 <View style={styles.srCol}>
-                  <Text style={styles.headerText}>#</Text>
+                  <Text style={[styles.headerText, { textAlign: 'center' }]}>#</Text>
                 </View>
                 <View style={styles.employeeCol}>
-                  <Text style={styles.headerText}>EMPLOYEE</Text>
+                  <Text style={[styles.headerText, { textAlign: 'left' }]}>EMPLOYEE</Text>
                 </View>
                 <View style={styles.designationCol}>
-                  <Text style={styles.headerText}>DESIGNATION</Text>
+                  <Text style={[styles.headerText, { textAlign: 'left' }]}>DESIGNATION</Text>
                 </View>
                 <View style={styles.typeCol}>
-                  <Text style={styles.headerText}>TYPE</Text>
+                  <Text style={[styles.headerText, { textAlign: 'center' }]}>TYPE</Text>
                 </View>
                 <View style={styles.effectiveCol}>
-                  <Text style={styles.headerText}>EFFECTIVE FROM</Text>
+                  <Text style={[styles.headerText, { textAlign: 'center' }]}>EFFECTIVE FROM</Text>
                 </View>
                 <View style={styles.lastDayCol}>
-                  <Text style={styles.headerText}>LAST WORKING DAY</Text>
+                  <Text style={[styles.headerText, { textAlign: 'center' }]}>LAST WORKING DAY</Text>
                 </View>
                 <View style={styles.reasonCol}>
-                  <Text style={styles.headerText}>REASON</Text>
+                  <Text style={[styles.headerText, { textAlign: 'left' }]}>REASON</Text>
                 </View>
                 <View style={styles.submittedCol}>
-                  <Text style={styles.headerText}>SUBMITTED ON</Text>
+                  <Text style={[styles.headerText, { textAlign: 'center' }]}>SUBMITTED ON</Text>
+                </View>
+                <View style={styles.statusCol}>
+                  <Text style={[styles.headerText, { textAlign: 'center' }]}>STATUS</Text>
                 </View>
                 <View style={styles.actionsCol}>
-                  <Text style={styles.headerText}>ACTIONS</Text>
+                  <Text style={[styles.headerText, { textAlign: 'center' }]}>ACTIONS</Text>
                 </View>
               </View>
 
               {/* Table Rows */}
               {pendingResignations.map((resignation, index) => 
-                renderTableRow(resignation, index, true)
+                renderTableRow(resignation, index, true, true)
               )}
             </View>
           </ScrollView>
@@ -297,34 +318,34 @@ const ResignationTable: React.FC<ResignationTableProps> = ({
             {/* Table Header */}
             <View style={styles.tableHeader}>
               <View style={styles.srCol}>
-                <Text style={styles.headerText}>#</Text>
+                <Text style={[styles.headerText, { textAlign: 'center' }]}>#</Text>
               </View>
               <View style={styles.employeeCol}>
-                <Text style={styles.headerText}>EMPLOYEE</Text>
+                <Text style={[styles.headerText, { textAlign: 'left' }]}>EMPLOYEE</Text>
               </View>
               <View style={styles.designationCol}>
-                <Text style={styles.headerText}>DESIGNATION</Text>
+                <Text style={[styles.headerText, { textAlign: 'left' }]}>DESIGNATION</Text>
               </View>
               <View style={styles.typeCol}>
-                <Text style={styles.headerText}>TYPE</Text>
+                <Text style={[styles.headerText, { textAlign: 'center' }]}>TYPE</Text>
               </View>
               <View style={styles.effectiveCol}>
-                <Text style={styles.headerText}>EFFECTIVE FROM</Text>
+                <Text style={[styles.headerText, { textAlign: 'center' }]}>EFFECTIVE FROM</Text>
               </View>
               <View style={styles.lastDayCol}>
-                <Text style={styles.headerText}>LAST WORKING DAY</Text>
+                <Text style={[styles.headerText, { textAlign: 'center' }]}>LAST WORKING DAY</Text>
               </View>
               <View style={styles.reasonCol}>
-                <Text style={styles.headerText}>REASON</Text>
+                <Text style={[styles.headerText, { textAlign: 'left' }]}>REASON</Text>
               </View>
               <View style={styles.submittedCol}>
-                <Text style={styles.headerText}>SUBMITTED ON</Text>
+                <Text style={[styles.headerText, { textAlign: 'center' }]}>SUBMITTED ON</Text>
               </View>
               <View style={styles.statusCol}>
-                <Text style={styles.headerText}>STATUS</Text>
+                <Text style={[styles.headerText, { textAlign: 'center' }]}>STATUS</Text>
               </View>
               <View style={styles.actionsCol}>
-                <Text style={styles.headerText}>ACTIONS</Text>
+                <Text style={[styles.headerText, { textAlign: 'center' }]}>ACTIONS</Text>
               </View>
             </View>
 
@@ -336,7 +357,7 @@ const ResignationTable: React.FC<ResignationTableProps> = ({
               </View>
             ) : (
               allResignations.map((resignation, index) => 
-                renderTableRow(resignation, index, false)
+                renderTableRow(resignation, index, false, false)
               )
             )}
           </View>
@@ -355,15 +376,15 @@ const ResignationTable: React.FC<ResignationTableProps> = ({
           </TouchableOpacity>
           
           <Text style={styles.paginationInfo}>
-            Page {currentPage} of {totalPages}
+            Page {currentPage} of {totalPages || 1}
           </Text>
           
           <TouchableOpacity
-            style={[styles.paginationButton, currentPage === totalPages && styles.paginationButtonDisabled]}
+            style={[styles.paginationButton, (currentPage === totalPages || totalPages === 0) && styles.paginationButtonDisabled]}
             onPress={() => onPageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
+            disabled={currentPage === totalPages || totalPages === 0}
           >
-            <Text style={[styles.paginationText, currentPage === totalPages && styles.paginationTextDisabled]}>
+            <Text style={[styles.paginationText, (currentPage === totalPages || totalPages === 0) && styles.paginationTextDisabled]}>
               Next
             </Text>
           </TouchableOpacity>
@@ -500,17 +521,16 @@ const styles = StyleSheet.create({
   cellText: {
     fontSize: 14,
     color: '#374151',
-    textAlign: 'center',
     fontWeight: '500',
   },
-  srCol: { width: 50, paddingHorizontal: 8, justifyContent: 'center' },
-  employeeCol: { width: 150, paddingHorizontal: 8, justifyContent: 'center' },
-  designationCol: { width: 150, paddingHorizontal: 8, justifyContent: 'center' },
-  typeCol: { width: 120, paddingHorizontal: 8, justifyContent: 'center' },
-  effectiveCol: { width: 120, paddingHorizontal: 8, justifyContent: 'center' },
-  lastDayCol: { width: 120, paddingHorizontal: 8, justifyContent: 'center' },
-  reasonCol: { width: 200, paddingHorizontal: 8, justifyContent: 'center' },
-  submittedCol: { width: 120, paddingHorizontal: 8, justifyContent: 'center' },
+  srCol: { width: 50, paddingHorizontal: 8, justifyContent: 'center', alignItems: 'center' },
+  employeeCol: { width: 150, paddingHorizontal: 8, justifyContent: 'center', alignItems: 'flex-start' },
+  designationCol: { width: 150, paddingHorizontal: 8, justifyContent: 'center', alignItems: 'flex-start' },
+  typeCol: { width: 120, paddingHorizontal: 8, justifyContent: 'center', alignItems: 'center' },
+  effectiveCol: { width: 120, paddingHorizontal: 8, justifyContent: 'center', alignItems: 'center' },
+  lastDayCol: { width: 120, paddingHorizontal: 8, justifyContent: 'center', alignItems: 'center' },
+  reasonCol: { width: 200, paddingHorizontal: 8, justifyContent: 'center', alignItems: 'flex-start' },
+  submittedCol: { width: 120, paddingHorizontal: 8, justifyContent: 'center', alignItems: 'center' },
   statusCol: { width: 100, paddingHorizontal: 8, justifyContent: 'center', alignItems: 'center' },
   actionsCol: { width: 120, paddingHorizontal: 8, justifyContent: 'center', alignItems: 'center' },
   statusBadge: {

@@ -29,11 +29,12 @@ const DonutChart: React.FC<Props> = ({ segments, size = 140, stroke = 16, title,
       {title ? <Text style={styles.title}>{title}</Text> : null}
       <View style={{ alignItems: 'center', marginVertical: 8 }}>
         <Svg width={size} height={size}>
+          {/* Background circle */}
           <Circle cx={size/2} cy={size/2} r={radius} stroke="#F3F4F6" strokeWidth={stroke} fill="none" />
           {segments.map((seg, idx) => {
             const pct = (seg.value || 0) / total;
             const dash = pct * circum;
-            const offset = accumulated * circum;
+            const offset = -accumulated * circum;
             accumulated += pct;
             return (
               <Circle
@@ -53,6 +54,23 @@ const DonutChart: React.FC<Props> = ({ segments, size = 140, stroke = 16, title,
               />
             );
           })}
+          {/* Fill remaining gap if segments don't add up to 100% */}
+          {accumulated < 1 && (
+            <Circle
+              cx={size/2}
+              cy={size/2}
+              r={radius}
+              stroke="#F3F4F6"
+              strokeWidth={stroke}
+              fill="none"
+              strokeDasharray={`${(1 - accumulated) * circum} ${circum}`}
+              strokeDashoffset={-accumulated * circum}
+              rotation="-90"
+              originX={size/2}
+              originY={size/2}
+              strokeLinecap="round"
+            />
+          )}
         </Svg>
         {(centerTop || centerBottom) && (
           <View style={styles.centerText}>

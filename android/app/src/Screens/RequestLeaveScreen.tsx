@@ -10,14 +10,16 @@ import {
   Alert,
   Platform,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import DocumentPicker, { DocumentPickerResponse, types as DocumentTypes } from 'react-native-document-picker';
 import Feather from 'react-native-vector-icons/Feather';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, CommonActions } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSelector } from 'react-redux';
+import { navigationRef } from '../Services/NavigationService';
 
 import useAxios from '../hooks/useAxios';
 import { RootState } from '../states/store';
@@ -42,12 +44,15 @@ type LeaveType = '' | 'Sick' | 'Casual' | 'Annual' | 'Maternity' | 'Paternity' |
 
 type RouteParams = {
   redirectTo?: string;
+  leaveId?: string;
 };
 
 const RequestLeaveScreen: React.FC = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<any>>();
+  const navigation = useNavigation<any>();
   const route = useRoute();
   const params = (route.params || {}) as RouteParams;
+  const leaveId = params?.leaveId;
+  const isEditMode = !!leaveId;
 
   const { currentUser } = useSelector((state: RootState) => state.user);
   const employeeId = currentUser?.employee?._id;
@@ -69,6 +74,9 @@ const RequestLeaveScreen: React.FC = () => {
   const [pickerDate, setPickerDate] = useState(new Date());
   const [selectedDocument, setSelectedDocument] = useState<DocumentPickerResponse | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showLeaveTypeModal, setShowLeaveTypeModal] = useState(false);
+  const [showHalfDayModal, setShowHalfDayModal] = useState(false);
+  const [loadingExisting, setLoadingExisting] = useState(false);
 
   const todayIso = useMemo(() => {
     const today = new Date();
@@ -77,12 +85,54 @@ const RequestLeaveScreen: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    // Default both dates to today on first mount (for create mode)
+    if (!isEditMode) {
     setFormData(prev => ({
       ...prev,
       startDate: todayIso,
       endDate: todayIso,
     }));
-  }, [todayIso]);
+    }
+  }, [todayIso, isEditMode]);
+
+  // If editing an existing leave, load its details
+  useEffect(() => {
+    const loadLeaveForEdit = async () => {
+      if (!leaveId) return;
+      try {
+        setLoadingExisting(true);
+        const res = await callApi({
+          method: 'GET',
+          url: `/leave/${leaveId}`,
+        });
+
+        const data = (res as any)?.data || res;
+
+        if (data) {
+          setFormData(prev => ({
+            ...prev,
+            type: (data.type as LeaveType) || '' as LeaveType,
+            startDate: data.startDate ? new Date(data.startDate).toISOString().split('T')[0] : todayIso,
+            endDate: data.endDate ? new Date(data.endDate).toISOString().split('T')[0] : todayIso,
+            reason: data.reason || '',
+            isHalfDay: !!data.isHalfDay,
+            halfDayType: (data.halfDayType as HalfDayType) || '',
+          }));
+          // We don't pre-fill existing document; user can upload a new one if needed
+          setSelectedDocument(null);
+        }
+      } catch (error) {
+        console.error('Error loading leave for edit:', error);
+        Alert.alert('Error', 'Failed to load leave details for editing');
+      } finally {
+        setLoadingExisting(false);
+      }
+    };
+
+    if (isEditMode) {
+      loadLeaveForEdit();
+    }
+  }, [isEditMode, leaveId, callApi, todayIso]);
 
   const isSameDay = useMemo(() => {
     if (!formData.startDate || !formData.endDate) return false;
@@ -241,17 +291,19 @@ const RequestLeaveScreen: React.FC = () => {
       const end = new Date(formData.endDate);
 
       const payload = new FormData();
+
+      // For create, include EmployeeId and status
+      if (!isEditMode) {
       payload.append('EmployeeId', employeeId);
+        payload.append('status', 'Pending');
+      }
+
       payload.append('startDate', start.toISOString());
       payload.append('endDate', end.toISOString());
       payload.append('type', formData.type);
       payload.append('reason', formData.reason.trim());
-      payload.append('status', 'Pending');
-
-      if (formData.isHalfDay && formData.halfDayType) {
-        payload.append('isHalfDay', 'true');
-        payload.append('halfDayType', formData.halfDayType);
-      }
+      payload.append('isHalfDay', formData.isHalfDay ? 'true' : 'false');
+      payload.append('halfDayType', formData.isHalfDay && formData.halfDayType ? formData.halfDayType : '');
 
       if (selectedDocument) {
         const fileUri = selectedDocument.fileCopyUri || selectedDocument.uri;
@@ -263,29 +315,31 @@ const RequestLeaveScreen: React.FC = () => {
       }
 
       const response = await callApi({
-        method: 'POST',
-        url: '/leave',
+        method: isEditMode ? 'PUT' : 'POST',
+        url: isEditMode ? `/leave/${leaveId}` : '/leave',
         data: payload,
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
 
-      if (response?.success) {
-        Alert.alert('Success', response?.message || 'Leave request submitted successfully.', [
+      if (response?.success !== false) {
+        Alert.alert(
+          'Success',
+          response?.message ||
+            (isEditMode ? 'Leave request updated successfully.' : 'Leave request submitted successfully.'),
+          [
           {
             text: 'OK',
-            onPress: () => {
-              if (params.redirectTo) {
-                navigation.navigate(params.redirectTo as never);
-              } else {
-                navigation.goBack();
-              }
-            },
+            onPress: handleBack,
           },
         ]);
       } else {
-        Alert.alert('Error', response?.error || 'Failed to submit leave request.');
+        Alert.alert(
+          'Error',
+          response?.error ||
+            (isEditMode ? 'Failed to update leave request.' : 'Failed to submit leave request.'),
+        );
       }
     } catch (error: any) {
       const message =
@@ -301,14 +355,47 @@ const RequestLeaveScreen: React.FC = () => {
 
   const removeDocument = () => setSelectedDocument(null);
 
+  // Smart back navigation handler - navigate back to the correct screen
+  const handleBack = () => {
+    console.log('🔍 handleBack called, redirectTo:', params.redirectTo);
+    
+    // If we're in HR/PM Attendance flow (MainNavigater), we may want to jump back to Attendance tab
+    if (params.redirectTo === 'AttendanceMain' && navigationRef.isReady() && navigationRef.current) {
+      try {
+        navigationRef.current.dispatch(
+          CommonActions.navigate({
+            name: 'Attendance',
+          } as any),
+        );
+        return;
+      } catch (err) {
+        console.error('❌ navigationRef dispatch to Attendance error:', err);
+      }
+    }
+
+    // Default behavior (covers Employee + any stack usage): go back in current stack
+    if (navigation.canGoBack && typeof navigation.canGoBack === 'function' && navigation.canGoBack()) {
+      navigation.goBack();
+        return;
+    }
+
+    // As a last fallback, if redirectTo is provided try navigating there in the current navigator
+    if (params.redirectTo) {
+      (navigation as any).navigate(params.redirectTo as never);
+      return;
+    }
+    
+    console.log('❌ All navigation methods failed from RequestLeaveScreen');
+  };
+
   return (
     <View style={styles.screen}>
       <View style={styles.header}> 
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
           <Feather name="arrow-left" size={20} color="#1F2937" />
           <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Request Leave</Text>
+        <Text style={styles.headerTitle}>{isEditMode ? 'Edit Leave' : 'Request Leave'}</Text>
         <View style={{ width: 60 }} />
       </View>
 
@@ -318,16 +405,18 @@ const RequestLeaveScreen: React.FC = () => {
         {/* Leave Type */}
         <View style={styles.formGroup}>
           <Text style={styles.label}>Leave Type *</Text>
-          <View style={styles.pickerWrapper}>
-            <Picker
-              selectedValue={formData.type}
-              onValueChange={value => handleInputChange('type', value as LeaveType)}
-            >
-              {leaveTypeOptions.map(option => (
-                <Picker.Item key={option.value} label={option.label} value={option.value} />
-              ))}
-            </Picker>
-          </View>
+          <TouchableOpacity 
+            style={styles.dateInput} 
+            onPress={() => setShowLeaveTypeModal(true)}
+          >
+            <Feather name="calendar" size={16} color="#6B7280" />
+            <Text style={[styles.dateText, !formData.type && styles.placeholderText]}>
+              {formData.type 
+                ? leaveTypeOptions.find(opt => opt.value === formData.type)?.label || 'Select leave type'
+                : 'Select leave type'}
+            </Text>
+            <Feather name="chevron-down" size={16} color="#6B7280" />
+          </TouchableOpacity>
         </View>
 
         {/* Dates */}
@@ -361,17 +450,18 @@ const RequestLeaveScreen: React.FC = () => {
               />
             </View>
             {formData.isHalfDay && (
-              <View style={styles.pickerWrapper}>
-                <Picker
-                  selectedValue={formData.halfDayType}
-                  onValueChange={value => handleInputChange('halfDayType', value as HalfDayType)}
-                >
-                  <Picker.Item label="Select half of the day" value="" />
-                  {halfDayOptions.map(option => (
-                    <Picker.Item key={option.value} label={option.label} value={option.value} />
-                  ))}
-                </Picker>
-              </View>
+              <TouchableOpacity 
+                style={styles.dateInput} 
+                onPress={() => setShowHalfDayModal(true)}
+              >
+                <Feather name="clock" size={16} color="#6B7280" />
+                <Text style={[styles.dateText, !formData.halfDayType && styles.placeholderText]}>
+                  {formData.halfDayType 
+                    ? halfDayOptions.find(opt => opt.value === formData.halfDayType)?.label || 'Select half of the day'
+                    : 'Select half of the day'}
+                </Text>
+                <Feather name="chevron-down" size={16} color="#6B7280" />
+              </TouchableOpacity>
             )}
           </View>
         )}
@@ -414,7 +504,7 @@ const RequestLeaveScreen: React.FC = () => {
 
         {/* Actions */}
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.secondaryButton} onPress={() => navigation.goBack()} disabled={submitting}>
+          <TouchableOpacity style={styles.secondaryButton} onPress={handleBack} disabled={submitting}>
             <Text style={styles.secondaryButtonText}>Cancel</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -425,7 +515,9 @@ const RequestLeaveScreen: React.FC = () => {
             {submitting ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
-              <Text style={styles.primaryButtonText}>Submit Request</Text>
+            <Text style={styles.primaryButtonText}>
+              {isEditMode ? 'Update Request' : 'Submit Request'}
+            </Text>
             )}
           </TouchableOpacity>
         </View>
@@ -491,6 +583,102 @@ const RequestLeaveScreen: React.FC = () => {
           </View>
         </View>
       )}
+
+      {/* Leave Type Modal */}
+      <Modal
+        visible={showLeaveTypeModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowLeaveTypeModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowLeaveTypeModal(false)}
+        >
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Leave Type</Text>
+              <TouchableOpacity onPress={() => setShowLeaveTypeModal(false)}>
+                <Feather name="x" size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalOptions}>
+              {leaveTypeOptions.filter(opt => opt.value !== '').map(option => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.modalOption,
+                    formData.type === option.value && styles.modalOptionSelected
+                  ]}
+                  onPress={() => {
+                    handleInputChange('type', option.value as LeaveType);
+                    setShowLeaveTypeModal(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.modalOptionText,
+                    formData.type === option.value && styles.modalOptionTextSelected
+                  ]}>
+                    {option.label}
+                  </Text>
+                  {formData.type === option.value && (
+                    <Feather name="check" size={20} color="#FB923C" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Half Day Type Modal */}
+      <Modal
+        visible={showHalfDayModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowHalfDayModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowHalfDayModal(false)}
+        >
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Half of the Day</Text>
+              <TouchableOpacity onPress={() => setShowHalfDayModal(false)}>
+                <Feather name="x" size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalOptions}>
+              {halfDayOptions.map(option => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.modalOption,
+                    formData.halfDayType === option.value && styles.modalOptionSelected
+                  ]}
+                  onPress={() => {
+                    handleInputChange('halfDayType', option.value as HalfDayType);
+                    setShowHalfDayModal(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.modalOptionText,
+                    formData.halfDayType === option.value && styles.modalOptionTextSelected
+                  ]}>
+                    {option.label}
+                  </Text>
+                  {formData.halfDayType === option.value && (
+                    <Feather name="check" size={20} color="#FB923C" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 };
@@ -577,6 +765,10 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 14,
     color: '#111827',
+    flex: 1,
+  },
+  placeholderText: {
+    color: '#9CA3AF',
   },
   switchRow: {
     flexDirection: 'row',
@@ -710,6 +902,56 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     color: '#92400E',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(17, 24, 39, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    width: '85%',
+    maxHeight: '70%',
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  modalOptions: {
+    maxHeight: 400,
+  },
+  modalOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  modalOptionSelected: {
+    backgroundColor: '#FFFBEB',
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: '#374151',
+  },
+  modalOptionTextSelected: {
+    color: '#FB923C',
+    fontWeight: '600',
   },
 });
 

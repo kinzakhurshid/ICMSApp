@@ -159,17 +159,6 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
       screen: 'HomeTab'
     },
     { 
-      label: 'Profile', 
-      icon: <MaterialIcons name="person" size={22} color="#FF5722" />,
-      route: 'OrgAdminProfile',
-    },
-    { 
-      label: 'Dashboard', 
-      icon: <MaterialIcons name="dashboard" size={22} color="#FF5722" />, 
-      route: 'OrgMainTabs',
-      screen: 'OrgHomeTab'
-    },
-    { 
       label: 'Departments', 
       icon: <MaterialIcons name="apartment" size={22} color="#FF5722" />, 
       route: 'Departments'
@@ -286,14 +275,34 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
     
     if (item.screen) {
       // For tab navigation items (supports both MainTabs and OrgMainTabs)
-      // Only mark as active if this is the current route AND the screen matches
-      if (currentRoute.name === item.route) {
-        const routeState = (currentRoute.state as any);
-        if (routeState && routeState.routes && routeState.index !== undefined) {
-          const activeScreen = routeState.routes[routeState.index]?.name;
-          return activeScreen === item.screen;
-        }
+      if (currentRoute.name !== item.route) {
+        return false;
       }
+
+      const routeState = currentRoute.state as any;
+
+      // If we already have a nested state, compare against the active tab name
+      if (routeState && routeState.routes && routeState.index !== undefined) {
+        const activeScreen = routeState.routes[routeState.index]?.name;
+        return activeScreen === item.screen;
+      }
+
+      // When the app first loads, the nested state may not be initialised yet.
+      // In that case, treat the default home tab as active so "Dashboard" appears selected.
+      if (
+        item.route === 'MainTabs' &&
+        (item.screen === 'HomeTab' || item.screen === 'EmployeeHomeTab')
+      ) {
+        return true;
+      }
+
+      if (
+        item.route === 'OrgMainTabs' &&
+        (item.screen === 'HomeTab' || item.screen === 'OrgHomeTab')
+      ) {
+        return true;
+      }
+
       return false;
     } else {
       // For regular drawer items - only check exact match

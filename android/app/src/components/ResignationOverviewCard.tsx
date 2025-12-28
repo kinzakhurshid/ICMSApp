@@ -25,9 +25,6 @@ const ResignationOverviewCard: React.FC<ResignationOverviewCardProps> = ({ stats
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle}>Resignation Overview</Text>
-        <TouchableOpacity style={styles.terminateButton}>
-          <Text style={styles.terminateButtonText}>Terminate</Text>
-        </TouchableOpacity>
       </View>
       
       <View style={styles.totalSection}>

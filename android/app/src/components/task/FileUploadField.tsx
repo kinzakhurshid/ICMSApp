@@ -5,6 +5,7 @@ import DocumentPicker from 'react-native-document-picker';
 
 interface FileUploadFieldProps {
   label: string;
+  required?: boolean;
   value?: { uri: string; name: string; type: string } | null;
   onChange: (file: { uri: string; name: string; type: string } | null) => void;
   error?: string;
@@ -12,6 +13,7 @@ interface FileUploadFieldProps {
 
 export default function FileUploadField({
   label,
+  required = false,
   value,
   onChange,
   error,
@@ -45,7 +47,10 @@ export default function FileUploadField({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.label}>
+        {label}
+        {required && <Text style={styles.required}> *</Text>}
+      </Text>
       {value ? (
         <View style={styles.fileContainer}>
           <View style={styles.fileInfo}>
@@ -81,6 +86,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#374151',
     marginBottom: 8,
+  },
+  required: {
+    color: '#ef4444',
   },
   uploadButton: {
     borderWidth: 2,

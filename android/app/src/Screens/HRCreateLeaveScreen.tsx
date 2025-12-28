@@ -153,10 +153,24 @@ export default function HRCreateLeaveScreen() {
         },
       });
 
+      // Reset form after successful submission
+      setEmployeeId('');
+      setLeaveType('');
+      setStartDate(null);
+      setEndDate(null);
+      setIsHalfDay(false);
+      setHalfDayType('');
+      setReason('');
+      setDocument(null);
+      setErrors({});
+
       Alert.alert('Success', 'Leave created successfully', [
         {
           text: 'OK',
-          onPress: () => navigation.goBack(),
+          onPress: () => {
+            // Navigate back to LeavesScreen to refresh data
+            (navigation as any).navigate('LeavesScreen');
+          },
         },
       ]);
     } catch (error: any) {
@@ -185,6 +199,9 @@ export default function HRCreateLeaveScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => (navigation as any).navigate('LeavesScreen')} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={22} color="#111827" />
+        </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Create New Leave</Text>
         </View>
@@ -367,6 +384,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+  },
+  backButton: {
+    marginRight: 12,
+    padding: 4,
   },
   headerContent: {
     flex: 1,

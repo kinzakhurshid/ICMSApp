@@ -42,12 +42,9 @@ interface Meeting {
 }
 
 const meetingTypes = [
-  { label: 'Daily Standup', value: 'Daily' },
-  { label: 'Weekly', value: 'Weekly' },
+  { label: 'Daily', value: 'Daily' },
+  { label: 'General', value: 'General' },
   { label: 'Sprint', value: 'Sprint' },
-  { label: 'One-on-One', value: 'One-on-One' },
-  { label: 'Team Meeting', value: 'Team Meeting' },
-  { label: 'Other', value: 'Other' },
 ];
 
 export default function EditMeetingScreen() {
@@ -80,9 +77,39 @@ export default function EditMeetingScreen() {
   // Errors
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Smart back navigation: go back if possible, otherwise go to Meeting list
+  const handleBack = () => {
+    try {
+      if (
+        (navigation as any).canGoBack &&
+        typeof (navigation as any).canGoBack === 'function' &&
+        (navigation as any).canGoBack()
+      ) {
+        (navigation as any).goBack();
+        return;
+      }
+
+      const parent = (navigation as any).getParent?.();
+      if (parent) {
+        parent.navigate('Meeting' as never);
+        return;
+      }
+
+      (navigation as any).navigate?.('Meeting' as never);
+    } catch (error) {
+      console.error('Navigation error in EditMeetingScreen handleBack:', error);
+      if ((navigation as any).goBack) {
+        (navigation as any).goBack();
+      }
+    }
+  };
+
   useEffect(() => {
-    loadEmployees();
-    loadMeeting();
+    const initializeData = async () => {
+      await loadEmployees();
+      await loadMeeting();
+    };
+    initializeData();
   }, [meetingId]);
 
   const loadEmployees = async () => {
@@ -141,9 +168,20 @@ export default function EditMeetingScreen() {
         }
       }
 
-      // Set participants
+      // Set participants - extract IDs and filter to only include valid employee IDs
       if (meeting.participants && Array.isArray(meeting.participants)) {
-        setParticipants(meeting.participants.map((p: any) => p._id || p));
+        const validEmployeeIds = new Set(employees.map(emp => emp._id));
+        const validParticipantIds = meeting.participants
+          .map((p: any) => {
+            const participantId = typeof p === 'string' ? p : p._id || p;
+            return participantId && typeof participantId === 'string' ? participantId : null;
+          })
+          .filter((id: string | null): id is string => id !== null && validEmployeeIds.has(id));
+        setParticipants(validParticipantIds);
+        
+        if (validParticipantIds.length !== meeting.participants.length) {
+          console.warn('Some participants were filtered out because they are no longer valid employees');
+        }
       }
 
       // Set status
@@ -172,7 +210,15 @@ export default function EditMeetingScreen() {
     if (duration < 5 || duration > 240) newErrors.duration = 'Duration must be between 5 and 240 minutes';
     if (!date) newErrors.date = 'Date is required';
     if (!time) newErrors.time = 'Time is required';
-    if (!meetingLink.trim()) newErrors.meetingLink = 'Meeting link is required';
+    if (!meetingLink.trim()) {
+      newErrors.meetingLink = 'Meeting link is required';
+    } else {
+      // Validate URL format (should have protocol)
+      const link = meetingLink.trim();
+      if (!link.match(/^https?:\/\/.+/i)) {
+        newErrors.meetingLink = 'Meeting link must be a valid URL (e.g., https://meet.google.com/abc-xyz)';
+      }
+    }
     if (participants.length === 0) newErrors.participants = 'At least one participant is required';
 
     setErrors(newErrors);
@@ -192,16 +238,43 @@ export default function EditMeetingScreen() {
       const dateStr = date!.toISOString().split('T')[0];
       const timeStr = `${time!.getHours().toString().padStart(2, '0')}:${time!.getMinutes().toString().padStart(2, '0')}`;
 
+      // Get employee ID as per API spec: currentUser.employee._id
+      const employeeId = (currentUser as any)?.employee?._id;
+      
+      // Validate and format meetingLink to ensure it's a full URL with protocol
+      let formattedMeetingLink = meetingLink.trim();
+      if (formattedMeetingLink && !formattedMeetingLink.match(/^https?:\/\//i)) {
+        // If it doesn't start with http:// or https://, add https://
+        formattedMeetingLink = 'https://' + formattedMeetingLink;
+      }
+
+      // Ensure type is one of the allowed values: "Daily", "General", "Sprint"
+      const validType = type === 'Daily' || type === 'General' || type === 'Sprint' ? type : 'General';
+      
+      // Validate participants: filter to only include valid employee IDs that exist in the employees list
+      const validEmployeeIds = new Set(employees.map(emp => emp._id));
+      const validParticipants = Array.isArray(participants) 
+        ? participants.filter((p: any) => {
+            const participantId = typeof p === 'string' ? p : p._id || p;
+            return participantId && typeof participantId === 'string' && validEmployeeIds.has(participantId);
+          })
+        : [];
+      
+      console.log('Original participants:', participants);
+      console.log('Valid participants:', validParticipants);
+      console.log('Available employee IDs:', Array.from(validEmployeeIds));
+      
+      // Build payload exactly as per API specification
       const payload = {
         name: name.trim(),
         description: description.trim(),
-        date: dateStr,
-        time: timeStr,
-        duration,
-        type,
-        meetingLink: meetingLink.trim(),
-        participants,
-        createdBy: (currentUser as any)?._id || (currentUser as any)?.employeeId,
+        date: dateStr,                    // "YYYY-MM-DD"
+        time: timeStr,                    // "HH:mm"
+        duration: parseInt(duration.toString()),
+        type: validType,                  // Must be "Daily" | "General" | "Sprint"
+        meetingLink: formattedMeetingLink, // Must be full URL with protocol
+        participants: validParticipants,   // Only valid employee IDs
+        createdBy: employeeId,            // employee id of creator
         isCancelled: status === 'Cancelled',
         isCompleted: status === 'Completed',
       };
@@ -215,7 +288,7 @@ export default function EditMeetingScreen() {
       Alert.alert('Success', 'Meeting updated successfully', [
         {
           text: 'OK',
-          onPress: () => navigation.goBack(),
+          onPress: handleBack,
         },
       ]);
     } catch (error: any) {
@@ -286,7 +359,7 @@ export default function EditMeetingScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
         <View style={styles.headerContent}>

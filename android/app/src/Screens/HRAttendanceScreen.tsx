@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import useAxios from '../hooks/useAxios';
 import SearchableSelect from '../components/SearchableSelect';
+import { exportToXlsx } from '../utills/utills';
 
 const { width } = Dimensions.get('window');
 
@@ -75,14 +76,32 @@ const HRAttendanceScreen: React.FC = () => {
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
-
-  useEffect(() => {
-    fetchAttendance();
-  }, [fetchAttendance]); // Now depends on the memoized function
+  
+  // Ref to prevent concurrent fetch calls
+  const isFetchingRef = React.useRef(false);
 
   useEffect(() => {
     fetchEmployees();
   }, []);
+
+  // Sync date picker values with custom dates when they change
+  useEffect(() => {
+    if (customStart) {
+      const date = new Date(customStart);
+      if (!isNaN(date.getTime())) {
+        setStartDate(date);
+      }
+    }
+  }, [customStart]);
+
+  useEffect(() => {
+    if (customEnd) {
+      const date = new Date(customEnd);
+      if (!isNaN(date.getTime())) {
+        setEndDate(date);
+      }
+    }
+  }, [customEnd]);
 
   const formatDate = (date: Date) => {
     return date.toISOString().split('T')[0];
@@ -158,105 +177,170 @@ const HRAttendanceScreen: React.FC = () => {
     }
   };
 
-  const fetchAttendance = useCallback(async () => {
-    setIsFetching(true);
-    try {
-      console.log("🔍 Fetching attendance data...");
-      
-      const today = new Date();
-      const startDate = new Date();
-
-      // Calculate date range based on selectedTab (Day/Week/Month)
-      // This affects BOTH stats and table data
-      const tableStartDate = new Date();
-      if (selectedTab === 'Week') {
-        tableStartDate.setDate(today.getDate() - 7);
-      } else if (selectedTab === 'Month') {
-        tableStartDate.setMonth(today.getMonth() - 1);
-      } else {
-        // Day
-        tableStartDate.setDate(today.getDate());
-      }
-
-      // Use custom dates if set, otherwise use selectedTab date range
-      const finalStartDate = customStart || tableStartDate.toISOString().split('T')[0];
-      const finalEndDate = customEnd || today.toISOString().split('T')[0];
-
-      console.log("🔍 Date range - SelectedTab:", selectedTab, "Start:", finalStartDate, "End:", finalEndDate);
-
-      // Fetch attendance data with the same date range for both stats and table
-      const requestParams: any = {
-        startDate: finalStartDate,
-        endDate: finalEndDate,
-        page: 1, // Always fetch from page 1 to get all data
-        limit: 1000, // Fetch all records at once
-      };
-      
-      // Only include employeeId if it's selected
-      if (selectedEmployee) {
-        requestParams.employeeId = selectedEmployee;
-      }
-      
-      console.log("🔍 Fetching ALL attendance records - Params:", JSON.stringify(requestParams, null, 2));
-      
-      const listResponse = await callApi({
-        method: 'GET',
-        url: '/attendance/date-range',
-        params: requestParams,
-      });
-
-      console.log("🔍 API Response - Data length:", listResponse?.data?.length, "Total pages:", listResponse?.pagination?.totalPages);
-      console.log("🔍 API Response structure:", {
-        hasData: !!listResponse?.data,
-        isArray: Array.isArray(listResponse?.data),
-        dataType: typeof listResponse?.data,
-        pagination: listResponse?.pagination,
-        total: listResponse?.total,
-      });
-
-      if (listResponse.success && listResponse.data) {
-        // Use stats from the list response (same date range as table data)
-        setStats(listResponse.stats || listResponse.data?.stats || { onTime: 0, late: 0, absent: 0, halfDay: 0, onLeave: 0 });
-        
-        // Extract all records from response
-        const allRecords = Array.isArray(listResponse.data) 
-          ? listResponse.data 
-          : (listResponse.data?.data || listResponse.data?.records || listResponse.data?.attendance || []);
-        
-        console.log("🔍 Total records fetched:", allRecords.length);
-        if (allRecords.length > 0) {
-          console.log("🔍 First record:", { id: allRecords[0]?._id || allRecords[0]?.id, employee: allRecords[0]?.employeeName });
-          console.log("🔍 Last record:", { id: allRecords[allRecords.length - 1]?._id || allRecords[allRecords.length - 1]?.id, employee: allRecords[allRecords.length - 1]?.employeeName });
-        }
-        
-        // Store all records - the useEffect will handle pagination
-        setAllAttendanceData(allRecords);
-        
-        // Calculate pagination client-side
-        const totalRecords = allRecords.length;
-        const calculatedTotalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
-        
-        console.log("🔍 Client-side pagination - Total records:", totalRecords, "Page size:", pageSize, "Total pages:", calculatedTotalPages);
-        setTotalPages(calculatedTotalPages);
-        
-        // Don't set attendanceData here - let the useEffect handle it to avoid race conditions
-        // The useEffect will automatically update attendanceData when allAttendanceData changes
-      } else {
-        console.log("🔍 No data in response or unsuccessful");
-        setAllAttendanceData([]);
-        setAttendanceData([]);
-        setStats({ onTime: 0, late: 0, absent: 0, halfDay: 0, onLeave: 0 });
-        setTotalPages(1);
-      }
-      setLoading(false);
-    } catch (error: any) {
-      console.error("❌ Error fetching attendance data:", error);
-      Alert.alert("Error", "Failed to load attendance data");
-      setLoading(false);
-    } finally {
-      setIsFetching(false);
+  // Fetch attendance whenever filters (tab / employee / dates) change
+  useEffect(() => {
+    // Prevent concurrent calls
+    if (isFetchingRef.current) {
+      return;
     }
-  }, [selectedTab, selectedEmployee, customStart, customEnd, callApi, pageSize]); // Include all dependencies except page (we handle page client-side)
+    
+    const fetchAttendance = async () => {
+      isFetchingRef.current = true;
+      setIsFetching(true);
+      try {
+        console.log('🔍 Fetching attendance data...');
+
+        const today = new Date();
+
+        // Calculate date range based on selectedTab (Day/Week/Month)
+        // This affects BOTH stats and table data
+        const tableStartDate = new Date();
+        if (selectedTab === 'Week') {
+          tableStartDate.setDate(today.getDate() - 7);
+        } else if (selectedTab === 'Month') {
+          tableStartDate.setMonth(today.getMonth() - 1);
+        } else {
+          // Day
+          tableStartDate.setDate(today.getDate());
+        }
+
+        // Use custom dates if set, otherwise use selectedTab date range
+        const finalStartDate =
+          customStart || tableStartDate.toISOString().split('T')[0];
+        const finalEndDate =
+          customEnd || today.toISOString().split('T')[0];
+
+        console.log(
+          '🔍 Date range - SelectedTab:',
+          selectedTab,
+          'Start:',
+          finalStartDate,
+          'End:',
+          finalEndDate,
+        );
+
+        // Fetch attendance data with the same date range for both stats and table
+        const requestParams: any = {
+          startDate: finalStartDate,
+          endDate: finalEndDate,
+          page: 1, // Always fetch from page 1 to get all data
+          limit: 1000, // Fetch all records at once
+        };
+
+        // Only include employeeId if it's selected
+        if (selectedEmployee) {
+          requestParams.employeeId = selectedEmployee;
+        }
+
+        console.log(
+          '🔍 Fetching ALL attendance records - Params:',
+          JSON.stringify(requestParams, null, 2),
+        );
+
+        const listResponse = await callApi({
+          method: 'GET',
+          url: '/attendance/date-range',
+          params: requestParams,
+        });
+
+        console.log(
+          '🔍 API Response - Data length:',
+          listResponse?.data?.length,
+          'Total pages:',
+          listResponse?.pagination?.totalPages,
+        );
+        console.log('🔍 API Response structure:', {
+          hasData: !!listResponse?.data,
+          isArray: Array.isArray(listResponse?.data),
+          dataType: typeof listResponse?.data,
+          pagination: listResponse?.pagination,
+          total: listResponse?.total,
+        });
+
+        if (listResponse.success && listResponse.data) {
+          // Use stats from the list response (same date range as table data)
+          setStats(
+            listResponse.stats ||
+              listResponse.data?.stats || {
+                onTime: 0,
+                late: 0,
+                absent: 0,
+                halfDay: 0,
+                onLeave: 0,
+              },
+          );
+
+          // Extract all records from response
+          const allRecords = Array.isArray(listResponse.data)
+            ? listResponse.data
+            : (listResponse.data?.data ||
+                listResponse.data?.records ||
+                listResponse.data?.attendance ||
+                []);
+
+          console.log('🔍 Total records fetched:', allRecords.length);
+          if (allRecords.length > 0) {
+            console.log('🔍 First record:', {
+              id: allRecords[0]?._id || allRecords[0]?.id,
+              employee: allRecords[0]?.employeeName,
+            });
+            console.log('🔍 Last record:', {
+              id:
+                allRecords[allRecords.length - 1]?._id ||
+                allRecords[allRecords.length - 1]?.id,
+              employee:
+                allRecords[allRecords.length - 1]?.employeeName,
+            });
+          }
+
+          // Store all records - the pagination effect will handle current page
+          setAllAttendanceData(allRecords);
+
+          // Calculate pagination client-side
+          const totalRecords = allRecords.length;
+          const calculatedTotalPages = Math.max(
+            1,
+            Math.ceil(totalRecords / pageSize),
+          );
+
+          console.log(
+            '🔍 Client-side pagination - Total records:',
+            totalRecords,
+            'Page size:',
+            pageSize,
+            'Total pages:',
+            calculatedTotalPages,
+          );
+          setTotalPages(calculatedTotalPages);
+        } else {
+          console.log('🔍 No data in response or unsuccessful');
+          setAllAttendanceData([]);
+          setAttendanceData([]);
+          setStats({
+            onTime: 0,
+            late: 0,
+            absent: 0,
+            halfDay: 0,
+            onLeave: 0,
+          });
+          setTotalPages(1);
+        }
+        setLoading(false);
+      } catch (error: any) {
+        console.error('❌ Error fetching attendance data:', error);
+        Alert.alert('Error', 'Failed to load attendance data');
+        setLoading(false);
+      } finally {
+        setIsFetching(false);
+        isFetchingRef.current = false;
+      }
+    };
+
+    // Whenever filters change, reset to first page and refetch
+    setPage(1);
+    fetchAttendance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTab, selectedEmployee, customStart, customEnd, pageSize]);
   
   // Update displayed data when page changes (client-side pagination)
   useEffect(() => {
@@ -424,7 +508,7 @@ const HRAttendanceScreen: React.FC = () => {
         <Text style={styles.pageTitle}>Attendance management</Text>
         <TouchableOpacity
           style={styles.addButton}
-          onPress={() => (navigation as any).navigate('AddAttendanceRecord')}
+          onPress={() => (navigation as any).navigate('AddAttendanceRecord', { redirectTo: 'HRAttendance' })}
         >
           <Icon name="add" size={18} color="white" />
           <Text style={styles.addText}>Add</Text>
@@ -453,8 +537,7 @@ const HRAttendanceScreen: React.FC = () => {
             onPress={() => {
               setSelectedTab('Day');
               setPage(1); // Reset to first page when filter changes
-              setCustomStart(''); // Clear custom dates to use filter date range
-              setCustomEnd('');
+              // Don't clear custom dates - preserve user's filter selections
             }}
           >
             <Text style={[styles.timeButtonText, selectedTab === 'Day' && styles.timeButtonTextActive]}>Day</Text>
@@ -464,8 +547,7 @@ const HRAttendanceScreen: React.FC = () => {
             onPress={() => {
               setSelectedTab('Week');
               setPage(1); // Reset to first page when filter changes
-              setCustomStart(''); // Clear custom dates to use filter date range
-              setCustomEnd('');
+              // Don't clear custom dates - preserve user's filter selections
             }}
           >
             <Text style={[styles.timeButtonText, selectedTab === 'Week' && styles.timeButtonTextActive]}>Week</Text>
@@ -475,8 +557,7 @@ const HRAttendanceScreen: React.FC = () => {
             onPress={() => {
               setSelectedTab('Month');
               setPage(1); // Reset to first page when filter changes
-              setCustomStart(''); // Clear custom dates to use filter date range
-              setCustomEnd('');
+              // Don't clear custom dates - preserve user's filter selections
             }}
           >
             <Text style={[styles.timeButtonText, selectedTab === 'Month' && styles.timeButtonTextActive]}>Month</Text>
@@ -492,29 +573,39 @@ const HRAttendanceScreen: React.FC = () => {
             style={styles.exportButton}
             onPress={async () => {
               try {
-                // Export all attendance records (or filtered ones)
+                // Fetch all attendance records (respecting current filters) for export
                 const exportResponse = await callApi({
                   method: 'GET',
                   url: '/attendance/date-range',
                   params: {
-                    startDate: customStart || new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
+                    startDate:
+                      customStart ||
+                      new Date(
+                        new Date().setDate(new Date().getDate() - 30),
+                      )
+                        .toISOString()
+                        .split('T')[0],
                     endDate: customEnd || new Date().toISOString().split('T')[0],
                     employeeId: selectedEmployee || undefined,
                     page: 1,
-                    limit: 1000, // Get all records for export
+                    limit: 1000,
                   },
                 });
 
-                const recordsToExport = exportResponse.data || attendanceData || [];
-                
-                if (recordsToExport.length === 0) {
+                const recordsToExport: AttendanceRecord[] =
+                  (Array.isArray(exportResponse.data)
+                    ? exportResponse.data
+                    : exportResponse.data?.data ||
+                      exportResponse.data?.records ||
+                      exportResponse.data?.attendance ||
+                      []) || [];
+
+                if (!recordsToExport.length) {
                   Alert.alert('No Data', 'No attendance records to export');
                   return;
                 }
 
-                // Use the exportToCsv utility function
-                const { exportToCsv } = require('../utills/utills');
-                await exportToCsv({
+                await exportToXlsx({
                   filename: 'attendance_records',
                   columns: [
                     { key: 'sr', header: 'SR#' },
@@ -525,25 +616,45 @@ const HRAttendanceScreen: React.FC = () => {
                     { key: 'timeOut', header: 'Time Out' },
                     { key: 'arrivalStatus', header: 'Arrival Status' },
                   ],
-                  rows: recordsToExport.map((record: AttendanceRecord, idx: number) => {
-                    const employeeName = record.employeeName || `${record.firstName || ''} ${record.lastName || ''}`.trim() || 'Unknown';
-                    const timeIn = formatTimeOnly(record.timeIn || record.checkIn || '-');
-                    const timeOut = formatTimeOnly(record.timeOut || record.checkOut || '-');
-                    return {
-                      sr: idx + 1,
-                      employee: employeeName,
-                      date: new Date(record.date).toLocaleDateString('en-GB'),
-                      status: record.status,
-                      timeIn: timeIn,
-                      timeOut: timeOut,
-                      arrivalStatus: record.arrivalStatus || '-'
-                    };
-                  }),
+                  rows: recordsToExport.map(
+                    (record: AttendanceRecord, idx: number) => {
+                      const employeeName =
+                        record.employeeName ||
+                        `${record.firstName || ''} ${
+                          record.lastName || ''
+                        }`.trim() ||
+                        'Unknown';
+                      const timeIn = formatTimeOnly(
+                        record.timeIn || record.checkIn || '-',
+                      );
+                      const timeOut = formatTimeOnly(
+                        record.timeOut || record.checkOut || '-',
+                      );
+                      return {
+                        sr: idx + 1,
+                        employee: employeeName,
+                        date: new Date(record.date).toLocaleDateString(
+                          'en-GB',
+                        ),
+                        status: record.status,
+                        timeIn,
+                        timeOut,
+                        arrivalStatus: record.arrivalStatus || '-',
+                      };
+                    },
+                  ),
                 });
 
-                Alert.alert('Success', `Exported ${recordsToExport.length} attendance record(s) successfully`);
+                Alert.alert(
+                  'Success',
+                  `Exported ${recordsToExport.length} attendance record(s) successfully`,
+                );
               } catch (error: any) {
-                Alert.alert('Error', error?.response?.data?.message || 'Failed to export attendance records');
+                Alert.alert(
+                  'Error',
+                  error?.response?.data?.message ||
+                    'Failed to export attendance records',
+                );
               }
             }}
           >
@@ -567,7 +678,7 @@ const HRAttendanceScreen: React.FC = () => {
                     label: `${emp.firstName} ${emp.lastName}`,
                   })),
                 ]}
-                value={selectedEmployee}
+                value={selectedEmployee || ''}
                 onChange={(value) => {
                   setSelectedEmployee(value);
                   setPage(1);
@@ -612,8 +723,8 @@ const HRAttendanceScreen: React.FC = () => {
               <TouchableOpacity 
                 style={styles.applyButton}
                 onPress={() => {
-                  setPage(1);
-                  fetchAttendance();
+              // Just reset to page 1; the filters effect will refetch automatically
+              setPage(1);
                 }}
               >
                 <Icon name="check" size={16} color="white" />
@@ -626,8 +737,8 @@ const HRAttendanceScreen: React.FC = () => {
                   setSelectedEmployee('');
                   setCustomStart('');
                   setCustomEnd('');
+                  // Reset to first page; filters effect will refetch with cleared filters
                   setPage(1);
-                  fetchAttendance();
                 }}
               >
                 <Icon name="clear" size={16} color="#666" />
@@ -640,21 +751,21 @@ const HRAttendanceScreen: React.FC = () => {
         {/* Date Pickers */}
         {showStartDatePicker && (
           <DateTimePicker
-            value={startDate}
+            value={customStart ? new Date(customStart) : startDate}
             mode="date"
             display="default"
             onChange={handleStartDateChange}
-            maximumDate={endDate || new Date()}
+            maximumDate={customEnd ? new Date(customEnd) : (endDate || new Date())}
           />
         )}
         
         {showEndDatePicker && (
           <DateTimePicker
-            value={endDate}
+            value={customEnd ? new Date(customEnd) : endDate}
             mode="date"
             display="default"
             onChange={handleEndDateChange}
-            minimumDate={startDate}
+            minimumDate={customStart ? new Date(customStart) : startDate}
             maximumDate={new Date()}
           />
         )}
@@ -1086,16 +1197,17 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  // Column widths – keep header and row cells in perfect sync
   headerSr: {
-    width: 40,
+    width: 60,
   },
   headerEmployee: {
-    width: 180,
+    width: 200,
     textAlign: 'left',
     marginLeft: 8,
   },
   headerDate: {
-    width: 100,
+    width: 120,
   },
   headerStatus: {
     width: 120,
@@ -1104,7 +1216,7 @@ const styles = StyleSheet.create({
     width: 140,
   },
   headerTimeOut: {
-    width: 140,
+    width: 160,
   },
   headerArrival: {
     width: 160,
@@ -1128,7 +1240,7 @@ const styles = StyleSheet.create({
   attendanceSr: {
     fontSize: 13,
     color: '#6B7280',
-    width: 50,
+    width: 60,
     textAlign: 'center',
     fontWeight: '500',
     marginRight: 10,
@@ -1146,7 +1258,6 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     width: 120,
     textAlign: 'center',
-    marginRight: 10,
     fontWeight: '500',
   },
   statusBadge: {
@@ -1172,7 +1283,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6B7280',
     width: 160,
-    marginRight: 10,
     textAlign: 'center',
     fontWeight: '500',
   },

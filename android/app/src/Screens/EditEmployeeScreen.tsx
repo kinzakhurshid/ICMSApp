@@ -98,8 +98,11 @@ const jobTypeOptions = [
 export default function EditEmployeeScreen() {
   const navigation = useNavigation();
   const route = useRoute<any>();
+  const userState = useSelector((state: RootState) => state.user);
+  const currentUser: any = userState.currentUser || (userState as any);
+  const userRole = currentUser?.role || '';
+  const isOrgAdmin = ['ORG_ADMIN','OrgAdmin','org_admin','Org Admin','ORGADMIN','orgadmin','ORG'].includes(userRole.toString());
   const { callApi } = useAxios();
-  const { currentUser } = useSelector((state: RootState) => state.user);
   const employeeId: string = route.params?.employeeId;
 
   const [loading, setLoading] = useState(true);
@@ -166,7 +169,7 @@ export default function EditEmployeeScreen() {
   useEffect(() => {
     if (!employeeId) {
       Alert.alert('Error', 'Missing employee ID');
-      navigation.goBack();
+      (navigation as any).navigate('HREmployees');
       return;
     }
     loadDepartments();
@@ -329,19 +332,64 @@ export default function EditEmployeeScreen() {
     if (!position.trim()) newErrors.position = 'Position is required';
     if (!jobType) newErrors.jobType = 'Job type is required';
     if (!hireDate) newErrors.hireDate = 'Hire date is required';
+    if (hireDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const hireDateOnly = new Date(hireDate);
+      hireDateOnly.setHours(0, 0, 0, 0);
+      if (hireDateOnly > today) {
+        newErrors.hireDate = 'Hire date cannot be in the future';
+      }
+    }
     if (!probationDate) newErrors.probationDate = 'Probation date is required';
+    if (hireDate && probationDate && probationDate < hireDate) {
+      newErrors.probationDate = 'Probation date must be after hire date';
+    }
     if (salary < 0) newErrors.salary = 'Salary must be 0 or greater';
 
     if (!dateOfBirth) newErrors.dateOfBirth = 'Date of birth is required';
+    if (dateOfBirth) {
+      const today = new Date();
+      const age = today.getFullYear() - dateOfBirth.getFullYear();
+      const monthDiff = today.getMonth() - dateOfBirth.getMonth();
+      const dayDiff = today.getDate() - dateOfBirth.getDate();
+      const actualAge = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
+      if (actualAge < 18) {
+        newErrors.dateOfBirth = 'Employee must be at least 18 years old';
+      }
+      if (actualAge > 100) {
+        newErrors.dateOfBirth = 'Please enter a valid date of birth';
+      }
+    }
     if (!gender) newErrors.gender = 'Gender is required';
-    if (!maritalStatus) newErrors.maritalStatus = 'Marital status is required';
+    // Marital status is optional
     if (!nationality.trim()) newErrors.nationality = 'Nationality is required';
     if (!city.trim()) newErrors.city = 'City is required';
     if (!state.trim()) newErrors.state = 'State is required';
+    
+    // City-State coordination (basic validation)
+    const cityStateMap: Record<string, string> = {
+      'Karachi': 'Sindh',
+      'Lahore': 'Punjab',
+      'Islamabad': 'Islamabad Capital Territory',
+      'Rawalpindi': 'Punjab',
+      'Faisalabad': 'Punjab',
+      'Multan': 'Punjab',
+      'Peshawar': 'Khyber Pakhtunkhwa',
+      'Quetta': 'Balochistan',
+    };
+    if (city.trim() && state.trim() && cityStateMap[city.trim()]) {
+      const expectedState = cityStateMap[city.trim()];
+      if (state.trim() !== expectedState && !state.trim().toLowerCase().includes(expectedState.toLowerCase().split(' ')[0])) {
+        newErrors.city = `City "${city}" typically belongs to "${expectedState}"`;
+      }
+    }
 
     if (!emergencyName.trim()) newErrors.emergencyName = 'Emergency contact name is required';
     if (!emergencyRelation.trim()) newErrors.emergencyRelation = 'Emergency contact relation is required';
     if (!emergencyPhone.trim() || !/^\d+$/.test(emergencyPhone)) newErrors.emergencyPhone = 'Valid emergency phone is required';
+    
+    // Bank & Tax Details - optional (not required)
 
     if (!degree.trim()) newErrors.degree = 'Degree is required';
     if (!institute.trim()) newErrors.institute = 'Institute is required';
@@ -351,7 +399,14 @@ export default function EditEmployeeScreen() {
       if (!exp.company.trim()) newErrors[`experience_${index}_company`] = 'Company is required';
       if (!exp.jobType) newErrors[`experience_${index}_jobType`] = 'Job type is required';
       if (!exp.startDate) newErrors[`experience_${index}_startDate`] = 'Start date is required';
-      if (!exp.isCurrent && !exp.endDate) newErrors[`experience_${index}_endDate`] = 'End date is required';
+      if (!exp.isCurrent && !exp.endDate) {
+        newErrors[`experience_${index}_endDate`] = 'End date is required';
+      }
+      if (exp.startDate && exp.endDate && !exp.isCurrent) {
+        if (exp.endDate < exp.startDate) {
+          newErrors[`experience_${index}_endDate`] = 'End date must be after start date';
+        }
+      }
     });
 
     setErrors(newErrors);
@@ -392,16 +447,21 @@ export default function EditEmployeeScreen() {
           ? 'PartTime'
           : jobType === 'Hybrid'
           ? 'Hybrid'
-          : jobType;
+          : jobType || 'FullTime'; // Default to FullTime if empty
       formData.append('status', statusValue);
 
       formData.append('hireDate', hireDate!.toISOString().split('T')[0]);
       formData.append('probationDate', probationDate!.toISOString().split('T')[0]);
       formData.append('salary', salary.toString());
+      formData.append('isActive', 'true'); // Server expects string 'true' or 'false'
+      // Add jobType if available
+      if (jobType) {
+        formData.append('jobType', jobType);
+      }
 
       formData.append('dateOfBirth', dateOfBirth!.toISOString().split('T')[0]);
       formData.append('gender', gender.toLowerCase());
-      formData.append('maritalStatus', maritalStatus.toLowerCase());
+      formData.append('maritalStatus', maritalStatus ? maritalStatus.toLowerCase() : '');
       formData.append('nationality', nationality.trim());
       formData.append('city', city.trim());
       formData.append('state', state.trim());
@@ -429,21 +489,30 @@ export default function EditEmployeeScreen() {
       formData.append('skills', JSON.stringify(skills || []));
 
       const experiencesData = experiences.map((exp) => {
+        // Normalize jobType to match status format (FullTime, PartTime, etc.)
+        const normalizedJobType = 
+          exp.jobType === 'Full-time' ? 'FullTime' :
+          exp.jobType === 'Part-time' ? 'PartTime' :
+          exp.jobType || 'FullTime';
+        
         const expData: any = {
-          position: exp.position.trim(),
-          company: exp.company.trim(),
-          jobType: exp.jobType,
-          startDate: exp.startDate!.toISOString().split('T')[0],
-          isCurrent: exp.isCurrent,
+          position: (exp.position || '').trim(),
+          company: (exp.company || '').trim(),
+          jobType: normalizedJobType,
+          startDate: exp.startDate ? exp.startDate.toISOString().split('T')[0] : '',
+          isCurrent: Boolean(exp.isCurrent), // Ensure it's a boolean
+          description: (exp.description || '').trim(), // Always include description
         };
+        // Only include endDate when isCurrent is false and endDate exists
+        // Don't include endDate at all when isCurrent is true
         if (!exp.isCurrent && exp.endDate) {
           expData.endDate = exp.endDate.toISOString().split('T')[0];
         }
-        if (exp.description && exp.description.trim()) {
-          expData.description = exp.description.trim();
-        }
         return expData;
       });
+      
+      // Log experiences data for debugging
+      console.log('Experiences data being sent:', JSON.stringify(experiencesData, null, 2));
       formData.append('experiences', JSON.stringify(experiencesData));
 
       if (idCard) {
@@ -525,15 +594,22 @@ export default function EditEmployeeScreen() {
         method: 'PUT',
         url: `/employee/updateOne/${employeeId}`,
         data: formData,
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        // Don't set Content-Type - let the interceptor handle it for FormData
       });
 
       Alert.alert('Success', 'Employee updated successfully', [
         {
           text: 'OK',
-          onPress: () => navigation.goBack(),
+          onPress: () => {
+            // Navigate based on user role
+            if (isOrgAdmin) {
+              // For OrgAdmin, navigate back to dashboard (which contains EmployeeTable)
+              (navigation as any).goBack();
+            } else {
+              // For HR, navigate to employees screen
+              (navigation as any).navigate('HREmployees');
+            }
+          },
         },
       ]);
     } catch (error: any) {
@@ -562,7 +638,7 @@ export default function EditEmployeeScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => (navigation as any).navigate('HREmployees')} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
@@ -727,6 +803,7 @@ export default function EditEmployeeScreen() {
                     setHireDate(date);
                     if (errors.hireDate) setErrors({ ...errors, hireDate: '' });
                   }}
+                  maximumDate={new Date()}
                   error={errors.hireDate}
                 />
               </View>
@@ -792,14 +869,13 @@ export default function EditEmployeeScreen() {
               <View style={styles.column}>
                 <DropdownField
                   label="Marital Status"
-                  required
                   value={maritalStatus}
                   options={maritalStatusOptions}
                   onSelect={(value) => {
                     setMaritalStatus(value);
                     if (errors.maritalStatus) setErrors({ ...errors, maritalStatus: '' });
                   }}
-                  placeholder="Select an option"
+                  placeholder="Select an option (optional)"
                   error={errors.maritalStatus}
                 />
               </View>
@@ -900,7 +976,7 @@ export default function EditEmployeeScreen() {
                   label="Account Number"
                   value={accountNumber}
                   onChangeText={setAccountNumber}
-                  placeholder="Account Number"
+                  placeholder="Account Number (optional)"
                 />
               </View>
               <View style={styles.column}>
@@ -908,7 +984,7 @@ export default function EditEmployeeScreen() {
                   label="Bank Name"
                   value={bankName}
                   onChangeText={setBankName}
-                  placeholder="Bank Name"
+                  placeholder="Bank Name (optional)"
                 />
               </View>
             </View>
@@ -919,7 +995,7 @@ export default function EditEmployeeScreen() {
                   label="Branch"
                   value={branch}
                   onChangeText={setBranch}
-                  placeholder="Branch"
+                  placeholder="Branch (optional)"
                 />
               </View>
               <View style={styles.column}>
@@ -927,7 +1003,7 @@ export default function EditEmployeeScreen() {
                   label="Tax ID"
                   value={taxId}
                   onChangeText={setTaxId}
-                  placeholder="Enter tax ID"
+                  placeholder="Enter tax ID (optional)"
                 />
               </View>
             </View>
@@ -1012,7 +1088,7 @@ export default function EditEmployeeScreen() {
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.cancelButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => (navigation as any).navigate('HREmployees')}
           disabled={submitting}
         >
           <Text style={styles.cancelButtonText}>Cancel</Text>

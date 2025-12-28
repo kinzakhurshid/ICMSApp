@@ -58,7 +58,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({
         )}
         
         <View style={styles.changeContainer}>
-          <Text style={styles.changeLabel}>This Month</Text>
+          <Text style={[styles.changeLabel, { backgroundColor: bgColor }]}>This Month</Text>
         </View>
       </View>
     </View>
@@ -95,12 +95,15 @@ const styles = StyleSheet.create({
   },
   progressContainer: {
     marginBottom: 12,
+    width: '100%',
   },
   progressBar: {
     height: 8,
     backgroundColor: 'rgba(0,0,0,0.1)',
     borderRadius: 4,
     marginBottom: 8,
+    width: '100%',
+    alignSelf: 'flex-start',
   },
   progressFill: {
     height: '100%',

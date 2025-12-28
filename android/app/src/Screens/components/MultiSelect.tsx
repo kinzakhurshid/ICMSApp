@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
   },
   checkedBox: {
     backgroundColor: '#f97316',
-    borderColor: '#3B82F6',
+    borderColor: '#f97316',
   },
   optionText: {
     fontSize: 14,

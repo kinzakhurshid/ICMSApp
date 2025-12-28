@@ -24,6 +24,29 @@ export default function EditSprintScreen() {
   const { sprintId } = route.params as { sprintId: string };
   const { callApi } = useAxios();
 
+  // Smart back navigation: go back if possible, otherwise navigate to SprintDetail
+  const handleBack = () => {
+    if (navigation.canGoBack && typeof navigation.canGoBack === 'function' && navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      // Navigate explicitly to SprintDetail if we have sprintId
+      if (sprintId) {
+        const parent = navigation.getParent();
+        if (parent) {
+          try {
+            parent.navigate('SprintBoard' as never, { screen: 'SprintDetailNew' as never, params: { sprintId } } as never);
+          } catch {
+            if (navigation.goBack) navigation.goBack();
+          }
+        } else if (navigation.goBack) {
+          navigation.goBack();
+        }
+      } else if (navigation.goBack) {
+        navigation.goBack();
+      }
+    }
+  };
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [sprint, setSprint] = useState<ISprint | null>(null);
@@ -93,7 +116,7 @@ export default function EditSprintScreen() {
     } catch (error: any) {
       console.error('Error loading sprint data:', error);
       Alert.alert('Error', 'Failed to load sprint data');
-      navigation.goBack();
+      handleBack();
     } finally {
       setLoading(false);
     }
@@ -150,7 +173,7 @@ export default function EditSprintScreen() {
         Alert.alert('Success', 'Sprint updated successfully', [
           {
             text: 'OK',
-            onPress: () => navigation.goBack(),
+            onPress: handleBack,
           },
         ]);
       } else {
@@ -182,7 +205,7 @@ export default function EditSprintScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
         <View style={styles.headerContent}>

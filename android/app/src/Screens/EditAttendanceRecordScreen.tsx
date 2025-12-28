@@ -83,6 +83,30 @@ export default function EditAttendanceRecordScreen() {
 
   useEffect(() => {
     if (initialRecord) {
+      // Check if the record's date is in the past
+      const recordDate = initialRecord.date ? new Date(initialRecord.date) : null;
+      if (recordDate) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const recordDateOnly = new Date(recordDate);
+        recordDateOnly.setHours(0, 0, 0, 0);
+        
+        if (recordDateOnly < today) {
+          Alert.alert(
+            'Cannot Edit Past Attendance',
+            'Past attendance cannot be edited. Please contact your administrator if you need to make changes.',
+            [
+              {
+                text: 'OK',
+                onPress: () => navigation.goBack(),
+              },
+            ]
+          );
+          setLoading(false);
+          return;
+        }
+      }
+      
       hydrateFromRecord(initialRecord);
       setLoading(false);
     }
@@ -136,6 +160,18 @@ export default function EditAttendanceRecordScreen() {
     if (!employeeId) newErrors.employeeId = 'Employee is required';
     if (!date) newErrors.date = 'Date is required';
     if (!status) newErrors.status = 'Status is required';
+
+    // Validate that date is not in the past
+    if (date) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selectedDate = new Date(date);
+      selectedDate.setHours(0, 0, 0, 0);
+      
+      if (selectedDate < today) {
+        newErrors.date = 'Past attendance cannot be edited. Please select today\'s date or a future date.';
+      }
+    }
     
     // If status is Absent, don't require check-in/check-out times
     if (status === 'Absent') {
@@ -183,7 +219,7 @@ export default function EditAttendanceRecordScreen() {
 
       await callApi({
         method: 'PUT',
-        url: `/attendance/${initialRecord._id || initialRecord.id}`,
+        url: `/attendance/${initialRecord._id}`,
         data: attendance,
       });
 
@@ -218,7 +254,10 @@ export default function EditAttendanceRecordScreen() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View className="header" style={styles.header}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={22} color="#111827" />
+        </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Edit Attendance Record</Text>
           <Text style={styles.headerSubtitle}>Update the attendance details below</Text>
@@ -249,10 +288,24 @@ export default function EditAttendanceRecordScreen() {
                 required
                 value={date}
                 onChange={(selectedDate) => {
+                  // Check if the selected date is in the past
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const selected = new Date(selectedDate);
+                  selected.setHours(0, 0, 0, 0);
+                  
+                  if (selected < today) {
+                    Alert.alert('Invalid Date', 'Past attendance cannot be edited. Please select today\'s date or a future date.');
+                    return;
+                  }
+                  
                   setDate(selectedDate);
                   if (errors.date) setErrors({ ...errors, date: '' });
                 }}
                 maximumDate={new Date()}
+                minimumDate={new Date()}
+                preventPastDates={true}
+                pastDateMessage="Past attendance cannot be edited. Please select today's date or a future date."
                 error={errors.date}
               />
             </View>
@@ -380,6 +433,10 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 12,
     backgroundColor: '#fff',
+  },
+  backButton: {
+    marginRight: 12,
+    padding: 4,
   },
   headerContent: {
     flexDirection: 'column',

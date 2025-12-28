@@ -331,6 +331,20 @@ export default function MeetingDetailModal({
               {/* Footer Actions */}
               <View style={styles.footer}>
                 <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={handleDelete}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="trash-outline" size={16} color="#fff" style={styles.deleteButtonIcon} />
+                      <Text style={styles.deleteButtonText}>Delete</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
                   style={styles.editButton}
                   onPress={() => {
                     onClose();
@@ -481,6 +495,22 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
     gap: 12,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#ef4444',
+  },
+  deleteButtonIcon: {
+    marginRight: 6,
+  },
+  deleteButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
   editButton: {
     paddingHorizontal: 24,

@@ -19,6 +19,7 @@ import FileUploadField from '../components/task/FileUploadField';
 type HREditLeaveRouteParams = {
   HREditLeave: {
     leaveId: string;
+    redirectTo?: string;
   };
 };
 
@@ -33,7 +34,7 @@ const leaveTypeOptions = [
 
 export default function HREditLeaveScreen() {
   const route = useRoute<RouteProp<HREditLeaveRouteParams, 'HREditLeave'>>();
-  const { leaveId } = route.params;
+  const { leaveId, redirectTo } = route.params;
   const navigation = useNavigation();
   const { callApi } = useAxios();
 
@@ -133,7 +134,13 @@ export default function HREditLeaveScreen() {
       Alert.alert('Success', 'Leave updated successfully', [
         {
           text: 'OK',
-          onPress: () => (navigation as any).navigate('LeavesScreen'),
+          onPress: () => {
+            if (redirectTo) {
+              (navigation as any).navigate(redirectTo);
+            } else {
+              navigation.goBack();
+            }
+          },
         },
       ]);
     } catch (error: any) {
@@ -157,7 +164,16 @@ export default function HREditLeaveScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => {
+            if (redirectTo) {
+              (navigation as any).navigate(redirectTo);
+            } else {
+              navigation.goBack();
+            }
+          }}
+          style={styles.backButton}
+        >
           <Ionicons name="arrow-back" size={20} color="#111827" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Leave Request</Text>

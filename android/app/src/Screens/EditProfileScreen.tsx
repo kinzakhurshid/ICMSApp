@@ -56,6 +56,8 @@ export default function EditProfileScreen() {
   const [taxId, setTaxId] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState('');
+  const [hireDate, setHireDate] = useState<string>('');       // stored as ISO date string yyyy-mm-dd
+  const [probationDate, setProbationDate] = useState<string>(''); // stored as ISO date string
   
   // Emergency Contact
   const [emergencyName, setEmergencyName] = useState('');
@@ -124,6 +126,8 @@ export default function EditProfileScreen() {
       setBranch(response?.bankAccount?.branch || '');
       setDegree(response?.education?.degree || '');
       setInstitute(response?.education?.institute || '');
+      setHireDate(response?.hireDate || '');
+      setProbationDate(response?.probationDate || '');
     } catch (error) {
       console.error('Error fetching employee data:', error);
       Alert.alert('Error', 'Failed to load profile data');
@@ -300,6 +304,27 @@ export default function EditProfileScreen() {
         formData.append('skills', JSON.stringify(skills));
       }
 
+      // Dates required by backend (keep existing values if user cannot edit)
+      if (hireDate) {
+        formData.append('hireDate', hireDate);
+      }
+      if (probationDate) {
+        formData.append('probationDate', probationDate);
+      }
+
+      // Organization (required) – same resolution logic as EditEmployeeScreen
+      const organizationId =
+        (currentUser as any)?.organization ||
+        (currentUser as any)?.organizationId ||
+        (currentUser as any)?.employee?.organizationId ||
+        (currentUser as any)?.employee?.organization;
+
+      if (organizationId) {
+        formData.append('organization', organizationId);
+      } else {
+        console.warn('EditProfileScreen: organizationId missing; backend may reject request');
+      }
+
       // Files
       if (profileImage) {
         formData.append('imageFile', {
@@ -345,7 +370,13 @@ export default function EditProfileScreen() {
       });
 
       Alert.alert('Success', 'Profile updated successfully', [
-        { text: 'OK', onPress: () => navigation.goBack() },
+        {
+          text: 'OK',
+          onPress: () => {
+            // Always return to EmployeeProfile screen after successful update
+            (navigation as any).navigate('EmployeeProfile');
+          },
+        },
       ]);
     } catch (error: any) {
       console.error('Error updating profile:', error);
@@ -378,7 +409,7 @@ export default function EditProfileScreen() {
         navigation={navigation} 
         title="Edit Profile" 
         showBackButton={true}
-        onBackPress={() => navigation.goBack()}
+        onBackPress={() => (navigation as any).navigate('EmployeeProfile')}
       />
       
       {/* Tabs */}

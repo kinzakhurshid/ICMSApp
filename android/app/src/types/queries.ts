@@ -12,6 +12,13 @@ export interface OrgQueryComment {
   createdBy?: string;
 }
 
+export interface OrgQueryMediaFile {
+  name?: string;
+  url?: string;
+  type?: string;
+  _id?: string;
+}
+
 export interface OrgQuery {
   _id: string;
   subject?: string;
@@ -20,6 +27,8 @@ export interface OrgQuery {
   createdAt?: string;
   employeeId?: OrgQueryEmployee;
   comments?: OrgQueryComment[];
+  mediaFiles?: OrgQueryMediaFile[];
+  attachments?: OrgQueryMediaFile[];
 }
 
 export interface OrgQueryListResponse {

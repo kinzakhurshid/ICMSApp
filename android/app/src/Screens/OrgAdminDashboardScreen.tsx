@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import DashboardStatCard from '../components/DashboardStatCard';
 import MyTeamsCard from '../components/MyTeamsCard';
 import EmployeeStructureChart from '../components/EmployeeStructureChart';
@@ -19,6 +20,9 @@ const monthEnd = () => {
 };
 
 const OrgAdminDashboardScreen: React.FC = () => {
+  const navigation = useNavigation();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const employeeTableRef = useRef<View>(null);
   const userState = useSelector((state: RootState) => state.user);
   const currentUser: any = userState.currentUser || (userState as any);
   const token = userState.token || (currentUser?.token as string);
@@ -48,23 +52,71 @@ const OrgAdminDashboardScreen: React.FC = () => {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
+    <ScrollView ref={scrollViewRef} style={styles.container} contentContainerStyle={{ padding: 16 }}>
       <Text style={styles.heading}>Org Admin Dashboard</Text>
 
       {/* HR Summary Cards (web-like) */}
       <View style={styles.cardRow}>
-        {hrStats?.summaryCards?.map((c) => (
-          <DashboardStatCard
-            key={c.title}
-            title={c.title}
-            value={c.value}
-            subtitleLeft={`↑ ${c.delta || ''}`.trim()}
-            subtitleRight={c.percent}
-            progressPercent={parseFloat(String(c.percent).replace('%','')) || undefined}
-            iconName={iconForCard(c.title)}
-            rightHint={c.path?.includes('Oct') ? 'October' : undefined}
-          />
-        ))}
+        {hrStats?.summaryCards?.map((c) => {
+          // Determine if it's an increase or decrease
+          const delta = typeof c.delta === 'number' && !isNaN(c.delta) ? c.delta : 0;
+          const isIncrease = delta >= 0;
+          const arrow = isIncrease ? '↑' : '↓';
+          const deltaValue = Math.abs(delta);
+          
+          // Format percent to avoid NaN
+          const percentValue = c.percent && !isNaN(parseFloat(String(c.percent).replace('%',''))) 
+            ? c.percent 
+            : undefined;
+          
+          // Only show subtitleLeft if delta is a valid number
+          const subtitleLeftValue = delta !== 0 && !isNaN(deltaValue) 
+            ? `${arrow} ${deltaValue}%` 
+            : undefined;
+          
+          return (
+            <DashboardStatCard
+              key={c.title}
+              title={c.title}
+              value={c.value}
+              subtitleLeft={subtitleLeftValue}
+              subtitleRight={percentValue}
+              iconName={iconForCard(c.title)}
+              rightHint={c.path?.includes('Oct') ? 'October' : undefined}
+              onPress={() => {
+                // Navigate to respective section based on card title
+                const titleLower = c.title.toLowerCase();
+                if (titleLower.includes('employee')) {
+                  // Scroll to employee table section
+                  setTimeout(() => {
+                    scrollViewRef.current?.scrollToEnd({ animated: true });
+                  }, 100);
+                } else if (titleLower.includes('attendance')) {
+                  // Navigate to attendance screen if available
+                  try {
+                    (navigation as any).navigate('HRAttendance');
+                  } catch (e) {
+                    console.log('Attendance screen not available');
+                  }
+                } else if (titleLower.includes('payroll')) {
+                  // Navigate to payroll screen
+                  try {
+                    (navigation as any).navigate('PayrollScreen');
+                  } catch (e) {
+                    console.log('Payroll screen not available', e);
+                  }
+                } else if (titleLower.includes('project')) {
+                  // Navigate to projects screen
+                  try {
+                    (navigation as any).navigate('OrgProjects');
+                  } catch (e) {
+                    console.log('Projects screen not available', e);
+                  }
+                }
+              }}
+            />
+          );
+        })}
       </View>
 
       {/* PM Overview */}
@@ -124,7 +176,9 @@ const OrgAdminDashboardScreen: React.FC = () => {
       )}
 
       {/* Employees Table (replaces calendar and payroll sections) */}
-      <EmployeeTable />
+      <View ref={employeeTableRef}>
+        <EmployeeTable />
+      </View>
     </ScrollView>
   );
 };

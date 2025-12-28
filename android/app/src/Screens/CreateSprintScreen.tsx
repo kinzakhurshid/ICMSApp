@@ -8,9 +8,10 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import useAxios from '../hooks/useAxios';
+import { navigationRef } from '../Services/NavigationService';
 import FormSection from '../components/task/FormSection';
 import FormField from '../components/task/FormField';
 import DropdownField from '../components/task/DropdownField';
@@ -30,6 +31,39 @@ const typeOptions = [
 export default function CreateSprintScreen() {
   const navigation = useNavigation();
   const { callApi } = useAxios();
+
+  // Smart back navigation: navigate to SprintBoard
+  const handleBack = () => {
+    // Use navigationRef to navigate to SprintBoard drawer route
+    if (navigationRef.isReady() && navigationRef.current) {
+      try {
+        navigationRef.current.dispatch(
+          CommonActions.navigate({
+            name: 'SprintBoard',
+          })
+        );
+        return;
+      } catch (err) {
+        console.error('Navigation error:', err);
+      }
+    }
+
+    // Fallback: Try parent navigator
+    const parent = navigation.getParent();
+    if (parent) {
+      try {
+        (parent as any).navigate('SprintBoard');
+        return;
+      } catch (err) {
+        console.error('Parent navigation error:', err);
+      }
+    }
+
+    // Last resort: goBack
+    if (navigation.canGoBack && typeof navigation.canGoBack === 'function' && navigation.canGoBack()) {
+      navigation.goBack();
+    }
+  };
 
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -116,7 +150,21 @@ export default function CreateSprintScreen() {
       Alert.alert('Success', 'Sprint created successfully', [
         {
           text: 'OK',
-          onPress: () => navigation.goBack(),
+          onPress: () => {
+            // Always navigate to SprintBoard after successful creation
+            const parent = navigation.getParent();
+            if (parent) {
+              try {
+                parent.navigate('SprintBoard' as never);
+              } catch {
+                // Fallback to direct navigation
+                (navigation as any).navigate('SprintBoard');
+              }
+            } else {
+              // Fallback to direct navigation
+              (navigation as any).navigate('SprintBoard');
+            }
+          },
         },
       ]);
     } catch (error: any) {
@@ -145,7 +193,7 @@ export default function CreateSprintScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
@@ -243,7 +291,7 @@ export default function CreateSprintScreen() {
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.cancelButton}
-          onPress={() => navigation.goBack()}
+          onPress={handleBack}
           disabled={submitting}
         >
           <Text style={styles.cancelButtonText}>Cancel</Text>

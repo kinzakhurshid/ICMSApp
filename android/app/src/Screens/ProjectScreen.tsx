@@ -157,16 +157,64 @@ const Dashboard = () => {
     totalPages: 1,
   });
   const { callApi: callRealApi } = useAxios();
-  const [pageLoading, setPageLoading] = useState(true);
+  // Keep a loading flag but don't block the whole screen with it
+  const [pageLoading, setPageLoading] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
+  const [showFilters, setShowFilters] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>(''); // simple status filter
   
   // Carousel refs - must be declared before any early returns
   const carouselRef = useRef<FlatList>(null);
   const [carouselIndex, setCarouselIndex] = useState(0);
+  
+  // Toggle project selection
+  const toggleProjectSelection = (projectId: string) => {
+    setSelectedProjects(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(projectId)) {
+        newSet.delete(projectId);
+      } else {
+        newSet.add(projectId);
+      }
+      return newSet;
+    });
+  };
+  
+  // Toggle all projects selection
+  const toggleAllProjects = () => {
+    if (selectedProjects.size === filteredProjects.length && filteredProjects.length > 0) {
+      setSelectedProjects(new Set());
+    } else {
+      setSelectedProjects(new Set(filteredProjects.map(p => p._id)));
+    }
+  };
+  
+  // Handle export
+  const handleExport = () => {
+    if (selectedProjects.size === 0) {
+      Alert.alert('No Selection', 'Please select projects to export');
+      return;
+    }
+    // For now, just show an alert - you can implement CSV/Excel export later
+    Alert.alert('Export', `Exporting ${selectedProjects.size} project(s)...`);
+  };
+  
+  // Handle filter button (just toggles visibility of simple status filters)
+  const handleFilter = () => {
+    setShowFilters(prev => !prev);
+  };
+  
+  // Handle add project
+  const handleAddProject = () => {
+    // Pass context so CreateProjectScreen can navigate back correctly
+    (navigation as any).navigate('CreateProject', { from: 'PMProjects' });
+  };
 
   // Fetch weekly projects (same as website)
   const fetchWeeklyProjects = async () => {
     try {
+      console.log('🔶 [ProjectScreen] fetchWeeklyProjects: starting request');
       const response = await callRealApi({
         method: 'GET',
         url: '/projects/weekly',
@@ -176,6 +224,17 @@ const Dashboard = () => {
         const payload: any = response.data ?? response;
         const weekProjects = payload.weekProjects ?? payload.data?.weekProjects ?? [];
         const overdueProjects = payload.overdueProjects ?? payload.data?.overdueProjects ?? [];
+        console.log(
+          '🔶 [ProjectScreen] fetchWeeklyProjects: parsed payload',
+          JSON.stringify(
+            {
+              weekProjectsCount: Array.isArray(weekProjects) ? weekProjects.length : 0,
+              overdueProjectsCount: Array.isArray(overdueProjects) ? overdueProjects.length : 0,
+            },
+            null,
+            2,
+          ),
+        );
 
         if (Array.isArray(weekProjects) || Array.isArray(overdueProjects)) {
           setWeeklyProjects([
@@ -186,38 +245,52 @@ const Dashboard = () => {
           setWeeklyProjects([]);
         }
       } else {
+        console.log('🔶 [ProjectScreen] fetchWeeklyProjects: empty response');
         setWeeklyProjects([]);
       }
     } catch (error) {
-      console.error('Error fetching weekly projects:', error);
+      console.error('🔴 [ProjectScreen] Error fetching weekly projects:', error);
       setWeeklyProjects([]);
     }
   };
 
-  // Fetch projects (re-used on focus and retry) - aligned with web API:
-  // GET /projects?page={page}&limit={limit}&search={search}&status={status}
-  // Response: { success, data: Project[], pagination, stats }
+  // Fetch projects (re-used on focus and retry)
   const fetchProjects = async () => {
     try {
+      console.log('🔶 [ProjectScreen] fetchProjects: starting request');
       setPageLoading(true);
       setPageError(null);
+      const startedAt = Date.now();
       const response = await callRealApi({
         method: 'GET',
-        // For now we use fixed page/limit and no filters, same as initial web load
+        // Keep URL, but accept multiple possible response shapes
         url: '/projects?page=1&limit=10&search=&status=',
       });
       
       console.log('Full API Response:', JSON.stringify(response, null, 2));
 
-      // Normalize to the web contract
-      const success = (response as any)?.success;
-      const rawProjects: any[] | null = Array.isArray((response as any)?.data)
-        ? (response as any).data
-        : null;
-      const statsFromResponse: any = (response as any)?.stats;
-      const paginationFromResponse: any = (response as any)?.pagination;
+      // Accept several possible response shapes gracefully
+      let rawProjects: any[] = [];
+      if (Array.isArray((response as any)?.data)) {
+        console.log('🔶 [ProjectScreen] fetchProjects: using response.data array');
+        rawProjects = (response as any).data;
+      } else if (Array.isArray((response as any)?.projects)) {
+        console.log('🔶 [ProjectScreen] fetchProjects: using response.projects array');
+        rawProjects = (response as any).projects;
+      } else if (Array.isArray(response as any)) {
+        console.log('🔶 [ProjectScreen] fetchProjects: using response as array directly');
+        rawProjects = response as any;
+      } else {
+        console.log(
+          '⚠️ [ProjectScreen] fetchProjects: response shape not recognized, defaulting to empty list',
+        );
+      }
 
-      if (success && rawProjects && Array.isArray(rawProjects)) {
+      console.log(
+        '🔶 [ProjectScreen] fetchProjects: rawProjects length',
+        Array.isArray(rawProjects) ? rawProjects.length : 'not-array',
+      );
+
         const processedProjects = rawProjects.map((project: any) => ({
           ...project,
           teamMembers: extractTeamMembers(project),
@@ -225,17 +298,32 @@ const Dashboard = () => {
 
         setProjects(processedProjects);
 
-        // Stats + pagination come directly from the response
-        if (statsFromResponse) {
-          setStats(statsFromResponse);
-        }
+      // Derive stats locally from projects
+      const derivedStats = processedProjects.reduce(
+        (acc, p) => {
+          const s = (p.status || '').toString();
+          if (s === 'Completed') acc.Completed += 1;
+          else if (s === 'In Progress') acc['In Progress'] += 1;
+          else if (s === 'Not Started') acc['Not Started'] += 1;
+          else if (s === 'On Hold') acc['On Hold'] += 1;
+          else if (s === 'Cancelled') acc.Cancelled += 1;
+          return acc;
+        },
+        { Completed: 0, 'In Progress': 0, 'Not Started': 0, 'On Hold': 0, Cancelled: 0 },
+      );
+      setStats(derivedStats);
 
-        if (paginationFromResponse) {
-          setPagination((prev) => ({
+      setPagination(prev => ({
             ...prev,
-            ...paginationFromResponse,
+        total: processedProjects.length,
+        totalPages: 1,
+        page: 1,
           }));
-        }
+
+      console.log(
+        '🔶 [ProjectScreen] fetchProjects: processedProjects length',
+        processedProjects.length,
+      );
 
         const sortedByDate = [...processedProjects].sort((a, b) => {
           const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -244,26 +332,33 @@ const Dashboard = () => {
         });
 
         setRecentProjects(sortedByDate.slice(0, 5));
-      } else {
-        Alert.alert("Error", "Invalid project data received from server");
-        console.log('Invalid project data from API (unexpected shape):', response);
-        setProjects([]);
-        setRecentProjects([]);
-        setPageError('Invalid project data received from server');
-      }
+      console.log(
+        '✅ [ProjectScreen] fetchProjects: success',
+        JSON.stringify(
+          {
+            total: processedProjects.length,
+            recentCount: Math.min(sortedByDate.length, 5),
+            durationMs: Date.now() - startedAt,
+          },
+          null,
+          2,
+        ),
+      );
     } catch (error) {
-      console.error('Error fetching projects from API:', error);
-      Alert.alert("Error", "Failed to load projects. Please check your connection and try again.");
+      console.error('🔴 [ProjectScreen] Error fetching projects from API:', error);
+      // Fail gracefully: show empty list instead of infinite loading
       setPageError('Failed to load projects. Please check your connection and try again.');
       setProjects([]);
       setRecentProjects([]);
     } finally {
+      console.log('🔶 [ProjectScreen] fetchProjects: setting pageLoading = false');
       setPageLoading(false);
     }
   };
 
   // Initial fetch on mount
   useEffect(() => {
+    console.log('🔁 [ProjectScreen] useEffect: initial mount, fetching projects');
     fetchProjects();
     fetchWeeklyProjects();
     // We intentionally leave the dependency array empty here to avoid
@@ -274,6 +369,7 @@ const Dashboard = () => {
   // Re-fetch whenever this screen gains focus (e.g. after creating a project)
   useFocusEffect(
     useCallback(() => {
+      console.log('🔁 [ProjectScreen] useFocusEffect: screen focused, refetching');
       fetchProjects();
       fetchWeeklyProjects();
       // We don't include fetch functions in deps to avoid infinite loops
@@ -301,42 +397,27 @@ const Dashboard = () => {
     }
   };
 
-  // Filter projects based on search query
-  const filteredProjects = projects.filter(project => 
+  // Filter projects based on search query + simple status filter
+  const filteredProjects = useMemo(
+    () =>
+      projects.filter((project) => {
+        const matchesSearch =
     project.name.toLowerCase().includes(search.toLowerCase()) ||
-    (project.task && project.task.toLowerCase().includes(search.toLowerCase()))
+          (project.task && project.task.toLowerCase().includes(search.toLowerCase()));
+
+        const matchesStatus = statusFilter
+          ? (project.status || '').toString().toLowerCase() === statusFilter.toLowerCase()
+          : true;
+
+        return matchesSearch && matchesStatus;
+      }),
+    [projects, search, statusFilter],
   );
 
   // Function to handle project row click
   const handleProjectClick = (project: Project) => {
     navigation.navigate('ProjectDetail', { projectId: project._id });
   };
-
-  if (pageLoading) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#FF6B00" />
-        <Text style={styles.loadingText}>Loading projects...</Text>
-      </View>
-    );
-  }
-
-  if (pageError) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>{pageError}</Text>
-        <TouchableOpacity 
-          style={styles.retryButton}
-          onPress={() => {
-            // Retry by re-fetching projects
-            fetchProjects();
-          }}
-        >
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
 
   // Use stats from API response (same as website)
   const inProgressCount = stats['In Progress'] || 0;
@@ -473,14 +554,14 @@ const Dashboard = () => {
           <View style={styles.projectListHeader}>
             <Text style={styles.projectListTitle}>Project List</Text>
             <View style={styles.projectListActions}>
-              <TouchableOpacity style={styles.filterButton}>
+              <TouchableOpacity style={styles.filterButton} onPress={handleFilter}>
                 <MaterialIcons name="filter-list" size={20} color="#6B7280" />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.exportButton}>
+              <TouchableOpacity style={styles.exportButton} onPress={handleExport}>
                 <Ionicons name="download-outline" size={18} color="#f97316" />
                 <Text style={styles.exportButtonText}>Export All</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.addButton}>
+              <TouchableOpacity style={styles.addButton} onPress={handleAddProject}>
                 <Ionicons name="add" size={20} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
@@ -500,6 +581,60 @@ const Dashboard = () => {
             </View>
         </View>
 
+          {/* Simple status filters */}
+          {showFilters && (
+            <View style={styles.statusFilterRow}>
+              <TouchableOpacity
+                style={[
+                  styles.statusChip,
+                  statusFilter === '' && styles.statusChipActive,
+                ]}
+                onPress={() => setStatusFilter('')}
+              >
+                <Text
+                  style={[
+                    styles.statusChipText,
+                    statusFilter === '' && styles.statusChipTextActive,
+                  ]}
+                >
+                  All
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.statusChip,
+                  statusFilter === 'In Progress' && styles.statusChipActive,
+                ]}
+                onPress={() => setStatusFilter('In Progress')}
+              >
+                <Text
+                  style={[
+                    styles.statusChipText,
+                    statusFilter === 'In Progress' && styles.statusChipTextActive,
+                  ]}
+                >
+                  In Progress
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.statusChip,
+                  statusFilter === 'Completed' && styles.statusChipActive,
+                ]}
+                onPress={() => setStatusFilter('Completed')}
+              >
+                <Text
+                  style={[
+                    styles.statusChipText,
+                    statusFilter === 'Completed' && styles.statusChipTextActive,
+                  ]}
+                >
+                  Completed
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
         {/* Table - Horizontally Scrollable */}
           <ScrollView 
             horizontal 
@@ -511,7 +646,19 @@ const Dashboard = () => {
               {/* Table Header */}
         <View style={styles.tableHeader}>
                 <View style={[styles.checkboxColumn, { width: 40 }]}>
-                  <View style={styles.checkboxHeader} />
+                  <TouchableOpacity
+                    onPress={toggleAllProjects}
+                    style={styles.checkboxHeader}
+                  >
+                    <View style={[
+                      styles.checkbox,
+                      selectedProjects.size === filteredProjects.length && filteredProjects.length > 0 && styles.checkboxChecked
+                    ]}>
+                      {selectedProjects.size === filteredProjects.length && filteredProjects.length > 0 && (
+                        <Ionicons name="checkmark" size={14} color="#fff" />
+                      )}
+                    </View>
+                  </TouchableOpacity>
                 </View>
                 <View style={[styles.projectNameColumn, { width: 160 }]}>
                   <Text style={styles.tableHead}>PROJECT NAME</Text>
@@ -533,18 +680,34 @@ const Dashboard = () => {
               {/* Table Rows */}
         {filteredProjects.length > 0 ? (
                 filteredProjects.map((p, index) => (
-              <TouchableOpacity 
+              <View 
                 key={p._id} 
-                    style={[
-                      styles.tableRow,
-                      index === filteredProjects.length - 1 && styles.tableRowLast
-                    ]}
-                onPress={() => handleProjectClick(p)}
-                    activeOpacity={0.7}
-                  >
+                style={[
+                  styles.tableRow,
+                  index === filteredProjects.length - 1 && styles.tableRowLast
+                ]}
+              >
                     <View style={[styles.checkboxColumn, { width: 40 }]}>
-                      <View style={styles.checkbox} />
+                      <TouchableOpacity
+                        onPress={() => toggleProjectSelection(p._id)}
+                        style={styles.checkboxContainer}
+                        activeOpacity={0.7}
+                      >
+                        <View style={[
+                          styles.checkbox,
+                          selectedProjects.has(p._id) && styles.checkboxChecked
+                        ]}>
+                          {selectedProjects.has(p._id) && (
+                            <Ionicons name="checkmark" size={14} color="#fff" />
+                          )}
+                        </View>
+                      </TouchableOpacity>
                     </View>
+                    <TouchableOpacity
+                      style={styles.tableRowContent}
+                      onPress={() => handleProjectClick(p)}
+                      activeOpacity={0.7}
+                    >
                     <View style={[styles.projectNameColumn, { width: 160 }]}>
                       <Text style={styles.tableCell} numberOfLines={1}>
                         {p.name}
@@ -565,8 +728,9 @@ const Dashboard = () => {
                 </View>
                     <View style={[styles.priorityColumn, { width: 70 }]}>
                       <PriorityBadge priority={p.priority} variant="outlined" vertical={false} />
-                </View>
-              </TouchableOpacity>
+                    </View>
+                    </TouchableOpacity>
+              </View>
                 ))
         ) : (
           <View style={styles.noResults}>
@@ -795,6 +959,32 @@ const styles = StyleSheet.create({
     color: '#111827',
     padding: 0,
   },
+  statusFilterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  statusChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  statusChipActive: {
+    backgroundColor: '#f97316',
+    borderColor: '#f97316',
+  },
+  statusChipText: {
+    fontSize: 12,
+    color: '#4B5563',
+    fontWeight: '500',
+  },
+  statusChipTextActive: {
+    color: '#FFFFFF',
+  },
   tableScrollContainer: {
     maxHeight: 500,
   },
@@ -831,8 +1021,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   checkboxHeader: {
-    width: 18,
-    height: 18,
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   projectNameColumn: {
     paddingLeft: 4,
@@ -860,12 +1056,17 @@ const styles = StyleSheet.create({
   tableRow: { 
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 8,
     borderBottomWidth: 1, 
     borderBottomColor: '#F3F4F6',
-    minHeight: 56,
     backgroundColor: '#FFFFFF',
+  },
+  tableRowContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    minHeight: 56,
   },
   tableRowLast: {
     borderBottomWidth: 0,
@@ -883,6 +1084,12 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#D1D5DB',
     backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#f97316',
+    borderColor: '#f97316',
   },
   noResults: {
     padding: 40,

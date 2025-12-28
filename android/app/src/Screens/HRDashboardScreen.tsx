@@ -9,12 +9,14 @@ import {
   Alert,
   ActivityIndicator,
   Dimensions,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import useAxios from '../hooks/useAxios';
 import Svg, { Circle } from 'react-native-svg';
+import { exportToXlsx } from '../utills/utills';
 
 const { width } = Dimensions.get('window');
 
@@ -61,6 +63,14 @@ const HRDashboardScreen: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
   const [showFilterModal, setShowFilterModal] = useState(false);
+  
+  // Filter states
+  const [filterGender, setFilterGender] = useState<string>('all');
+  const [filterPosition, setFilterPosition] = useState<string>('all');
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   useEffect(() => {
     fetchDashboardData();
@@ -162,11 +172,40 @@ const HRDashboardScreen: React.FC = () => {
     }
   };
 
-  const filteredEmployees = employees.filter(employee =>
-    employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    employee.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    employee.position.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Get unique positions for filter dropdown
+  const uniquePositions = Array.from(new Set(employees.map(emp => emp.position).filter(Boolean)));
+
+  // Apply filters
+  const filteredEmployees = employees.filter(employee => {
+    // Search filter
+    const matchesSearch = 
+      employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      employee.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      employee.position.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Gender filter
+    const matchesGender = 
+      filterGender === 'all' || 
+      employee.gender?.toLowerCase() === filterGender.toLowerCase();
+    
+    // Position filter
+    const matchesPosition = 
+      filterPosition === 'all' || 
+      employee.position === filterPosition;
+    
+    return matchesSearch && matchesGender && matchesPosition;
+  });
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedEmployees = filteredEmployees.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterGender, filterPosition]);
 
   // Safe navigation function that works in both drawer and tab contexts
   const safeNavigate = (screenName: string) => {
@@ -373,7 +412,7 @@ const HRDashboardScreen: React.FC = () => {
             stats?.genderStats?.femalePercentage || 0
           )}
         </View>
-        <View style={styles.genderStats}>
+          <View style={styles.genderStats}>
           <View style={styles.genderItem}>
             <Text style={styles.genderLabel}>Male</Text>
             <View style={styles.progressBar}>
@@ -392,7 +431,7 @@ const HRDashboardScreen: React.FC = () => {
       </View>
 
       {/* Employee Table */}
-      <View style={styles.employeeCard}>
+          <View style={styles.employeeCard}>
         {/* Header with title and action buttons */}
         <View style={styles.employeeHeader}>
           <Text style={styles.employeeCardTitle}>Employees</Text>
@@ -411,46 +450,47 @@ const HRDashboardScreen: React.FC = () => {
                     return;
                   }
 
-                  // Create CSV content
-                  const headers = ['SR#', 'NAME', 'EMAIL', 'POSITION', 'CONTACT', 'JOINING DATE', 'GENDER'];
-                  const rows = employeesToExport.map((emp, idx) => [
-                    idx + 1,
-                    emp.name,
-                    emp.email,
-                    emp.position,
-                    emp.contact,
-                    emp.joiningDate,
-                    emp.gender
-                  ]);
-                  
-                  const csvContent = [
-                    headers.join(','),
-                    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-                  ].join('\n');
-
-                  // For React Native, we'll use a library or show the data
-                  // For now, show an alert with the data count
-                  Alert.alert(
-                    'Export Ready',
-                    `Ready to export ${employeesToExport.length} employee(s).\n\nCSV format:\n${csvContent.substring(0, 200)}...`,
-                    [{ text: 'OK' }]
-                  );
+                  await exportToXlsx({
+                    filename: `employees-dashboard-${new Date().toISOString().split('T')[0]}`,
+                    columns: [
+                      { key: 'sr', header: 'SR#' },
+                      { key: 'name', header: 'NAME' },
+                      { key: 'email', header: 'EMAIL' },
+                      { key: 'position', header: 'POSITION' },
+                      { key: 'contact', header: 'CONTACT' },
+                      { key: 'joiningDate', header: 'JOINING DATE' },
+                      { key: 'gender', header: 'GENDER' },
+                    ],
+                    rows: employeesToExport.map((emp, idx) => ({
+                      sr: idx + 1,
+                      name: emp.name,
+                      email: emp.email,
+                      position: emp.position,
+                      contact: emp.contact,
+                      joiningDate: emp.joiningDate,
+                      gender: emp.gender,
+                    })),
+                  });
                 } catch (error) {
-                  Alert.alert('Error', 'Failed to export employees');
+                  console.error('Failed to export employees from dashboard:', error);
+                  Alert.alert('Error', 'Failed to export employees. Please try again.');
                 }
               }}
             >
               <Icon name="download" size={16} color="white" />
               <Text style={styles.exportText}>Export {selectedEmployees.size > 0 ? `${selectedEmployees.size} Selected` : 'All'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.addButton} onPress={() => (navigation as any).navigate('CreateEmployee')}>
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => (navigation as any).navigate('CreateEmployee', { redirectTo: 'HREmployees' })}
+            >
               <Icon name="add" size={16} color="white" />
               <Text style={styles.addText}>Add</Text>
             </TouchableOpacity>
           </View>
         </View>
         
-        {/* Search and Filter */}
+        {/* Search and Filters */}
         <View style={styles.employeeActions}>
           <View style={styles.searchContainer}>
             <Icon name="search" size={20} color="#666" />
@@ -462,11 +502,18 @@ const HRDashboardScreen: React.FC = () => {
               onChangeText={setSearchQuery}
             />
           </View>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.filterButton}
             onPress={() => setShowFilterModal(true)}
           >
             <Icon name="filter-list" size={20} color="#666" />
+            {(filterGender !== 'all' || filterPosition !== 'all') && (
+              <View style={styles.filterBadge}>
+                <Text style={styles.filterBadgeText}>
+                  {(filterGender !== 'all' ? 1 : 0) + (filterPosition !== 'all' ? 1 : 0)}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -483,13 +530,13 @@ const HRDashboardScreen: React.FC = () => {
               <View style={styles.headerCheckbox}>
                 <Icon name="check-box-outline-blank" size={20} color="#666" />
               </View>
-              <Text style={styles.headerText}>SR#</Text>
-              <Text style={styles.headerText}>NAME</Text>
-              <Text style={styles.headerText}>EMAIL</Text>
-              <Text style={styles.headerText}>POSITION</Text>
-              <Text style={styles.headerText}>CONTACT</Text>
-              <Text style={styles.headerText}>JOINING DATE</Text>
-              <Text style={styles.headerText}>GENDER</Text>
+              <Text style={[styles.headerText, styles.headerSr]}>SR#</Text>
+              <Text style={[styles.headerText, styles.headerName]}>NAME</Text>
+              <Text style={[styles.headerText, styles.headerEmail]}>EMAIL</Text>
+              <Text style={[styles.headerText, styles.headerPosition]}>POSITION</Text>
+              <Text style={[styles.headerText, styles.headerContact]}>CONTACT</Text>
+              <Text style={[styles.headerText, styles.headerDate]}>JOINING DATE</Text>
+              <Text style={[styles.headerText, styles.headerGender]}>GENDER</Text>
             </View>
 
             {/* Employee Rows - Vertical ScrollView for rows */}
@@ -499,11 +546,188 @@ const HRDashboardScreen: React.FC = () => {
               nestedScrollEnabled={true}
               style={styles.employeeRowsScroll}
             >
-              {filteredEmployees.map((employee, index) => renderEmployeeRow(employee, index))}
+              {paginatedEmployees.map((employee, index) => renderEmployeeRow(employee, startIndex + index))}
+              {paginatedEmployees.length === 0 && (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyStateText}>No employees found</Text>
+                </View>
+              )}
             </ScrollView>
           </View>
         </ScrollView>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <View style={styles.paginationContainer}>
+            <TouchableOpacity
+              style={[styles.paginationButton, currentPage === 1 && styles.paginationButtonDisabled]}
+              onPress={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+            >
+              <Icon name="chevron-left" size={20} color={currentPage === 1 ? '#ccc' : '#FF6B35'} />
+              <Text style={[styles.paginationText, currentPage === 1 && styles.paginationTextDisabled]}>
+                Previous
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.paginationInfo}>
+              <Text style={styles.paginationInfoText}>
+                Page {currentPage} of {totalPages}
+              </Text>
+              <Text style={styles.paginationCountText}>
+                Showing {startIndex + 1}-{Math.min(endIndex, filteredEmployees.length)} of {filteredEmployees.length}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.paginationButton, currentPage === totalPages && styles.paginationButtonDisabled]}
+              onPress={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+            >
+              <Text style={[styles.paginationText, currentPage === totalPages && styles.paginationTextDisabled]}>
+                Next
+              </Text>
+              <Icon name="chevron-right" size={20} color={currentPage === totalPages ? '#ccc' : '#FF6B35'} />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
+
+        {/* Filter Modal */}
+        <Modal
+          visible={showFilterModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowFilterModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Filter Employees</Text>
+                <TouchableOpacity onPress={() => setShowFilterModal(false)}>
+                  <Icon name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Gender Filter */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>Gender</Text>
+                <View style={styles.filterOptions}>
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      filterGender === 'all' && styles.filterOptionActive,
+                    ]}
+                    onPress={() => setFilterGender('all')}
+                  >
+                    <Text
+                      style={[
+                        styles.filterOptionText,
+                        filterGender === 'all' && styles.filterOptionTextActive,
+                      ]}
+                    >
+                      All
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      filterGender === 'male' && styles.filterOptionActive,
+                    ]}
+                    onPress={() => setFilterGender('male')}
+                  >
+                    <Text
+                      style={[
+                        styles.filterOptionText,
+                        filterGender === 'male' && styles.filterOptionTextActive,
+                      ]}
+                    >
+                      Male
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.filterOption,
+                      filterGender === 'female' && styles.filterOptionActive,
+                    ]}
+                    onPress={() => setFilterGender('female')}
+                  >
+                    <Text
+                      style={[
+                        styles.filterOptionText,
+                        filterGender === 'female' && styles.filterOptionTextActive,
+                      ]}
+                    >
+                      Female
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Position Filter */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>Position</Text>
+                <ScrollView style={styles.positionFilterScroll} nestedScrollEnabled={true}>
+                  <View style={styles.filterOptions}>
+                    <TouchableOpacity
+                      style={[
+                        styles.filterOption,
+                        filterPosition === 'all' && styles.filterOptionActive,
+                      ]}
+                      onPress={() => setFilterPosition('all')}
+                    >
+                      <Text
+                        style={[
+                          styles.filterOptionText,
+                          filterPosition === 'all' && styles.filterOptionTextActive,
+                        ]}
+                      >
+                        All
+                      </Text>
+                    </TouchableOpacity>
+                    {uniquePositions.map((position) => (
+                      <TouchableOpacity
+                        key={position}
+                        style={[
+                          styles.filterOption,
+                          filterPosition === position && styles.filterOptionActive,
+                        ]}
+                        onPress={() => setFilterPosition(position)}
+                      >
+                        <Text
+                          style={[
+                            styles.filterOptionText,
+                            filterPosition === position && styles.filterOptionTextActive,
+                          ]}
+                        >
+                          {position}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.clearButton]}
+                  onPress={() => {
+                    setFilterGender('all');
+                    setFilterPosition('all');
+                  }}
+                >
+                  <Text style={styles.clearButtonText}>Clear All</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.applyButton]}
+                  onPress={() => setShowFilterModal(false)}
+                >
+                  <Text style={styles.applyButtonText}>Apply</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -773,17 +997,47 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
     backgroundColor: '#F8F9FA',
+    minWidth: 1000,
   },
   headerCheckbox: {
-    width: 30,
+    width: 40,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingLeft: 4,
   },
   headerText: {
     fontSize: 12,
     fontWeight: 'bold',
     color: '#666',
-    width: 120,
-    textAlign: 'center',
+    textAlign: 'left',
+  },
+  headerSr: {
+    width: 50,
+    paddingLeft: 4,
+  },
+  headerName: {
+    width: 200,
+    paddingLeft: 8,
+  },
+  headerEmail: {
+    width: 200,
+    paddingLeft: 8,
+  },
+  headerPosition: {
+    width: 150,
+    paddingLeft: 8,
+  },
+  headerContact: {
+    width: 130,
+    paddingLeft: 8,
+  },
+  headerDate: {
+    width: 130,
+    paddingLeft: 8,
+  },
+  headerGender: {
+    width: 100,
+    paddingLeft: 8,
   },
   employeeRow: {
     flexDirection: 'row',
@@ -793,22 +1047,26 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
     minHeight: 60,
+    minWidth: 1000,
   },
   employeeCheckbox: {
-    width: 30,
+    width: 40,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingLeft: 4,
   },
   employeeSr: {
     fontSize: 12,
     color: '#666',
-    width: 30,
-    textAlign: 'center',
+    width: 50,
+    textAlign: 'left',
+    paddingLeft: 4,
   },
   employeeInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: 180,
-    marginLeft: 8,
+    width: 200,
+    paddingLeft: 8,
   },
   employeeAvatar: {
     width: 32,
@@ -818,6 +1076,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 8,
+    flexShrink: 0,
   },
   avatarText: {
     color: 'white',
@@ -833,32 +1092,196 @@ const styles = StyleSheet.create({
   employeeEmail: {
     fontSize: 12,
     color: '#666',
-    width: 150,
-    textAlign: 'center',
+    width: 200,
+    textAlign: 'left',
+    paddingLeft: 8,
   },
   employeePosition: {
     fontSize: 12,
     color: '#666',
-    width: 120,
-    textAlign: 'center',
+    width: 150,
+    textAlign: 'left',
+    paddingLeft: 8,
   },
   employeeContact: {
     fontSize: 12,
     color: '#666',
-    width: 120,
-    textAlign: 'center',
+    width: 130,
+    textAlign: 'left',
+    paddingLeft: 8,
   },
   employeeDate: {
     fontSize: 12,
     color: '#666',
-    width: 120,
-    textAlign: 'center',
+    width: 130,
+    textAlign: 'left',
+    paddingLeft: 8,
   },
   employeeGender: {
     fontSize: 12,
     color: '#666',
     width: 100,
-    textAlign: 'center',
+    textAlign: 'left',
+    paddingLeft: 8,
+  },
+  filterBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#FF6B35',
+    borderRadius: 10,
+    width: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  filterBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    width: '90%',
+    maxWidth: 400,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  filterSection: {
+    marginBottom: 20,
+  },
+  filterLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  filterOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  positionFilterScroll: {
+    maxHeight: 150,
+  },
+  filterOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F5F5F5',
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  filterOptionActive: {
+    backgroundColor: '#FF6B35',
+  },
+  filterOptionText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  filterOptionTextActive: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  clearButton: {
+    backgroundColor: '#F5F5F5',
+  },
+  applyButton: {
+    backgroundColor: '#FF6B35',
+  },
+  clearButtonText: {
+    color: '#666',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  applyButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+    backgroundColor: '#F8F9FA',
+  },
+  paginationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#FF6B35',
+    gap: 4,
+  },
+  paginationButtonDisabled: {
+    borderColor: '#ccc',
+    backgroundColor: '#F5F5F5',
+  },
+  paginationText: {
+    fontSize: 14,
+    color: '#FF6B35',
+    fontWeight: '600',
+  },
+  paginationTextDisabled: {
+    color: '#ccc',
+  },
+  paginationInfo: {
+    alignItems: 'center',
+  },
+  paginationInfoText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  paginationCountText: {
+    fontSize: 12,
+    color: '#666',
+  },
+  emptyState: {
+    paddingVertical: 40,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: '#999',
   },
 });
 

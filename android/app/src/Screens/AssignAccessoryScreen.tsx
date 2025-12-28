@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import useAxios from '../hooks/useAxios';
 import DropdownField from '../components/task/DropdownField';
@@ -37,6 +37,9 @@ const conditionOptions = [
 
 export default function AssignAccessoryScreen() {
   const navigation = useNavigation();
+  const route = useRoute<any>();
+  const redirectTo = (route.params as any)?.redirectTo as string | undefined;
+  const preSelectedAccessoryId = (route.params as any)?.accessoryId as string | undefined;
   const { callApi } = useAxios();
 
   const [loading, setLoading] = useState(false);
@@ -47,7 +50,7 @@ export default function AssignAccessoryScreen() {
 
   // Form state
   const [employeeId, setEmployeeId] = useState('');
-  const [accessoryId, setAccessoryId] = useState('');
+  const [accessoryId, setAccessoryId] = useState(preSelectedAccessoryId || '');
   const [issuedDate, setIssuedDate] = useState<Date | null>(null);
   const [conditionOnAssignment, setConditionOnAssignment] = useState('');
 
@@ -85,6 +88,15 @@ export default function AssignAccessoryScreen() {
       });
       const accessoriesList = accessoriesRes?.data || accessoriesRes || [];
       setAccessories(Array.isArray(accessoriesList) ? accessoriesList : []);
+      
+      // If accessoryId was pre-selected, verify it's available
+      if (preSelectedAccessoryId) {
+        const preSelected = accessoriesList.find((a: Accessory) => a._id === preSelectedAccessoryId);
+        if (!preSelected || preSelected.status !== 'available') {
+          Alert.alert('Warning', 'The selected accessory is no longer available');
+          setAccessoryId('');
+        }
+      }
     } catch (error) {
       console.error('Error loading data:', error);
       Alert.alert('Error', 'Failed to load employees or accessories');
@@ -136,7 +148,13 @@ export default function AssignAccessoryScreen() {
       Alert.alert('Success', 'Accessory assigned successfully', [
         {
           text: 'OK',
-          onPress: () => navigation.goBack(),
+          onPress: () => {
+            if (redirectTo) {
+              (navigation as any).navigate(redirectTo);
+            } else {
+              navigation.goBack();
+            }
+          },
         },
       ]);
     } catch (error: any) {
@@ -243,7 +261,13 @@ export default function AssignAccessoryScreen() {
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.cancelButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => {
+            if (redirectTo) {
+              (navigation as any).navigate(redirectTo);
+            } else {
+              navigation.goBack();
+            }
+          }}
           disabled={submitting}
         >
           <Text style={styles.cancelButtonText}>Cancel</Text>

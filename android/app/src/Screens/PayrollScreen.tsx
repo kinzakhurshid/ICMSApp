@@ -7,8 +7,12 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  TouchableOpacity,
+  Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import useAxios from '../hooks/useAxios';
 import PayrollSummaryCard from '../components/PayrollSummaryCard';
 import PayrollChart from '../components/PayrollChart';
@@ -55,6 +59,10 @@ const PayrollScreen: React.FC = () => {
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
     endDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0),
   });
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [showDatePickerModal, setShowDatePickerModal] = useState(false);
+  const [datePickerMode, setDatePickerMode] = useState<'start' | 'end'>('start');
 
   useEffect(() => {
     fetchDashboardData();
@@ -115,14 +123,59 @@ const PayrollScreen: React.FC = () => {
 
   const formatDateRange = () => {
     const startMonth = dateRange.startDate.toLocaleDateString('en-GB', { 
-      month: '2-digit', 
-      year: 'numeric' 
+      month: 'short', 
+      year: 'numeric',
+      day: 'numeric'
     });
     const endMonth = dateRange.endDate.toLocaleDateString('en-GB', { 
-      month: '2-digit', 
-      year: 'numeric' 
+      month: 'short', 
+      year: 'numeric',
+      day: 'numeric'
     });
     return `${startMonth} - ${endMonth}`;
+  };
+
+  const handleStartDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowStartDatePicker(false);
+    }
+    if (selectedDate && event.type !== 'dismissed') {
+      setDateRange(prev => ({
+        ...prev,
+        startDate: selectedDate,
+      }));
+      if (Platform.OS === 'ios') {
+        setShowDatePickerModal(false);
+      }
+    }
+  };
+
+  const handleEndDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowEndDatePicker(false);
+    }
+    if (selectedDate && event.type !== 'dismissed') {
+      setDateRange(prev => ({
+        ...prev,
+        endDate: selectedDate,
+      }));
+      if (Platform.OS === 'ios') {
+        setShowDatePickerModal(false);
+      }
+    }
+  };
+
+  const openDatePicker = (mode: 'start' | 'end') => {
+    setDatePickerMode(mode);
+    if (Platform.OS === 'ios') {
+      setShowDatePickerModal(true);
+    } else {
+      if (mode === 'start') {
+        setShowStartDatePicker(true);
+      } else {
+        setShowEndDatePicker(true);
+      }
+    }
   };
 
   if (error) {
@@ -164,10 +217,102 @@ const PayrollScreen: React.FC = () => {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.pageTitle}>Payroll management</Text>
+        </View>
+        
+        {/* Date Range Picker - Separate Row */}
+        <View style={styles.datePickerRow}>
           <View style={styles.dateRangeContainer}>
-            <Text style={styles.dateRangeText}>{formatDateRange()}</Text>
+            <Text style={styles.dateLabel}>Start Date:</Text>
+            <TouchableOpacity
+              style={styles.dateButton}
+              onPress={() => openDatePicker('start')}
+            >
+              <Icon name="calendar-today" size={18} color="#FF6B35" />
+              <Text style={styles.dateRangeText}>
+                {dateRange.startDate.toLocaleDateString('en-GB', { 
+                  day: '2-digit', 
+                  month: 'short', 
+                  year: 'numeric' 
+                })}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.dateRangeContainer}>
+            <Text style={styles.dateLabel}>End Date:</Text>
+            <TouchableOpacity
+              style={styles.dateButton}
+              onPress={() => openDatePicker('end')}
+            >
+              <Icon name="calendar-today" size={18} color="#FF6B35" />
+              <Text style={styles.dateRangeText}>
+                {dateRange.endDate.toLocaleDateString('en-GB', { 
+                  day: '2-digit', 
+                  month: 'short', 
+                  year: 'numeric' 
+                })}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
+
+        {/* Date Picker Modal for iOS */}
+        {showDatePickerModal && Platform.OS === 'ios' && (
+          <Modal
+            visible={showDatePickerModal}
+            transparent={true}
+            animationType="slide"
+            onRequestClose={() => setShowDatePickerModal(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>
+                    Select {datePickerMode === 'start' ? 'Start' : 'End'} Date
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowDatePickerModal(false)}>
+                    <Icon name="close" size={24} color="#666" />
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={datePickerMode === 'start' ? dateRange.startDate : dateRange.endDate}
+                  mode="date"
+                  display="spinner"
+                  onChange={datePickerMode === 'start' ? handleStartDateChange : handleEndDateChange}
+                  maximumDate={datePickerMode === 'start' ? dateRange.endDate : undefined}
+                  minimumDate={datePickerMode === 'end' ? dateRange.startDate : undefined}
+                />
+                <View style={styles.modalActions}>
+                  <TouchableOpacity
+                    style={styles.modalButton}
+                    onPress={() => setShowDatePickerModal(false)}
+                  >
+                    <Text style={styles.modalButtonText}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        )}
+
+        {/* Date Pickers for Android */}
+        {showStartDatePicker && Platform.OS === 'android' && (
+          <DateTimePicker
+            value={dateRange.startDate}
+            mode="date"
+            display="default"
+            onChange={handleStartDateChange}
+            maximumDate={dateRange.endDate}
+          />
+        )}
+        {showEndDatePicker && Platform.OS === 'android' && (
+          <DateTimePicker
+            value={dateRange.endDate}
+            mode="date"
+            display="default"
+            onChange={handleEndDateChange}
+            minimumDate={dateRange.startDate}
+          />
+        )}
 
         {/* Top Summary Cards */}
         <View style={styles.summaryCardsContainer}>
@@ -263,9 +408,6 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 16,
     marginBottom: 16,
   },
@@ -273,19 +415,81 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
+    marginBottom: 12,
+  },
+  datePickerRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    gap: 12,
   },
   dateRangeContainer: {
+    flex: 1,
+  },
+  dateLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 6,
+    fontWeight: '500',
+  },
+  dateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: 'white',
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   dateRangeText: {
     fontSize: 14,
     color: '#333',
     fontWeight: '500',
+    flex: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '50%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  modalActions: {
+    marginTop: 20,
+  },
+  modalButton: {
+    backgroundColor: '#FF6B35',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
   summaryCardsContainer: {
     flexDirection: 'row',

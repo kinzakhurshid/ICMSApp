@@ -186,12 +186,12 @@ const SignupScreen : React.FC = () => {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-            <Text style={styles.link}>
-              Already have an account?{' '}
+          <View style={styles.signInRow}>
+            <Text style={styles.link}>Already have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
               <Text style={styles.linkHighlight}>Sign in</Text>
-            </Text>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
       </ImageBackground>
@@ -267,12 +267,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   link: {
-    marginTop: 15,
     color: '#666',
   },
   linkHighlight: {
     color: '#ff4500',
     fontWeight: '600',
+  },
+  signInRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 15,
   },
 });
 

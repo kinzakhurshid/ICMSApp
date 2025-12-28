@@ -43,6 +43,7 @@ const ResignationScreen: React.FC = () => {
   const [stats, setStats] = useState<ResignationStats>({ total: 0, resigned: 0, terminated: 0 });
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [filters, setFilters] = useState({
     status: '',
     separationType: '',
@@ -102,15 +103,57 @@ const ResignationScreen: React.FC = () => {
     }
   }, [pendingResignations, resignations]);
 
+  const mapEmployeeNameAndDesignation = (resignation: any) => {
+    const employee =
+      resignation.employee ||
+      resignation.employeeId ||
+      resignation.EmployeeId ||
+      resignation.emp;
+
+    const fullName =
+      employee?.fullName ||
+      (employee?.firstName || employee?.lastName
+        ? `${employee?.firstName || ''} ${employee?.lastName || ''}`.trim()
+        : employee?.name ||
+          resignation.name ||
+          resignation.employeeName ||
+          'Unknown');
+
+    const designation =
+      employee?.position ||
+      employee?.designation ||
+      resignation.designation ||
+      resignation.role ||
+      '';
+
+    return {
+      ...resignation,
+      name: fullName,
+      designation,
+      // Ensure reason and submittedOn are preserved from API response
+      reason: resignation.reason || resignation.reasonNote || '',
+      submittedOn: resignation.submittedOn || resignation.createdAt || resignation.requestedAt || resignation.date || '',
+    };
+  };
+
   const fetchPendingResignations = async () => {
     try {
       const response = await callApi({ method: 'GET', url: '/resignations/pending' });
-      const resignationList = Array.isArray(response) ? response : [];
+      const resignationList = Array.isArray(response)
+        ? response
+        : Array.isArray(response?.data)
+        ? response.data
+        : [];
 
-      const formattedResignations = resignationList.map((resignation) => ({
-        ...resignation,
-        status: resignation.status || 'Requested',
-      }));
+      const formattedResignations = resignationList.map((resignation: any) => {
+        const mapped = mapEmployeeNameAndDesignation(resignation);
+        return {
+          ...mapped,
+          status: resignation.status || 'Requested',
+          reason: mapped.reason || resignation.reason || resignation.reasonNote || '',
+          submittedOn: mapped.submittedOn || resignation.submittedOn || resignation.createdAt || resignation.requestedAt || '',
+        };
+      });
 
       setPendingResignations(formattedResignations);
     } catch (error) {
@@ -118,12 +161,12 @@ const ResignationScreen: React.FC = () => {
     }
   };
 
-  const fetchAllResignations = async (page = 1, filters = {}) => {
+  const fetchAllResignations = async (page = 1, filters = {}, limit?: number) => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: '10',
+        limit: (limit || entriesPerPage).toString(),
         ...filters,
       });
 
@@ -133,9 +176,23 @@ const ResignationScreen: React.FC = () => {
       });
 
       if (response && response.data) {
-        setResignations(response.data);
-        setCurrentPage(response.page);
-        setTotalPages(response.pages);
+        const rawList = Array.isArray(response.data) ? response.data : [];
+        const formattedList = rawList.map((resignation: any) =>
+          mapEmployeeNameAndDesignation(resignation)
+        );
+
+        setResignations(formattedList);
+        setCurrentPage(response.page || page);
+        setTotalPages(response.pages || 1);
+      } else if (Array.isArray(response)) {
+        const formattedList = response.map((resignation: any) =>
+          mapEmployeeNameAndDesignation(resignation)
+        );
+        setResignations(formattedList);
+        setCurrentPage(page);
+        setTotalPages(1);
+      } else {
+        setResignations([]);
       }
     } catch (error) {
       console.error('Failed to fetch all resignations:', error);
@@ -205,26 +262,75 @@ const ResignationScreen: React.FC = () => {
 
   const handleFilterChange = (newFilters: any) => {
     setFilters(newFilters);
-    fetchAllResignations(1, newFilters);
+    setCurrentPage(1);
+    fetchAllResignations(1, newFilters, entriesPerPage);
   };
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    fetchAllResignations(page, filters);
+    fetchAllResignations(page, filters, entriesPerPage);
+  };
+
+  const handleEntriesPerPageChange = (limit: number) => {
+    setEntriesPerPage(limit);
+    setCurrentPage(1);
+    fetchAllResignations(1, filters, limit);
+  };
+
+  const handleResignationClick = (resignation: Resignation) => {
+    Alert.alert(
+      'Resignation Details',
+      `Employee: ${resignation.name}\n` +
+      `Designation: ${resignation.designation}\n` +
+      `Type: ${resignation.separationType}\n` +
+      `Effective From: ${formatDate(resignation.effectiveFrom)}\n` +
+      `Last Working Day: ${formatDate(resignation.lastWorkingDay)}\n` +
+      `Reason: ${resignation.reason || 'N/A'}\n` +
+      `Submitted On: ${formatDate(resignation.submittedOn)}\n` +
+      `Status: ${resignation.status || 'N/A'}`,
+      [{ text: 'OK' }]
+    );
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString || dateString === '' || dateString === 'invalid') return '-';
     try {
-      const date = new Date(dateString);
-      return isNaN(date.getTime())
-        ? 'Invalid Date'
-        : date.toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-        });
-    } catch {
-      return 'Invalid Date';
+      // Handle various date formats
+      let date: Date;
+      
+      // If it's already a Date object
+      if (dateString instanceof Date) {
+        date = dateString;
+      } else {
+        // Try parsing as ISO string first
+        date = new Date(dateString);
+        
+        // If invalid, try parsing with Date.parse
+        if (isNaN(date.getTime())) {
+          const parsed = Date.parse(dateString);
+          if (isNaN(parsed)) {
+            console.warn('Invalid date string:', dateString);
+            return '-';
+          }
+          date = new Date(parsed);
+        }
+      }
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date after parsing:', dateString);
+        return '-';
+      }
+      
+      // Format the date
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    } catch (error) {
+      console.error('Error formatting date:', dateString, error);
+      return '-';
     }
   };
 
@@ -306,6 +412,9 @@ const ResignationScreen: React.FC = () => {
           onPageChange={handlePageChange}
           onFilterChange={handleFilterChange}
           filters={filters}
+          entriesPerPage={entriesPerPage}
+          onEntriesPerPageChange={handleEntriesPerPageChange}
+          onResignationClick={handleResignationClick}
         />
       </ScrollView>
     </View>

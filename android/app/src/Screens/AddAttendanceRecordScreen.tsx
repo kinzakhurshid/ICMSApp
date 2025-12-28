@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import useAxios from '../hooks/useAxios';
 import FormField from '../components/task/FormField';
@@ -24,10 +24,11 @@ interface Employee {
 }
 
 const statusOptions = [
+  // Values are API values; labels are user‑friendly
   { label: 'Present', value: 'Present' },
   { label: 'Absent', value: 'Absent' },
-  { label: 'Half Day', value: 'Half Day' },
-  { label: 'On Leave', value: 'On Leave' },
+  { label: 'Half Day', value: 'Half-day' },
+  { label: 'On Leave', value: 'Leave' },
 ];
 
 const arrivalStatusOptions = [
@@ -35,8 +36,15 @@ const arrivalStatusOptions = [
   { label: 'Late', value: 'Late' },
 ];
 
+const halfDayTypeOptions = [
+  { label: 'First Half (Before 1 PM)', value: 'first' },
+  { label: 'Second Half (After 1 PM)', value: 'second' },
+];
+
 export default function AddAttendanceRecordScreen() {
   const navigation = useNavigation();
+  const route = useRoute<any>();
+  const redirectTo = (route.params as any)?.redirectTo as string | undefined;
   const { callApi } = useAxios();
 
   const [loading, setLoading] = useState(false);
@@ -47,10 +55,11 @@ export default function AddAttendanceRecordScreen() {
   // Form state
   const [employeeId, setEmployeeId] = useState('');
   const [date, setDate] = useState<Date | null>(null);
-  const [status, setStatus] = useState('Present');
+  const [status, setStatus] = useState('Present'); // API value
   const [checkInTime, setCheckInTime] = useState('');
   const [checkOutTime, setCheckOutTime] = useState('');
   const [arrivalStatus, setArrivalStatus] = useState('');
+  const [halfDayType, setHalfDayType] = useState(''); // 'first' or 'second' for Half-day
   const [notes, setNotes] = useState('');
 
   // Errors
@@ -70,6 +79,7 @@ export default function AddAttendanceRecordScreen() {
       setCheckInTime('');
       setCheckOutTime('');
       setArrivalStatus('');
+      setHalfDayType('');
       setNotes('');
       setErrors({});
     }, [])
@@ -101,19 +111,40 @@ export default function AddAttendanceRecordScreen() {
     if (!employeeId) newErrors.employeeId = 'Employee is required';
     if (!date) newErrors.date = 'Date is required';
     if (!status) newErrors.status = 'Status is required';
-    
-    // If status is Absent, don't require check-in/check-out times
-    if (status === 'Absent') {
-      // Clear check-in/check-out times and arrival status for absent employees
+
+    // Validate that date is not in the past
+    if (date) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selectedDate = new Date(date);
+      selectedDate.setHours(0, 0, 0, 0);
+      
+      if (selectedDate < today) {
+        newErrors.date = 'Past attendance cannot be added. Please select today\'s date or a future date.';
+      }
+    }
+
+    // If status is Absent or Leave, don't require times or arrival status
+    if (status === 'Absent' || status === 'Leave') {
       setCheckInTime('');
       setCheckOutTime('');
       setArrivalStatus('');
+      setHalfDayType('');
+    } else if (status === 'Half-day') {
+      // For Half-day, require check-in time and half-day type
+      if (!checkInTime) newErrors.checkInTime = 'Check in time is required';
+      if (!halfDayType) newErrors.halfDayType = 'Half-day type is required (First or Second half)';
+      if (checkOutTime && checkOutTime <= checkInTime) {
+        newErrors.checkOutTime = 'Check out time must be after check in time';
+      }
+      // Arrival status is optional for half-day
     } else {
-      // For non-absent statuses, require check-in time
+      // For Present status, require check-in time and arrival status
       if (!checkInTime) newErrors.checkInTime = 'Check in time is required';
       if (checkOutTime && checkOutTime <= checkInTime) {
         newErrors.checkOutTime = 'Check out time must be after check in time';
       }
+      if (!arrivalStatus) newErrors.arrivalStatus = 'Arrival status is required';
     }
 
     setErrors(newErrors);
@@ -129,18 +160,24 @@ export default function AddAttendanceRecordScreen() {
     try {
       setSubmitting(true);
 
-      const payload = {
+      const payload: any = {
         employeeId,
         date: date!.toISOString().split('T')[0],
         status,
-        // Only include times and arrival status if not Absent
-        ...(status !== 'Absent' && {
-          checkInTime,
-          checkOutTime: checkOutTime || undefined,
-          arrivalStatus: arrivalStatus || undefined,
-        }),
         notes: notes.trim() || undefined,
       };
+
+      // Only include times and arrival status if not Absent or Leave
+      if (status !== 'Absent' && status !== 'Leave') {
+        payload.checkInTime = checkInTime;
+        if (checkOutTime) payload.checkOutTime = checkOutTime;
+        if (arrivalStatus) payload.arrivalStatus = arrivalStatus;
+      }
+
+      // For Half-day, include halfDayType
+      if (status === 'Half-day' && halfDayType) {
+        payload.halfDayType = halfDayType;
+      }
 
       await callApi({
         method: 'POST',
@@ -155,13 +192,20 @@ export default function AddAttendanceRecordScreen() {
       setCheckInTime('');
       setCheckOutTime('');
       setArrivalStatus('');
+      setHalfDayType('');
       setNotes('');
       setErrors({});
 
       Alert.alert('Success', 'Attendance record added successfully', [
         {
           text: 'OK',
-          onPress: () => navigation.goBack(),
+          onPress: () => {
+            if (redirectTo) {
+              (navigation as any).navigate(redirectTo);
+            } else {
+              navigation.goBack();
+            }
+          },
         },
       ]);
     } catch (error: any) {
@@ -190,6 +234,18 @@ export default function AddAttendanceRecordScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => {
+            if (redirectTo) {
+              (navigation as any).navigate(redirectTo);
+            } else {
+              navigation.goBack();
+            }
+          }}
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={22} color="#111827" />
+        </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Add Attendance Record</Text>
           <Text style={styles.headerSubtitle}>Fill in the details below to record attendance.</Text>
@@ -220,10 +276,24 @@ export default function AddAttendanceRecordScreen() {
                 required
                 value={date}
                 onChange={(selectedDate) => {
+                  // Check if the selected date is in the past
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const selected = new Date(selectedDate);
+                  selected.setHours(0, 0, 0, 0);
+                  
+                  if (selected < today) {
+                    Alert.alert('Invalid Date', 'Past attendance cannot be added. Please select today\'s date or a future date.');
+                    return;
+                  }
+                  
                   setDate(selectedDate);
                   if (errors.date) setErrors({ ...errors, date: '' });
                 }}
                 maximumDate={new Date()}
+                minimumDate={new Date()}
+                preventPastDates={true}
+                pastDateMessage="Past attendance cannot be added. Please select today's date or a future date."
                 error={errors.date}
               />
             </View>
@@ -240,11 +310,15 @@ export default function AddAttendanceRecordScreen() {
                 onSelect={(value) => {
                   setStatus(value);
                   if (errors.status) setErrors({ ...errors, status: '' });
-                  // Clear times and arrival status if Absent
-                  if (value === 'Absent') {
+                  // Clear times and arrival status if Absent or Leave
+                  if (value === 'Absent' || value === 'Leave') {
                     setCheckInTime('');
                     setCheckOutTime('');
                     setArrivalStatus('');
+                    setHalfDayType('');
+                  } else if (value !== 'Half-day') {
+                    // Clear half-day type if not half-day
+                    setHalfDayType('');
                   }
                 }}
                 placeholder="Select status"
@@ -254,20 +328,43 @@ export default function AddAttendanceRecordScreen() {
             <View style={styles.column}>
               <TimePickerField
                 label="Check In Time"
-                required={status !== 'Absent'}
+                required={status !== 'Absent' && status !== 'Leave'}
                 value={checkInTime}
                 onChange={(time) => {
                   setCheckInTime(time);
                   if (errors.checkInTime) setErrors({ ...errors, checkInTime: '' });
                 }}
                 error={errors.checkInTime}
-                disabled={status === 'Absent'}
+                disabled={status === 'Absent' || status === 'Leave'}
               />
             </View>
           </View>
 
+          {/* Half Day Type - Only show for Half-day status */}
+          {status === 'Half-day' && (
+            <View style={styles.twoColumn}>
+              <View style={styles.column}>
+                <DropdownField
+                  label="Half Day Type"
+                  required
+                  value={halfDayType}
+                  options={halfDayTypeOptions}
+                  onSelect={(value) => {
+                    setHalfDayType(value);
+                    if (errors.halfDayType) setErrors({ ...errors, halfDayType: '' });
+                  }}
+                  placeholder="Select half day type"
+                  error={errors.halfDayType}
+                />
+              </View>
+              <View style={styles.column}>
+                {/* Empty column for spacing */}
+              </View>
+            </View>
+          )}
+
           {/* Check Out Time and Arrival Status */}
-          {status !== 'Absent' && (
+          {status !== 'Absent' && status !== 'Leave' && (
             <View style={styles.twoColumn}>
               <View style={styles.column}>
                 <TimePickerField
@@ -283,10 +380,17 @@ export default function AddAttendanceRecordScreen() {
               <View style={styles.column}>
                 <DropdownField
                   label="Arrival Status"
+                  required={status === 'Present'}
                   value={arrivalStatus}
                   options={arrivalStatusOptions}
-                  onSelect={setArrivalStatus}
+                  onSelect={(value) => {
+                    setArrivalStatus(value);
+                    if (errors.arrivalStatus) {
+                      setErrors({ ...errors, arrivalStatus: '' });
+                    }
+                  }}
                   placeholder="Select an option"
+                  error={errors.arrivalStatus}
                 />
               </View>
             </View>
@@ -309,7 +413,13 @@ export default function AddAttendanceRecordScreen() {
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.cancelButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => {
+            if (redirectTo) {
+              (navigation as any).navigate(redirectTo);
+            } else {
+              navigation.goBack();
+            }
+          }}
           disabled={submitting}
         >
           <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -355,6 +465,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+  },
+  backButton: {
+    marginRight: 12,
+    padding: 4,
   },
   headerContent: {
     flex: 1,

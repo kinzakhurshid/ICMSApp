@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import useAxios from '../hooks/useAxios';
 import { useSelector } from 'react-redux';
@@ -66,6 +66,17 @@ const bugOptions = [
 
 export default function CreateTaskScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
+
+  // Smart back navigation: go back if possible, otherwise navigate to TaskList
+  const handleBack = () => {
+    if (navigation.canGoBack && typeof navigation.canGoBack === 'function' && navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      // Navigate explicitly to TaskList
+      navigation.navigate('TaskList' as never);
+    }
+  };
   const { callApi } = useAxios();
   const { currentUser } = useSelector((state: RootState) => state.user);
 
@@ -83,7 +94,8 @@ export default function CreateTaskScreen() {
   const [priority, setPriority] = useState('medium');
   const [status, setStatus] = useState('todo');
   const [assignedTo, setAssignedTo] = useState<string[]>([]);
-  const [projectId, setProjectId] = useState('');
+  const initialProjectIdFromRoute = (route.params as any)?.projectId as string | undefined;
+  const [projectId, setProjectId] = useState(initialProjectIdFromRoute || '');
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [dueDate, setDueDate] = useState<Date | null>(null);
   const [estimatedHours, setEstimatedHours] = useState(0);
@@ -135,7 +147,16 @@ export default function CreateTaskScreen() {
         url: '/projects/running',
       });
       if (projectsResponse?.data) {
-        setProjects(Array.isArray(projectsResponse.data) ? projectsResponse.data : []);
+        const projectsList = Array.isArray(projectsResponse.data) ? projectsResponse.data : [];
+        setProjects(projectsList);
+
+        // If we came from a specific project, pre-select it once projects are loaded
+        if (initialProjectIdFromRoute && !projectId) {
+          const exists = projectsList.some((p: Project) => p._id === initialProjectIdFromRoute);
+          if (exists) {
+            setProjectId(initialProjectIdFromRoute);
+          }
+        }
       }
 
       // Load tasks for dependencies
@@ -306,7 +327,7 @@ export default function CreateTaskScreen() {
       Alert.alert('Success', 'Task created successfully', [
         {
           text: 'OK',
-          onPress: () => navigation.goBack(),
+          onPress: handleBack,
         },
       ]);
     } catch (error: any) {
@@ -357,7 +378,7 @@ export default function CreateTaskScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
@@ -613,7 +634,7 @@ export default function CreateTaskScreen() {
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.cancelButton}
-          onPress={() => navigation.goBack()}
+          onPress={handleBack}
           disabled={submitting}
         >
           <Text style={styles.cancelButtonText}>Cancel</Text>

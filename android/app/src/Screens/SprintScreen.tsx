@@ -62,6 +62,8 @@ const SprintBoard = () => {
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [stats, setStats] = useState<SprintStats | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [page, setPage] = useState<number>(1);
+  const [pageSize] = useState<number>(10);
   const { callApi, error } = useAxios();
   const { currentUser } = useSelector((state: RootState) => state.user);
   
@@ -160,13 +162,28 @@ const SprintBoard = () => {
     getProjectNames(sprint).toLowerCase().includes(searchText.toLowerCase())
   );
 
+  // Reset to first page when search text changes
+  useEffect(() => {
+    setPage(1);
+  }, [searchText]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredSprints.length / pageSize));
+  const startIndex = (page - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedSprints = filteredSprints.slice(startIndex, endIndex);
+
   const renderSprint = ({ item, index }: { item: Sprint; index: number }) => (
     <TouchableOpacity 
       style={styles.row} 
-      onPress={() => (navigation as any).navigate('SprintDetailNew', { sprintId: item._id })}
+      onPress={() =>
+        (navigation as any).navigate('SprintDetailNew', {
+          sprintId: item._id,
+          from: 'SprintBoard', // mark source so back knows to return here
+        })
+      }
     >
       <Text style={[styles.cell, styles.srCell]} numberOfLines={1}>
-        {index + 1}
+        {startIndex + index + 1}
       </Text>
       <Text style={[styles.cell, styles.nameCell]} numberOfLines={1}>
         {item.name}
@@ -247,12 +264,10 @@ const SprintBoard = () => {
         <TextInput
           style={styles.searchInput}
           placeholder="Search Sprint or Project"
+          placeholderTextColor="#9CA3AF"
           value={searchText}
           onChangeText={setSearchText}
         />
-        <TouchableOpacity style={styles.iconBtn}>
-          <AntDesign name="filter" size={20} color="#000" />
-        </TouchableOpacity>
       </View>
 
       {/* Table Container with Horizontal Scroll */}
@@ -271,12 +286,59 @@ const SprintBoard = () => {
 
             {/* Table Data */}
             {filteredSprints.length > 0 ? (
-              <FlatList
-                data={filteredSprints}
-                keyExtractor={(item) => item._id || item.id || Math.random().toString()}
-                renderItem={({ item, index }) => renderSprint({ item, index })}
-                scrollEnabled={false} // Disable vertical scrolling in the inner FlatList
-              />
+              <>
+                <FlatList
+                  data={paginatedSprints}
+                  keyExtractor={(item) => item._id || item.id || Math.random().toString()}
+                  renderItem={({ item, index }) => renderSprint({ item, index })}
+                  scrollEnabled={false} // Disable vertical scrolling in the inner FlatList
+                />
+
+                {/* Pagination Controls */}
+                <View style={styles.paginationContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.pageButton,
+                      page === 1 && styles.pageButtonDisabled,
+                    ]}
+                    disabled={page === 1}
+                    onPress={() => setPage((prev) => Math.max(1, prev - 1))}
+                  >
+                    <Text
+                      style={[
+                        styles.pageButtonText,
+                        page === 1 && styles.pageButtonTextDisabled,
+                      ]}
+                    >
+                      Previous
+                    </Text>
+                  </TouchableOpacity>
+
+                  <Text style={styles.pageInfo}>
+                    Page {page} of {totalPages}
+                  </Text>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.pageButton,
+                      page === totalPages && styles.pageButtonDisabled,
+                    ]}
+                    disabled={page === totalPages}
+                    onPress={() =>
+                      setPage((prev) => Math.min(totalPages, prev + 1))
+                    }
+                  >
+                    <Text
+                      style={[
+                        styles.pageButtonText,
+                        page === totalPages && styles.pageButtonTextDisabled,
+                      ]}
+                    >
+                      Next
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
             ) : (
               <View style={styles.noData}>
                 <Text style={styles.noDataText}>
@@ -343,6 +405,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     height: 40,
+    color: '#333',
   },
   iconBtn: {
     marginLeft: 8,
@@ -428,6 +491,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#888",
     textAlign: "center",
+  },
+  paginationContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  pageButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    backgroundColor: "#f9fafb",
+  },
+  pageButtonDisabled: {
+    backgroundColor: "#f3f4f6",
+    borderColor: "#e5e7eb",
+  },
+  pageButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#111827",
+  },
+  pageButtonTextDisabled: {
+    color: "#9ca3af",
+  },
+  pageInfo: {
+    fontSize: 13,
+    color: "#4b5563",
+    fontWeight: "500",
   },
 });
 

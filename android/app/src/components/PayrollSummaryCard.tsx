@@ -48,7 +48,7 @@ const PayrollSummaryCard: React.FC<PayrollSummaryCardProps> = ({
       <Text style={styles.title}>{title}</Text>
       
       <View style={styles.valueSection}>
-        <Text style={styles.value}>
+        <Text style={styles.value} numberOfLines={1} ellipsizeMode="tail">
           {isCurrency ? formatCurrency(Number(value)) : value}
         </Text>
         
@@ -104,6 +104,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     flex: 1,
+    flexShrink: 1,
   },
   changeSection: {
     alignItems: 'flex-end',

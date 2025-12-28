@@ -62,7 +62,10 @@ const EmployeeLeaveTable = () => {
 
   const handleEditLeave = (leave: Leave) => {
     if (leave.status === 'Pending') {
-      // navigation.navigate('EditLeave', { leaveId: leave._id });
+      navigation.navigate('RequestLeave', {
+        redirectTo: 'EmployeeLeaveMain',
+        leaveId: leave._id,
+      });
     }
   };
 

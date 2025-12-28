@@ -15,6 +15,7 @@ import {
   Alert,
   Modal,
 } from 'react-native';
+import { exportToXlsx } from '../utills/utills';
 import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -70,6 +71,12 @@ type TaskDetail = {
     profileImage: string;
   }>;
   startDate: string;
+  sprintId?: string | string[];
+  sprint?: {
+    _id: string;
+    name: string;
+    testing?: boolean;
+  };
 };
 
 type StatsData = {
@@ -186,9 +193,10 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
   
   // Backlog/Notes section state
   const [backlogTab, setBacklogTab] = useState('Backlog');
-  const [selectedSprint, setSelectedSprint] = useState('All Active Sprints');
-  const [sprintType, setSprintType] = useState('Normal Sprints');
+  const [selectedSprint, setSelectedSprint] = useState('All Sprints'); // Default to 'All Sprints' to show all tasks like list view
+  const [sprintType, setSprintType] = useState<'Normal Sprints' | 'Bug Sprints'>('Normal Sprints');
   const [showSprintDropdown, setShowSprintDropdown] = useState(false);
+  const [sprints, setSprints] = useState<any[]>([]);
   
   // Bugs state
   const [bugs, setBugs] = useState<TaskDetail[]>([]);
@@ -197,6 +205,22 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
   const [bugsSearchQuery, setBugsSearchQuery] = useState('');
   const [bugsSelectedStatus, setBugsSelectedStatus] = useState('All Statuses');
   const [bugsSelectedMonth, setBugsSelectedMonth] = useState('Month');
+  
+  // Additional state for functionality
+  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [statusModalTaskId, setStatusModalTaskId] = useState<string | null>(null);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showMonthDropdown, setShowMonthDropdown] = useState(false);
+  const [showBugsStatusDropdown, setShowBugsStatusDropdown] = useState(false);
+  const [showBugsMonthDropdown, setShowBugsMonthDropdown] = useState(false);
+  const [notes, setNotes] = useState<string[]>([]);
+  const [newNote, setNewNote] = useState('');
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  
+  // Status and month options
+  const statusOptions = ['All Statuses', 'To Do', 'In Progress', 'In Review', 'Completed', 'Blocked'];
+  const monthOptions = ['Month', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   
   // Generate year options (current year and previous 5 years)
   const yearOptions = useMemo(() => {
@@ -220,8 +244,69 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
     ];
 
     const getTasksForColumn = (status: string) => {
-      const tasks = allTasks.filter(task => task.status === status);
-      console.log(`Board - ${status} tasks:`, tasks.length, tasks.map(t => t.title));
+      let tasks = allTasks.filter(task => task.status === status);
+      
+      // Apply search filter (same as list view)
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        tasks = tasks.filter(task => 
+          task.title?.toLowerCase().includes(query) ||
+          (typeof task.projectId === 'object' ? task.projectId?.name?.toLowerCase().includes(query) : false) ||
+          task.description?.toLowerCase().includes(query)
+        );
+      }
+      
+      // Apply time filter for board view (if not 'all')
+      if (timeFilter !== 'all') {
+        const timeParams = getTimeFilterDateParams();
+        if (timeParams.startDate && timeParams.endDate) {
+          const startDate = new Date(timeParams.startDate);
+          const endDate = new Date(timeParams.endDate);
+          tasks = tasks.filter(task => {
+            const taskDate = task.startDate ? new Date(task.startDate) : null;
+            if (!taskDate) return false;
+            return taskDate >= startDate && taskDate <= endDate;
+          });
+        }
+      }
+      
+      // Filter by sprint selection
+      if (selectedSprint !== 'All Sprints') {
+        // Get sprint IDs based on selection
+        let filteredSprintIds: string[] = [];
+        
+        if (selectedSprint === 'All Active Sprints') {
+          // Get all active sprints based on sprint type
+          const activeSprints = sprints.filter(sprint => 
+            !sprint.completed && 
+            (sprintType === 'Normal Sprints' ? !sprint.testing : sprint.testing)
+          );
+          filteredSprintIds = activeSprints.map(s => s._id);
+        } else if (selectedSprint === 'Completed Sprints') {
+          // Get all completed sprints based on sprint type
+          const completedSprints = sprints.filter(sprint => 
+            sprint.completed && 
+            (sprintType === 'Normal Sprints' ? !sprint.testing : sprint.testing)
+          );
+          filteredSprintIds = completedSprints.map(s => s._id);
+        }
+        
+        // Filter tasks by sprint IDs
+        if (filteredSprintIds.length > 0) {
+          tasks = tasks.filter(task => {
+            const taskSprintIds = Array.isArray(task.sprintId) ? task.sprintId : (task.sprintId ? [task.sprintId] : []);
+            return taskSprintIds.some(id => filteredSprintIds.includes(id));
+          });
+        } else {
+          // If no sprints match the filter, show no tasks
+          tasks = [];
+        }
+      } else {
+        // When 'All Sprints' is selected, show all tasks (no sprint filtering)
+        // This ensures board view shows same tasks as list view by default
+      }
+      
+      console.log(`Board - ${status} tasks after filtering:`, tasks.length, tasks.map(t => t.title));
       return tasks;
     };
 
@@ -233,9 +318,10 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
     return (
       <ScrollView 
         horizontal 
-        showsHorizontalScrollIndicator={false}
+        showsHorizontalScrollIndicator={true}
         style={styles.boardContainer}
         contentContainerStyle={styles.boardContent}
+        nestedScrollEnabled={true}
       >
         {boardColumns.map(column => (
           <View key={column.id} style={styles.column}>
@@ -248,7 +334,11 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
               </Text>
             </View>
             
-            <ScrollView style={styles.columnContent}>
+            <ScrollView 
+              style={styles.columnContent}
+              nestedScrollEnabled={true}
+              showsVerticalScrollIndicator={true}
+            >
               {getTasksForColumn(column.status).map(task => (
                 <TouchableOpacity 
                   key={task._id} 
@@ -377,11 +467,87 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
     { label: 'All Time', value: 'all' },
   ];
 
-  // Function to get date params for /task/getAll based on time filter
+  // Helper function to convert month name to month index (0-11)
+  const getMonthIndex = (monthName: string): number | null => {
+    const monthMap: { [key: string]: number } = {
+      'january': 0, 'february': 1, 'march': 2, 'april': 3,
+      'may': 4, 'june': 5, 'july': 6, 'august': 7,
+      'september': 8, 'october': 9, 'november': 10, 'december': 11
+    };
+    return monthMap[monthName.toLowerCase()] ?? null;
+  };
+
+  // Function to get date params based on timeFilter (for board view)
+  const getTimeFilterDateParams = () => {
+    if (timeFilter === 'all') {
+      return {
+        timePeriod: 'all',
+      };
+    }
+
+    const now = new Date();
+    let startDate: Date;
+    let endDate: Date;
+    
+    switch (timeFilter) {
+      case 'today': {
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+        break;
+      }
+      case 'week': {
+        const current = new Date(now);
+        const day = current.getDay();
+        const diff = current.getDate() - day + (day === 0 ? -6 : 1);
+        startDate = new Date(current.getFullYear(), current.getMonth(), diff);
+        endDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + 6, 23, 59, 59, 999);
+        break;
+      }
+      case 'month': {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+        break;
+      }
+      case 'year': {
+        startDate = new Date(now.getFullYear(), 0, 1);
+        endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+        break;
+      }
+      default: {
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      }
+    }
+    
+    return {
+      timePeriod: 'custom',
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+    };
+  };
+
+  // Function to get date params for /task/getAll based on time filter and selected month
   // Web contract:
   // - timePeriod: 'all'  -> no startDate/endDate
   // - timePeriod: 'custom' + startDate/endDate (ISO) for other ranges
-  const getListDateParams = () => {
+  const getListDateParams = (useSelectedMonth?: string) => {
+    // If a specific month is selected (not "Month"), use that month
+    if (useSelectedMonth && useSelectedMonth !== 'Month') {
+      const monthIndex = getMonthIndex(useSelectedMonth);
+      if (monthIndex !== null) {
+        const now = new Date();
+        const year = selectedYear;
+        const startDate = new Date(year, monthIndex, 1);
+        const endDate = new Date(year, monthIndex + 1, 0, 23, 59, 59, 999);
+        
+        return {
+          timePeriod: 'custom',
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+        };
+      }
+    }
+
     if (timeFilter === 'all') {
       return {
         timePeriod: 'all',
@@ -434,15 +600,32 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
     try {
       if (!currentUser?.organization) return;
 
-      const dateParams = getListDateParams();
+      // Use timeFilter for board view, selectedMonth for list view
+      // But to ensure both views show same tasks, fetch with 'all' time period when in board view
+      // and let client-side filtering handle the rest
+      let dateParams;
+      if (viewMode === 'board') {
+        // For board view, use timeFilter if set, otherwise fetch all
+        if (timeFilter === 'all') {
+          dateParams = {};
+        } else {
+          dateParams = getTimeFilterDateParams();
+        }
+      } else {
+        // For list view, use selectedMonth
+        dateParams = getListDateParams(selectedMonth);
+      }
+
+      // Fetch more tasks to ensure both views have same data to filter from
+      const limitToUse = 100; // Increased limit to fetch more tasks
 
       const params = {
         organizationId: currentUser.organization,
         // Active/Completed tab mapping, as on web PM/tasks
         status: activeTab === 'Active' ? 'active' : 'completed',
         search: searchQuery,
-        page: pagination.page,
-        limit: pagination.limit,
+        page: 1, // Always fetch from page 1 for consistent results
+        limit: limitToUse,
         isBug: 'false', // This screen shows normal tasks; align with web isBug flag
         ...dateParams,
       };
@@ -470,8 +653,8 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
         setAllTasks(tasksArray);
         setPagination({
           page: paginationData.page || 1,
-          limit: paginationData.limit || 10,
-          total: paginationData.total || 0,
+          limit: paginationData.limit || limitToUse,
+          total: paginationData.total || tasksArray.length,
         });
       } else {
         Alert.alert('Error', 'Failed to fetch tasks');
@@ -482,14 +665,43 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
     }
   };
 
-  // Filter tasks based on active tab
+  // Filter tasks based on active tab - apply same filters as board view
   const filteredTasks = useMemo(() => {
+    let tasks = allTasks;
+    
+    // Filter by active/completed tab
     if (activeTab === 'Completed') {
-      return allTasks.filter(task => task.status === 'completed');
+      tasks = tasks.filter(task => task.status === 'completed');
     } else {
-      return allTasks.filter(task => task.status !== 'completed');
+      tasks = tasks.filter(task => task.status !== 'completed');
     }
-  }, [allTasks, activeTab]);
+    
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      tasks = tasks.filter(task => 
+        task.title?.toLowerCase().includes(query) ||
+        (typeof task.projectId === 'object' ? task.projectId?.name?.toLowerCase().includes(query) : false) ||
+        task.description?.toLowerCase().includes(query)
+      );
+    }
+    
+    // Apply month filter for list view
+    if (selectedMonth && selectedMonth !== 'Month') {
+      const monthParams = getListDateParams(selectedMonth);
+      if (monthParams.startDate && monthParams.endDate) {
+        const startDate = new Date(monthParams.startDate);
+        const endDate = new Date(monthParams.endDate);
+        tasks = tasks.filter(task => {
+          const taskDate = task.startDate ? new Date(task.startDate) : null;
+          if (!taskDate) return false;
+          return taskDate >= startDate && taskDate <= endDate;
+        });
+      }
+    }
+    
+    return tasks;
+  }, [allTasks, activeTab, searchQuery, selectedMonth]);
 
   // Fetch bugs
   const fetchBugs = async () => {
@@ -497,7 +709,7 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
       if (!currentUser?.organization) return;
 
       setBugsLoading(true);
-      const dateParams = getListDateParams();
+      const dateParams = getListDateParams(bugsSelectedMonth);
 
       const params = {
         organizationId: currentUser.organization,
@@ -588,8 +800,9 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
       fetchStats();
       fetchTasks();
       fetchBugs();
+      fetchSprints();
     }
-  }, [currentUser?.organization, timeFilter, refreshTrigger, searchQuery, pagination.page, activeTab, bugsActiveTab, bugsSearchQuery]);
+  }, [currentUser?.organization, timeFilter, refreshTrigger, searchQuery, pagination.page, activeTab, bugsActiveTab, bugsSearchQuery, bugsSelectedStatus, selectedMonth, bugsSelectedMonth, selectedYear, viewMode, sprintType]);
 
   const handleTimeFilterChange = (value: string) => {
     setTimeFilter(value);
@@ -734,9 +947,20 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
       onPress={() => navigation.navigate('TaskDetail' as never, { taskId: item._id } as never)}
       activeOpacity={0.7}
     >
-      <View style={[styles.checkboxColumn, { width: 50 }]}>
+      {/* Row checkbox for mobile/list view */}
+      <TouchableOpacity
+        style={[styles.checkboxColumn, { width: 50 }]}
+        onPress={(e) => {
+          e.stopPropagation();
+          toggleTaskSelection(item._id);
+        }}
+      >
+        {selectedTasks.has(item._id) ? (
+          <Ionicons name="checkbox" size={20} color="#f97316" />
+        ) : (
         <View style={styles.checkbox} />
-      </View>
+        )}
+      </TouchableOpacity>
       <Text style={[styles.tableCell, { width: 50 }]}>{index + 1}</Text>
       <Text style={[styles.tableCell, { width: 140 }]} numberOfLines={1}>
         {item.projectId?.name || 'N/A'}
@@ -772,7 +996,14 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
         <StatusBadge status={item.status} size="small" />
       </View>
       <View style={[styles.actionsColumn, { width: 100 }]}>
-        <TouchableOpacity style={styles.statusActionButton}>
+        <TouchableOpacity 
+          style={styles.statusActionButton}
+          onPress={(e) => {
+            e.stopPropagation();
+            setStatusModalTaskId(item._id);
+            setShowStatusModal(true);
+          }}
+        >
           <Ionicons name="checkmark-circle" size={18} color="#3b82f6" />
           <Text style={styles.statusActionText}>Status</Text>
         </TouchableOpacity>
@@ -801,6 +1032,202 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
     setPagination({...pagination, page: 1});
   };
 
+  // Handle task status change
+  const handleStatusChange = async (taskId: string, newStatus: string) => {
+    try {
+      await callApi({
+        method: 'PATCH',
+        url: `/task/${taskId}/status`,
+        data: { status: newStatus },
+      });
+      setAllTasks(prevTasks => 
+        prevTasks.map(task => 
+          task._id === taskId ? { ...task, status: newStatus as any } : task
+        )
+      );
+      // Also update bugs if this is a bug
+      setBugs(prevBugs =>
+        prevBugs.map(bug =>
+          bug._id === taskId ? { ...bug, status: newStatus as any } : bug
+        )
+      );
+      Alert.alert('Success', 'Task status updated successfully');
+      setShowStatusModal(false);
+      setStatusModalTaskId(null);
+      // Refresh data to ensure consistency
+      refreshData();
+    } catch (error: any) {
+      console.error('Error updating task status:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to update task status';
+      Alert.alert('Error', errorMessage);
+    }
+  };
+
+  // Handle export tasks
+  const handleExportTasks = async () => {
+    try {
+      if (filteredTasks.length === 0) {
+        Alert.alert('Info', 'No tasks to export');
+        return;
+      }
+
+      const tasksToExport = filteredTasks.map((task, index) => {
+        const projectName = typeof task.projectId === 'object' ? task.projectId?.name || 'N/A' : 'N/A';
+        const assignee = task.assignedTo && task.assignedTo.length > 0
+          ? `${task.assignedTo[0].firstName || ''} ${task.assignedTo[0].lastName || ''}`.trim() || 'Unassigned'
+          : 'Unassigned';
+        const startDate = task.startDate ? formatDateShort(task.startDate) : 'N/A';
+        const dueDate = task.dueDate ? formatDateShort(task.dueDate) : 'N/A';
+        const priority = task.priority ? task.priority.charAt(0).toUpperCase() + task.priority.slice(1) : 'N/A';
+        const status = task.status ? task.status.replace('_', ' ').split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : 'N/A';
+        
+        return {
+          sr: index + 1,
+          project: projectName,
+          title: task.title || 'N/A',
+          assignee: assignee,
+          startDate: startDate,
+          dueDate: dueDate,
+          priority: priority,
+          status: status,
+        };
+      });
+
+      await exportToXlsx({
+        filename: `tasks-${activeTab.toLowerCase()}-${new Date().toISOString().split('T')[0]}`,
+        columns: [
+          { key: 'sr', header: 'SR#' },
+          { key: 'project', header: 'Project' },
+          { key: 'title', header: 'Title' },
+          { key: 'assignee', header: 'Assignee' },
+          { key: 'startDate', header: 'Start Date' },
+          { key: 'dueDate', header: 'Due Date' },
+          { key: 'priority', header: 'Priority' },
+          { key: 'status', header: 'Status' },
+        ],
+        rows: tasksToExport,
+      });
+    } catch (error: any) {
+      console.error('Error exporting tasks:', error);
+      Alert.alert('Error', error?.message || 'Failed to export tasks');
+    }
+  };
+
+  // Handle export bugs
+  const handleExportBugs = async () => {
+    try {
+      if (filteredBugs.length === 0) {
+        Alert.alert('Info', 'No bugs to export');
+        return;
+      }
+
+      const bugsToExport = filteredBugs.map((bug, index) => {
+        const projectName = typeof bug.projectId === 'object' ? bug.projectId?.name || 'N/A' : 'N/A';
+        const assignee = bug.assignedTo && bug.assignedTo.length > 0
+          ? `${bug.assignedTo[0].firstName || ''} ${bug.assignedTo[0].lastName || ''}`.trim() || 'Unassigned'
+          : 'Unassigned';
+        const startDate = bug.startDate ? formatDateShort(bug.startDate) : 'N/A';
+        const dueDate = bug.dueDate ? formatDateShort(bug.dueDate) : 'N/A';
+        const priority = bug.priority ? bug.priority.charAt(0).toUpperCase() + bug.priority.slice(1) : 'N/A';
+        const status = bug.status ? bug.status.replace('_', ' ').split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : 'N/A';
+        
+        return {
+          sr: index + 1,
+          project: projectName,
+          title: bug.title || 'N/A',
+          assignee: assignee,
+          startDate: startDate,
+          dueDate: dueDate,
+          priority: priority,
+          status: status,
+        };
+      });
+
+      await exportToXlsx({
+        filename: `bugs-${bugsActiveTab.toLowerCase()}-${new Date().toISOString().split('T')[0]}`,
+        columns: [
+          { key: 'sr', header: 'SR#' },
+          { key: 'project', header: 'Project' },
+          { key: 'title', header: 'Title' },
+          { key: 'assignee', header: 'Assignee' },
+          { key: 'startDate', header: 'Start Date' },
+          { key: 'dueDate', header: 'Due Date' },
+          { key: 'priority', header: 'Priority' },
+          { key: 'status', header: 'Status' },
+        ],
+        rows: bugsToExport,
+      });
+    } catch (error: any) {
+      console.error('Error exporting bugs:', error);
+      Alert.alert('Error', error?.message || 'Failed to export bugs');
+    }
+  };
+
+  // Toggle task selection
+  const toggleTaskSelection = (taskId: string) => {
+    setSelectedTasks(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(taskId)) {
+        newSet.delete(taskId);
+      } else {
+        newSet.add(taskId);
+      }
+      return newSet;
+    });
+  };
+
+  // Toggle all tasks selection
+  const toggleAllTasksSelection = () => {
+    if (selectedTasks.size === filteredTasks.length && filteredTasks.length > 0) {
+      setSelectedTasks(new Set());
+    } else {
+      setSelectedTasks(new Set(filteredTasks.map(t => t._id)));
+    }
+  };
+
+  // Handle add note
+  const handleAddNote = () => {
+    if (newNote.trim()) {
+      setNotes([...notes, newNote.trim()]);
+      setNewNote('');
+      setShowNoteModal(false);
+    }
+  };
+
+  // Fetch sprints
+  const fetchSprints = async () => {
+    try {
+      if (!currentUser?.organization) return;
+      
+      // Determine sprint type: "normal" for Normal Sprints, "bug" for Bug Sprints
+      const type = sprintType === 'Normal Sprints' ? 'normal' : 'bug';
+      
+      const response = await callApi({
+        method: 'GET',
+        url: '/sprints',
+        params: {
+          organizationId: currentUser.organization,
+          type: type,
+        },
+      });
+      
+      const sprintsArray = Array.isArray(response?.data) ? response.data : (Array.isArray(response) ? response : []);
+      setSprints(sprintsArray);
+      
+      // Reset selected sprint to 'All Sprints' when type changes to show all tasks
+      setSelectedSprint('All Sprints');
+    } catch (err) {
+      console.error('Failed to fetch sprints:', err);
+    }
+  };
+
+  // Handle sprint type change - toggle between Normal and Bug sprints
+  const handleSprintTypeChange = () => {
+    const newType = sprintType === 'Normal Sprints' ? 'Bug Sprints' : 'Normal Sprints';
+    setSprintType(newType);
+    // fetchSprints will be called via useEffect when sprintType changes
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -827,56 +1254,73 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
           <Text style={styles.taskManagementTitle}>Task Management</Text>
         </View>
         
-        {/* KPI Cards Section - Only show in board view */}
-        {viewMode === 'board' && (
-          <View style={styles.kpiCardsContainer}>
-            <View style={styles.kpiCard}>
-              <View style={styles.kpiIconContainer}>
-                <Ionicons name="document-text-outline" size={24} color="#3B82F6" />
-              </View>
-              <View style={styles.kpiContent}>
-                <Text style={styles.kpiTitle}>Total Tasks</Text>
-                <Text style={styles.kpiDescription}>In the selected time range</Text>
-                <Text style={styles.kpiValue}>{kpiStats.totalTasks}</Text>
-                <Text style={styles.kpiBreakdown}>
-                  {kpiStats.openTasks} open • {kpiStats.completedTasks} completed
-                </Text>
-              </View>
+        {/* KPI Cards Section - Show in both board and list views */}
+        <View style={styles.kpiCardsContainer}>
+          <View style={styles.kpiCard}>
+            <View style={styles.kpiIconContainer}>
+              <Ionicons name="document-text-outline" size={24} color="#3B82F6" />
             </View>
-
-            <View style={styles.kpiCard}>
-              <View style={[styles.kpiIconContainer, { backgroundColor: '#D1FAE5' }]}>
-                <Ionicons name="checkmark-circle" size={24} color="#10B981" />
-              </View>
-              <View style={styles.kpiContent}>
-                <Text style={styles.kpiTitle}>Completion Rate</Text>
-                <Text style={styles.kpiDescription}>Share of tasks that are finished</Text>
-                <Text style={styles.kpiValue}>{kpiStats.completionRate.toFixed(1)}%</Text>
-                <Text style={styles.kpiBreakdown}>
-                  {kpiStats.completedTasks} of {kpiStats.totalTasks} completed
+            <View style={styles.kpiContent}>
+              <Text style={styles.kpiTitle}>Total Tasks</Text>
+              <Text style={styles.kpiDescription}>In the selected time range</Text>
+              <Text style={styles.kpiValue}>{kpiStats.totalTasks}</Text>
+              <Text style={styles.kpiBreakdown}>
+                {kpiStats.openTasks} open • {kpiStats.completedTasks} completed
               </Text>
-              </View>
-            </View>
-
-            <View style={styles.kpiCard}>
-              <View style={[styles.kpiIconContainer, { backgroundColor: '#FEE2E2' }]}>
-                <Ionicons name="alert-triangle" size={24} color="#EF4444" />
-              </View>
-              <View style={styles.kpiContent}>
-                <Text style={styles.kpiTitle}>At Risk</Text>
-                <Text style={styles.kpiDescription}>Overdue and high-priority items</Text>
-                <Text style={styles.kpiValue}>{kpiStats.atRisk}</Text>
-                <Text style={styles.kpiBreakdown}>
-                  Overdue • {stats?.highPriority || 0} high priority
-                </Text>
-              </View>
             </View>
           </View>
-        )}
+
+          <View style={styles.kpiCard}>
+            <View style={[styles.kpiIconContainer, { backgroundColor: '#D1FAE5' }]}>
+              <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+            </View>
+            <View style={styles.kpiContent}>
+              <Text style={styles.kpiTitle}>Completion Rate</Text>
+              <Text style={styles.kpiDescription}>Share of tasks that are finished</Text>
+              <Text style={styles.kpiValue}>{kpiStats.completionRate.toFixed(1)}%</Text>
+              <Text style={styles.kpiBreakdown}>
+                {kpiStats.completedTasks} of {kpiStats.totalTasks} completed
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.kpiCard}>
+            <View style={[styles.kpiIconContainer, { backgroundColor: '#FEE2E2' }]}>
+              <Ionicons name="alert-triangle" size={24} color="#EF4444" />
+            </View>
+            <View style={styles.kpiContent}>
+              <Text style={styles.kpiTitle}>At Risk</Text>
+              <Text style={styles.kpiDescription}>Overdue and high-priority items</Text>
+              <Text style={styles.kpiValue}>{kpiStats.atRisk}</Text>
+              <Text style={styles.kpiBreakdown}>
+                {stats?.overdue || 0} overdue • {stats?.highPriority || 0} high priority
+              </Text>
+            </View>
+          </View>
+        </View>
 
         {/* Header Section */}
         <View style={styles.headerSection}>
-          <Text style={styles.mainTitle}>Tasks</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.mainTitle}>Tasks</Text>
+            {/* View Mode Toggle */}
+            <View style={styles.viewToggleContainer}>
+              <TouchableOpacity
+                style={[styles.viewToggleButton, viewMode === 'board' && styles.viewToggleButtonActive]}
+                onPress={() => setViewMode('board')}
+              >
+                <Ionicons name="grid-outline" size={18} color={viewMode === 'board' ? '#fff' : '#6b7280'} />
+                <Text style={[styles.viewToggleText, viewMode === 'board' && styles.viewToggleTextActive]}>Board</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.viewToggleButton, viewMode === 'list' && styles.viewToggleButtonActive]}
+                onPress={() => setViewMode('list')}
+              >
+                <Ionicons name="list-outline" size={18} color={viewMode === 'list' ? '#fff' : '#6b7280'} />
+                <Text style={[styles.viewToggleText, viewMode === 'list' && styles.viewToggleTextActive]}>List</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
           
           {/* Tabs */}
           <View style={styles.tabsRow}>
@@ -896,28 +1340,43 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
 
           {/* Filters Row */}
           <View style={styles.filtersRow}>
-            {/* Date Navigation */}
-            <View style={styles.dateNavigation}>
-            <TouchableOpacity 
-                style={styles.dateNavButton}
-                onPress={() => navigateMonth('prev')}
+            {/* Date Navigation - Show in both views, but make functional for board view */}
+            {viewMode === 'board' && (
+              <TouchableOpacity
+                style={styles.timeFilterButton}
+                onPress={() => setShowDropdown(!showDropdown)}
               >
-                <Ionicons name="chevron-back" size={20} color="#111827" />
-            </TouchableOpacity>
-              <Text style={styles.dateText}>{getCurrentMonthYear()}</Text>
-              <TouchableOpacity 
-                style={styles.dateNavButton}
-                onPress={() => navigateMonth('next')}
-              >
-                <Ionicons name="chevron-forward" size={20} color="#111827" />
-                    </TouchableOpacity>
-                </View>
+                <Ionicons name="calendar-outline" size={18} color="#6b7280" />
+                <Text style={styles.timeFilterText}>{timeFilterOptions.find(opt => opt.value === timeFilter)?.label || 'All Time'}</Text>
+                <Ionicons name={showDropdown ? "chevron-up" : "chevron-down"} size={16} color="#6b7280" />
+              </TouchableOpacity>
+            )}
+            {viewMode === 'list' && (
+              <View style={styles.dateNavigation}>
+                <TouchableOpacity 
+                  style={styles.dateNavButton}
+                  onPress={() => navigateMonth('prev')}
+                >
+                  <Ionicons name="chevron-back" size={20} color="#111827" />
+                </TouchableOpacity>
+                <Text style={styles.dateText}>{getCurrentMonthYear()}</Text>
+                <TouchableOpacity 
+                  style={styles.dateNavButton}
+                  onPress={() => navigateMonth('next')}
+                >
+                  <Ionicons name="chevron-forward" size={20} color="#111827" />
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* Status Filter - Only in list view */}
             {viewMode === 'list' && (
-              <TouchableOpacity style={styles.filterDropdown}>
+              <TouchableOpacity 
+                style={styles.filterDropdown}
+                onPress={() => setShowStatusDropdown(!showStatusDropdown)}
+              >
                 <Text style={styles.filterDropdownText}>{selectedStatus}</Text>
-                <Ionicons name="chevron-down" size={16} color="#6b7280" />
+                <Ionicons name={showStatusDropdown ? "chevron-up" : "chevron-down"} size={16} color="#6b7280" />
               </TouchableOpacity>
             )}
 
@@ -935,20 +1394,126 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
 
             {/* Month Dropdown - Only in list view */}
             {viewMode === 'list' && (
-              <TouchableOpacity style={styles.monthDropdown}>
+              <TouchableOpacity 
+                style={styles.monthDropdown}
+                onPress={() => setShowMonthDropdown(!showMonthDropdown)}
+              >
                 <Text style={styles.filterDropdownText}>{selectedMonth}</Text>
-                <Ionicons name="chevron-down" size={16} color="#6b7280" />
+                <Ionicons name={showMonthDropdown ? "chevron-up" : "chevron-down"} size={16} color="#6b7280" />
               </TouchableOpacity>
             )}
 
             {/* Export Button - Only in list view */}
             {viewMode === 'list' && (
-              <TouchableOpacity style={styles.exportButton}>
-                <Ionicons name="download-outline" size={18} color="#10b981" />
+              <TouchableOpacity 
+                style={styles.exportButton}
+                onPress={handleExportTasks}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="download-outline" size={18} color="#fff" />
                 <Text style={styles.exportButtonText}>Export All</Text>
               </TouchableOpacity>
             )}
                 </View>
+              
+              {/* Status Dropdown Modal */}
+              {viewMode === 'list' && showStatusDropdown && (
+                <Modal
+                  visible={showStatusDropdown}
+                  transparent={true}
+                  animationType="fade"
+                  onRequestClose={() => setShowStatusDropdown(false)}
+                >
+                  <TouchableOpacity
+                    style={styles.modalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setShowStatusDropdown(false)}
+                  >
+                    <View style={styles.dropdownMenu}>
+                      {statusOptions.map((status) => (
+                        <TouchableOpacity
+                          key={status}
+                          style={[styles.dropdownItem, selectedStatus === status && styles.dropdownItemSelected]}
+                          onPress={() => {
+                            setSelectedStatus(status);
+                            setShowStatusDropdown(false);
+                          }}
+                        >
+                          <Text style={[styles.dropdownItemText, selectedStatus === status && styles.dropdownItemTextSelected]}>
+                            {status}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </TouchableOpacity>
+                </Modal>
+              )}
+              
+              {/* Month Dropdown Modal */}
+              {viewMode === 'list' && showMonthDropdown && (
+                <Modal
+                  visible={showMonthDropdown}
+                  transparent={true}
+                  animationType="fade"
+                  onRequestClose={() => setShowMonthDropdown(false)}
+                >
+                  <TouchableOpacity
+                    style={styles.modalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setShowMonthDropdown(false)}
+                  >
+                    <View style={styles.dropdownMenu}>
+                      {monthOptions.map((month) => (
+                        <TouchableOpacity
+                          key={month}
+                          style={[styles.dropdownItem, selectedMonth === month && styles.dropdownItemSelected]}
+                          onPress={() => {
+                            setSelectedMonth(month);
+                            setShowMonthDropdown(false);
+                            setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page when month changes
+                          }}
+                        >
+                          <Text style={[styles.dropdownItemText, selectedMonth === month && styles.dropdownItemTextSelected]}>
+                            {month}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </TouchableOpacity>
+                </Modal>
+              )}
+              
+              {/* Time Filter Dropdown Modal for Board View */}
+              {viewMode === 'board' && showDropdown && (
+                <Modal
+                  visible={showDropdown}
+                  transparent={true}
+                  animationType="fade"
+                  onRequestClose={() => setShowDropdown(false)}
+                >
+                  <TouchableOpacity
+                    style={styles.modalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setShowDropdown(false)}
+                  >
+                    <View style={styles.dropdownMenu}>
+                      {timeFilterOptions.map((option) => (
+                        <TouchableOpacity
+                          key={option.value}
+                          style={[styles.dropdownItem, timeFilter === option.value && styles.dropdownItemSelected]}
+                          onPress={() => {
+                            handleTimeFilterChange(option.value);
+                          }}
+                        >
+                          <Text style={[styles.dropdownItemText, timeFilter === option.value && styles.dropdownItemTextSelected]}>
+                            {option.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </TouchableOpacity>
+                </Modal>
+              )}
               </View>
 
         {/* Backlog/Notes Section - Only show in board view */}
@@ -978,14 +1543,20 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
                 style={styles.sprintDropdown}
                 onPress={() => setShowSprintDropdown(!showSprintDropdown)}
               >
-                <Text style={styles.sprintDropdownText} numberOfLines={1}>{selectedSprint}</Text>
+                <Text style={styles.sprintDropdownText} numberOfLines={1} ellipsizeMode="tail">{selectedSprint}</Text>
                 <Ionicons name={showSprintDropdown ? "chevron-up" : "chevron-down"} size={14} color="#6b7280" />
               </TouchableOpacity>
               <TouchableOpacity 
-                style={styles.normalSprintsButton}
-                onPress={() => {}}
+                style={[
+                  styles.normalSprintsButton,
+                  sprintType === 'Normal Sprints' ? styles.normalSprintsButtonActive : styles.bugSprintsButtonActive
+                ]}
+                onPress={handleSprintTypeChange}
               >
-                <Text style={styles.normalSprintsButtonText} numberOfLines={1}>{sprintType}</Text>
+                <Text style={[
+                  styles.normalSprintsButtonText,
+                  sprintType === 'Normal Sprints' ? styles.normalSprintsButtonTextActive : styles.bugSprintsButtonTextActive
+                ]} numberOfLines={1} ellipsizeMode="tail">{sprintType}</Text>
               </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.createTaskButtonBoard}
@@ -1061,19 +1632,42 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
           
           {backlogTab === 'Notes' && (
             <View style={styles.notesContent}>
-              <TouchableOpacity style={styles.addNoteCard}>
+              <TouchableOpacity 
+                style={styles.addNoteCard}
+                onPress={() => setShowNoteModal(true)}
+              >
                 <Ionicons name="add" size={32} color="#6b7280" />
-          </TouchableOpacity>
-              <View style={styles.notesListArea}>
-                <Text style={styles.emptyNotesText}>No notes yet. Click the + button to add a note.</Text>
-              </View>
+              </TouchableOpacity>
+              <ScrollView 
+                style={styles.notesListArea}
+                contentContainerStyle={[
+                  styles.notesListAreaContent,
+                  { justifyContent: notes.length === 0 ? 'center' : 'flex-start' }
+                ]}
+              >
+                {notes.length > 0 ? (
+                  notes.map((note, index) => (
+                    <View key={index} style={styles.noteItem}>
+                      <Text style={styles.noteText}>{note}</Text>
+                      <TouchableOpacity
+                        onPress={() => setNotes(notes.filter((_, i) => i !== index))}
+                        style={styles.deleteNoteButton}
+                      >
+                        <Ionicons name="close-circle" size={20} color="#ef4444" />
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.emptyNotesText}>No notes yet. Click the + button to add a note.</Text>
+                )}
+              </ScrollView>
             </View>
           )}
         </View>
         )}
 
-        {/* Tasks Table Section - Show after backlog in board view */}
-        {viewMode === 'board' && (
+        {/* Tasks List View Section */}
+        {viewMode === 'list' && (
           <View style={styles.tasksTableSection}>
             <Text style={styles.sectionTitle}>Tasks</Text>
             <View style={styles.tableWrapper}>
@@ -1085,9 +1679,16 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
               >
                 <View style={styles.tableContainer}>
                   <View style={styles.tableHeader}>
-                    <View style={[styles.checkboxColumn, { width: 50 }]}>
-                      <View style={styles.checkboxHeader} />
-                    </View>
+                    <TouchableOpacity 
+                      style={[styles.checkboxColumn, { width: 50 }]}
+                      onPress={toggleAllTasksSelection}
+                    >
+                      {selectedTasks.size === filteredTasks.length && filteredTasks.length > 0 ? (
+                        <Ionicons name="checkbox" size={20} color="#f97316" />
+                      ) : (
+                        <View style={styles.checkbox} />
+                      )}
+                    </TouchableOpacity>
                     <Text style={[styles.tableHeaderCell, { width: 60, marginRight: 8 }]}>NO#</Text>
                     <Text style={[styles.tableHeaderCell, { width: 160, marginRight: 8 }]}>PROJECT</Text>
                     <Text style={[styles.tableHeaderCell, { width: 240, marginRight: 8 }]}>TITLE</Text>
@@ -1099,17 +1700,36 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
                     <Text style={[styles.tableHeaderCell, { width: 120, marginRight: 8 }]}>ACTIONS</Text>
                   </View>
                   {filteredTasks.length > 0 ? (
-                    filteredTasks.slice(0, 10).map((item, index) => (
+                    filteredTasks
+                      .filter(task => {
+                        if (selectedStatus !== 'All Statuses') {
+                          const statusMatch = task.status === selectedStatus.toLowerCase().replace(' ', '_');
+                          if (!statusMatch) return false;
+                        }
+                        return true;
+                      })
+                      .slice((pagination.page - 1) * pagination.limit, pagination.page * pagination.limit)
+                      .map((item, index) => (
                       <TouchableOpacity 
                         key={item._id}
                         style={styles.tableRow}
                         onPress={() => navigation.navigate('TaskDetail' as never, { taskId: item._id } as never)}
                         activeOpacity={0.7}
                       >
-                        <View style={[styles.checkboxColumn, { width: 50 }]}>
-                          <View style={styles.checkbox} />
-                        </View>
-                        <Text style={[styles.tableCell, { width: 60, marginRight: 8 }]}>{index + 1}</Text>
+                        <TouchableOpacity 
+                          style={[styles.checkboxColumn, { width: 50 }]}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            toggleTaskSelection(item._id);
+                          }}
+                        >
+                          {selectedTasks.has(item._id) ? (
+                            <Ionicons name="checkbox" size={20} color="#f97316" />
+                          ) : (
+                            <View style={styles.checkbox} />
+                          )}
+                        </TouchableOpacity>
+                        <Text style={[styles.tableCell, { width: 60, marginRight: 8 }]}>{(pagination.page - 1) * pagination.limit + index + 1}</Text>
                         <TouchableOpacity 
                           style={{ width: 160, marginRight: 8, justifyContent: 'center' }}
                           onPress={(e) => {
@@ -1164,7 +1784,14 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
                           />
                         </View>
                         <View style={[styles.actionsColumn, { width: 100 }]}>
-                          <TouchableOpacity style={styles.statusActionButton}>
+                          <TouchableOpacity 
+                            style={styles.statusActionButton}
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              setStatusModalTaskId(item._id);
+                              setShowStatusModal(true);
+                            }}
+                          >
                             <Ionicons name="checkmark-circle" size={18} color="#3b82f6" />
                             <Text style={styles.statusActionText}>Status</Text>
                           </TouchableOpacity>
@@ -1179,8 +1806,49 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
                 </View>
               </ScrollView>
             </View>
+            
+            {/* Pagination for List View */}
+            {filteredTasks.length > 0 && (
+              <View style={styles.paginationContainer}>
+                <Text style={styles.paginationText}>
+                  Showing {(pagination.page - 1) * pagination.limit + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} entries
+                </Text>
+                <View style={styles.paginationControls}>
+                  <TouchableOpacity
+                    style={[styles.paginationButton, pagination.page === 1 && styles.paginationButtonDisabled]}
+                    onPress={() => setPagination({...pagination, page: 1})}
+                    disabled={pagination.page === 1}
+                  >
+                    <Ionicons name="chevron-back" size={16} color={pagination.page === 1 ? '#9ca3af' : '#374151'} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.paginationButton, pagination.page === 1 && styles.paginationButtonDisabled]}
+                    onPress={() => setPagination({...pagination, page: Math.max(1, pagination.page - 1)})}
+                    disabled={pagination.page === 1}
+                  >
+                    <Ionicons name="chevron-back-outline" size={16} color={pagination.page === 1 ? '#9ca3af' : '#374151'} />
+                  </TouchableOpacity>
+                  <Text style={styles.paginationPageText}>Page {pagination.page} of {Math.ceil(pagination.total / pagination.limit)}</Text>
+                  <TouchableOpacity
+                    style={[styles.paginationButton, pagination.page >= Math.ceil(pagination.total / pagination.limit) && styles.paginationButtonDisabled]}
+                    onPress={() => setPagination({...pagination, page: Math.min(Math.ceil(pagination.total / pagination.limit), pagination.page + 1)})}
+                    disabled={pagination.page >= Math.ceil(pagination.total / pagination.limit)}
+                  >
+                    <Ionicons name="chevron-forward-outline" size={16} color={pagination.page >= Math.ceil(pagination.total / pagination.limit) ? '#9ca3af' : '#374151'} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.paginationButton, pagination.page >= Math.ceil(pagination.total / pagination.limit) && styles.paginationButtonDisabled]}
+                    onPress={() => setPagination({...pagination, page: Math.ceil(pagination.total / pagination.limit)})}
+                    disabled={pagination.page >= Math.ceil(pagination.total / pagination.limit)}
+                  >
+                    <Ionicons name="chevron-forward" size={16} color={pagination.page >= Math.ceil(pagination.total / pagination.limit) ? '#9ca3af' : '#374151'} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
           </View>
         )}
+
 
         {/* Bugs Table Section */}
         <View style={styles.bugsTableSection}>
@@ -1188,45 +1856,43 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
           
           {/* Bugs Tabs and Filters */}
           <View style={styles.bugsHeader}>
-            <View style={styles.tabsContainer}>
+            <View style={styles.bugsTabsContainer}>
               <TouchableOpacity
-                style={[styles.tab, bugsActiveTab === 'Active' && styles.activeTab]}
-                onPress={() => setBugsActiveTab('Active')}
+                style={[styles.bugsTab, bugsActiveTab === 'Active' && styles.bugsTabActive]}
+                onPress={() => {
+                  setBugsActiveTab('Active');
+                  fetchBugs();
+                }}
               >
-                <Text style={[styles.tabText, bugsActiveTab === 'Active' && styles.activeTabText]}>Active</Text>
+                <Text style={[styles.bugsTabText, bugsActiveTab === 'Active' && styles.bugsTabTextActive]}>Active</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.tab, bugsActiveTab === 'Completed' && styles.activeTab]}
-                onPress={() => setBugsActiveTab('Completed')}
+                style={[styles.bugsTab, bugsActiveTab === 'Completed' && styles.bugsTabActive]}
+                onPress={() => {
+                  setBugsActiveTab('Completed');
+                  fetchBugs();
+                }}
               >
-                <Text style={[styles.tabText, bugsActiveTab === 'Completed' && styles.activeTabText]}>Completed</Text>
+                <Text style={[styles.bugsTabText, bugsActiveTab === 'Completed' && styles.bugsTabTextActive]}>Completed</Text>
               </TouchableOpacity>
             </View>
             
             <View style={styles.bugsFilters}>
-              <View style={styles.dateNavigation}>
-                <TouchableOpacity onPress={() => {
-                  const newDate = new Date(currentDate);
-                  newDate.setMonth(newDate.getMonth() - 1);
-                  setCurrentDate(newDate);
-                }}>
-                  <Ionicons name="chevron-back" size={20} color="#374151" />
-                </TouchableOpacity>
-                <Text style={styles.dateText}>
-                  {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                </Text>
-                <TouchableOpacity onPress={() => {
-                  const newDate = new Date(currentDate);
-                  newDate.setMonth(newDate.getMonth() + 1);
-                  setCurrentDate(newDate);
-                }}>
-                  <Ionicons name="chevron-forward" size={20} color="#374151" />
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={styles.timeFilterButton}
+                onPress={() => setShowDropdown(!showDropdown)}
+              >
+                <Ionicons name="calendar-outline" size={18} color="#6b7280" />
+                <Text style={styles.timeFilterText}>{timeFilterOptions.find(opt => opt.value === timeFilter)?.label || 'All Time'}</Text>
+                <Ionicons name={showDropdown ? "chevron-up" : "chevron-down"} size={16} color="#6b7280" />
+              </TouchableOpacity>
               
-              <TouchableOpacity style={styles.filterDropdown}>
+              <TouchableOpacity 
+                style={styles.filterDropdown}
+                onPress={() => setShowBugsStatusDropdown(!showBugsStatusDropdown)}
+              >
                 <Text style={styles.filterDropdownText}>{bugsSelectedStatus}</Text>
-                <Ionicons name="chevron-down" size={16} color="#6b7280" />
+                <Ionicons name={showBugsStatusDropdown ? "chevron-up" : "chevron-down"} size={16} color="#6b7280" />
               </TouchableOpacity>
               
               <View style={styles.searchContainer}>
@@ -1240,15 +1906,90 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
                 />
               </View>
               
-              <TouchableOpacity style={styles.filterDropdown}>
+              <TouchableOpacity 
+                style={styles.filterDropdown}
+                onPress={() => setShowBugsMonthDropdown(!showBugsMonthDropdown)}
+              >
                 <Text style={styles.filterDropdownText}>{bugsSelectedMonth}</Text>
-                <Ionicons name="chevron-down" size={16} color="#6b7280" />
+                <Ionicons name={showBugsMonthDropdown ? "chevron-up" : "chevron-down"} size={16} color="#6b7280" />
               </TouchableOpacity>
               
-              <TouchableOpacity style={styles.exportButton}>
+              <TouchableOpacity 
+                style={styles.exportButton}
+                onPress={handleExportBugs}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="download-outline" size={18} color="#fff" />
                 <Text style={styles.exportButtonText}>Export All</Text>
               </TouchableOpacity>
             </View>
+            
+            {/* Bugs Status Dropdown Modal */}
+            {showBugsStatusDropdown && (
+              <Modal
+                visible={showBugsStatusDropdown}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setShowBugsStatusDropdown(false)}
+              >
+                <TouchableOpacity
+                  style={styles.modalOverlay}
+                  activeOpacity={1}
+                  onPress={() => setShowBugsStatusDropdown(false)}
+                >
+                  <View style={styles.dropdownMenu}>
+                    {statusOptions.map((status) => (
+                      <TouchableOpacity
+                        key={status}
+                        style={[styles.dropdownItem, bugsSelectedStatus === status && styles.dropdownItemSelected]}
+                        onPress={() => {
+                          setBugsSelectedStatus(status);
+                          setShowBugsStatusDropdown(false);
+                        }}
+                      >
+                        <Text style={[styles.dropdownItemText, bugsSelectedStatus === status && styles.dropdownItemTextSelected]}>
+                          {status}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </TouchableOpacity>
+              </Modal>
+            )}
+            
+            {/* Bugs Month Dropdown Modal */}
+            {showBugsMonthDropdown && (
+              <Modal
+                visible={showBugsMonthDropdown}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setShowBugsMonthDropdown(false)}
+              >
+                <TouchableOpacity
+                  style={styles.modalOverlay}
+                  activeOpacity={1}
+                  onPress={() => setShowBugsMonthDropdown(false)}
+                >
+                  <View style={styles.dropdownMenu}>
+                    {monthOptions.map((month) => (
+                      <TouchableOpacity
+                        key={month}
+                        style={[styles.dropdownItem, bugsSelectedMonth === month && styles.dropdownItemSelected]}
+                        onPress={() => {
+                          setBugsSelectedMonth(month);
+                          setShowBugsMonthDropdown(false);
+                          // Bugs don't have pagination, but data will refresh automatically via useEffect
+                        }}
+                      >
+                        <Text style={[styles.dropdownItemText, bugsSelectedMonth === month && styles.dropdownItemTextSelected]}>
+                          {month}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </TouchableOpacity>
+              </Modal>
+            )}
           </View>
           
           {/* Bugs Table */}
@@ -1326,7 +2067,14 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
                       <Text style={[styles.tableCell, { width: 100, marginRight: 8, color: '#6b7280' }]}>-</Text>
                       <Text style={[styles.tableCell, { width: 100, marginRight: 8, color: '#6b7280' }]}>-</Text>
                       <View style={[styles.actionsColumn, { width: 100 }]}>
-                        <TouchableOpacity style={styles.statusActionButton}>
+                        <TouchableOpacity 
+                          style={styles.statusActionButton}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            setStatusModalTaskId(item._id);
+                            setShowStatusModal(true);
+                          }}
+                        >
                           <Ionicons name="checkmark-circle" size={18} color="#3b82f6" />
                           <Text style={styles.statusActionText}>Status</Text>
                         </TouchableOpacity>
@@ -1342,6 +2090,101 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
             </ScrollView>
           </View>
         </View>
+        
+        {/* Status Change Modal */}
+        <Modal
+          visible={showStatusModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => {
+            setShowStatusModal(false);
+            setStatusModalTaskId(null);
+          }}
+        >
+          <TouchableOpacity 
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => {
+              setShowStatusModal(false);
+              setStatusModalTaskId(null);
+            }}
+          >
+            <View 
+              style={styles.statusModalContent}
+              onStartShouldSetResponder={() => true}
+            >
+              <Text style={styles.modalTitle}>Change Task Status</Text>
+              {['todo', 'in_progress', 'in_review', 'completed', 'blocked'].map((status) => (
+                <TouchableOpacity
+                  key={status}
+                  style={styles.statusOption}
+                  onPress={() => {
+                    if (statusModalTaskId) {
+                      handleStatusChange(statusModalTaskId, status);
+                    }
+                  }}
+                >
+                  <Text style={styles.statusOptionText}>
+                    {status.replace('_', ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                style={styles.cancelModalButton}
+                onPress={() => {
+                  setShowStatusModal(false);
+                  setStatusModalTaskId(null);
+                }}
+              >
+                <Text style={styles.cancelModalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+        
+        {/* Add Note Modal */}
+        <Modal
+          visible={showNoteModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => {
+            setShowNoteModal(false);
+            setNewNote('');
+          }}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.noteModalContent}>
+              <Text style={styles.modalTitle}>Add Note</Text>
+              <TextInput
+                style={styles.noteInput}
+                placeholder="Enter your note..."
+                placeholderTextColor="#9ca3af"
+                multiline
+                numberOfLines={6}
+                value={newNote}
+                onChangeText={setNewNote}
+                textAlignVertical="top"
+              />
+              <View style={styles.noteModalButtons}>
+                <TouchableOpacity
+                  style={styles.cancelModalButton}
+                  onPress={() => {
+                    setShowNoteModal(false);
+                    setNewNote('');
+                  }}
+                >
+                  <Text style={styles.cancelModalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.saveNoteButton}
+                  onPress={handleAddNote}
+                >
+                  <Text style={styles.saveNoteButtonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </View>
   );
@@ -1673,38 +2516,58 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    flexWrap: 'nowrap',
+    flexWrap: 'wrap',
     justifyContent: 'flex-end',
     marginTop: 4,
+    flexShrink: 1,
+    minWidth: 0,
+    maxWidth: '100%',
   },
   sprintDropdown: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
     paddingVertical: 8,
     borderWidth: 1,
     borderColor: '#d1d5db',
     borderRadius: 8,
     backgroundColor: '#fff',
-    minWidth: 140,
-    flexShrink: 0,
+    flexShrink: 1,
+    minWidth: 0,
+    maxWidth: 140,
   },
   sprintDropdownText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#374151',
-    marginRight: 6,
+    marginRight: 4,
+    flexShrink: 1,
+    maxWidth: '85%',
   },
   normalSprintsButton: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
     paddingVertical: 8,
-    backgroundColor: '#3b82f6',
     borderRadius: 8,
-    flexShrink: 0,
+    flexShrink: 1,
+    minWidth: 0,
+    maxWidth: '40%',
+  },
+  normalSprintsButtonActive: {
+    backgroundColor: '#DBEAFE', // Blue background (bg-blue-100)
+  },
+  bugSprintsButtonActive: {
+    backgroundColor: '#FEE2E2', // Red background (bg-red-100)
   },
   normalSprintsButtonText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
-    color: '#fff',
+    flexShrink: 1,
+    maxWidth: '85%',
+  },
+  normalSprintsButtonTextActive: {
+    color: '#1E40AF', // Blue text (text-blue-700)
+  },
+  bugSprintsButtonTextActive: {
+    color: '#991B1B', // Red text (text-red-700)
   },
   searchBarContainer: {
     flexDirection: 'row',
@@ -1767,9 +2630,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb',
     minHeight: 150,
+  },
+  notesListAreaContent: {
     padding: 16,
     alignItems: 'center',
-    justifyContent: 'center',
+    flexGrow: 1,
   },
   emptyNotesText: {
     fontSize: 14,
@@ -1928,17 +2793,27 @@ const styles = StyleSheet.create({
   exportButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: '#10b981',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#f97316',
     borderRadius: 8,
-    gap: 4,
+    gap: 6,
     flexShrink: 0,
+    shadowColor: '#f97316',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   exportButtonText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     color: '#fff',
+    letterSpacing: 0.3,
   },
 
   // Table styles
@@ -2102,7 +2977,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   columnContent: {
-    maxHeight: 500,
+    flex: 1,
     padding: 12,
   },
   taskCard: {
@@ -2311,15 +3186,203 @@ const styles = StyleSheet.create({
     minWidth: 120,
     textAlign: 'center',
   },
-  exportButton: {
-    backgroundColor: '#10b981',
+  // Duplicate exportButton style removed - using the one above
+  // View Toggle Styles
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  viewToggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    padding: 2,
+    gap: 4,
+  },
+  viewToggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 6,
+    gap: 6,
   },
-  exportButtonText: {
-    color: '#fff',
+  viewToggleButtonActive: {
+    backgroundColor: '#f97316',
+  },
+  viewToggleText: {
     fontSize: 14,
+    fontWeight: '500',
+    color: '#6b7280',
+  },
+  viewToggleTextActive: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  // Time Filter Button
+  timeFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    gap: 8,
+  },
+  timeFilterText: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  // Status Modal Styles
+  statusModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    width: '80%',
+    maxWidth: 400,
+  },
+  statusOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#f9fafb',
+    marginBottom: 8,
+  },
+  statusOptionText: {
+    fontSize: 16,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  cancelModalButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+    alignItems: 'center',
+  },
+  cancelModalButtonText: {
+    fontSize: 16,
+    color: '#374151',
+    fontWeight: '600',
+  },
+  // Note Modal Styles
+  noteModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    width: '90%',
+    maxWidth: 500,
+  },
+  noteInput: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    color: '#374151',
+    minHeight: 120,
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  noteModalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  saveNoteButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    backgroundColor: '#f97316',
+    alignItems: 'center',
+  },
+  saveNoteButtonText: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '600',
+  },
+  noteItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f9fafb',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  noteText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#374151',
+  },
+  deleteNoteButton: {
+    marginLeft: 8,
+  },
+  // Pagination Styles
+  paginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  paginationText: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  paginationControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  paginationButton: {
+    padding: 8,
+    borderRadius: 6,
+    backgroundColor: '#f9fafb',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  paginationButtonDisabled: {
+    opacity: 0.5,
+  },
+  paginationPageText: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+    marginHorizontal: 8,
+  },
+  // Bugs Tab Styles - Matching Tasks Tab Styles
+  bugsTabsContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  bugsTab: {
+    paddingBottom: 12,
+    paddingHorizontal: 16,
+    marginRight: 24,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  bugsTabActive: {
+    borderBottomColor: '#f97316',
+  },
+  bugsTabText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6b7280',
+  },
+  bugsTabTextActive: {
+    color: '#f97316',
     fontWeight: '600',
   },
 });

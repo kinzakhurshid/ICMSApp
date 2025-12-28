@@ -21,7 +21,7 @@ import { SprintTasksTable } from './components/SprintTasksTable';
 export default function SprintDetailScreenNew() {
   const route = useRoute();
   const navigation = useNavigation();
-  const { sprintId } = route.params as { sprintId: string };
+  const { sprintId, from } = route.params as { sprintId: string; from?: string };
   const { callApi } = useAxios();
 
   const [sprint, setSprint] = useState<ISprint | null>(null);
@@ -31,6 +31,44 @@ export default function SprintDetailScreenNew() {
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [isRemovingTask, setIsRemovingTask] = useState<string | null>(null);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+
+  /**
+   * Smart back navigation:
+   * - If we opened sprint detail from Sprint Board, always go back to Sprint Board
+   * - Otherwise, rely on the normal navigation stack (goBack)
+   */
+  const handleBack = () => {
+    try {
+      // If this screen was opened explicitly from the Sprint Board drawer screen,
+      // we want to make sure back returns there (because drawer screens don't
+      // always keep a traditional stack history).
+      if (from === 'SprintBoard') {
+        const parent = (navigation as any).getParent?.();
+        if (parent) {
+          parent.navigate('SprintBoard' as never);
+          return;
+        }
+        // Fallback if parent is not available
+        (navigation as any).navigate('SprintBoard');
+        return;
+      }
+
+      // Default behaviour: use the existing stack history
+      if (
+        (navigation as any).canGoBack &&
+        typeof (navigation as any).canGoBack === 'function' &&
+        (navigation as any).canGoBack()
+      ) {
+        (navigation as any).goBack();
+      }
+    } catch (error) {
+      console.error('Navigation error in handleBack:', error);
+      // Last resort: try simple goBack to avoid trapping the user
+      if ((navigation as any).goBack) {
+        (navigation as any).goBack();
+      }
+    }
+  };
 
   useEffect(() => {
     loadSprintDetails();
@@ -55,7 +93,7 @@ export default function SprintDetailScreenNew() {
     } catch (error: any) {
       console.error('Error loading sprint details:', error);
       Alert.alert('Error', 'Failed to load sprint details');
-      navigation.goBack();
+      handleBack();
     } finally {
       setLoading(false);
     }
@@ -92,7 +130,7 @@ export default function SprintDetailScreenNew() {
                 url: `/sprints/${sprintId}`,
               });
               Alert.alert('Success', 'Sprint deleted successfully');
-              navigation.goBack();
+              handleBack();
             } catch (error: any) {
               Alert.alert('Error', 'Failed to delete sprint');
             }
@@ -253,7 +291,7 @@ export default function SprintDetailScreenNew() {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity onPress={handleBack}>
             <Ionicons name="arrow-back" size={24} color="#111827" />
           </TouchableOpacity>
         </View>
@@ -270,7 +308,7 @@ export default function SprintDetailScreenNew() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
         <View style={styles.headerContent}>

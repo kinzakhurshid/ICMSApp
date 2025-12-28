@@ -19,6 +19,7 @@ import RequestLeaveScreen from '../Screens/RequestLeaveScreen';
 import CreateMeetingScreen from '../Screens/CreateMeetingScreen';
 import EditMeetingScreen from '../Screens/EditMeetingScreen';
 import CreateProjectScreen from '../Screens/CreateProjectScreen';
+import EditProjectScreen from '../Screens/EditProjectScreen';
 import CreateSprintScreen from '../Screens/CreateSprintScreen';
 
 // Define parameter lists
@@ -31,6 +32,7 @@ export type ProjectStackParamList = {
   ProjectList: undefined;
   ProjectDetail: { projectId: string };
   CreateProject: undefined;
+  EditProject: { projectId: string };
 };
 
 export type TaskStackParamList = {
@@ -95,6 +97,11 @@ const ProjectStackNavigator = () => (
     <ProjectStack.Screen
       name="CreateProject"
       component={CreateProjectScreen}
+      options={{ headerShown: false }}
+    />
+    <ProjectStack.Screen
+      name="EditProject"
+      component={EditProjectScreen}
       options={{ headerShown: false }}
     />
   </ProjectStack.Navigator>

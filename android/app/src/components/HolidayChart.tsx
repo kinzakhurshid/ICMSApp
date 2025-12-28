@@ -35,7 +35,7 @@ const HolidayChart: React.FC = () => {
 
       <TouchableOpacity
         style={styles.addButton}
-        onPress={() => (navigation as any).navigate('AddHoliday')}
+        onPress={() => (navigation as any).navigate('AddHoliday', { redirectTo: 'LeavesScreen' })}
       >
         <Text style={styles.addButtonText}>+ Add New Holiday</Text>
       </TouchableOpacity>

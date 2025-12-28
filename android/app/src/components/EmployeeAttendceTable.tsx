@@ -27,16 +27,20 @@ const EmployeeAttendanceTable = () => {
   const [data, setData] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  const fetchData = async () => {
+  const fetchData = async (pageNum: number = page) => {
     setLoading(true);
     try {
       const res = await callApi({
         method: 'GET',
         url: '/attendance/employee',
         params: {
-          page: 1,
-          limit: 50,
+          page: pageNum,
+          limit: limit,
           sortBy: '-date',
         },
       });
@@ -52,14 +56,28 @@ const EmployeeAttendanceTable = () => {
           ? (res as any)
           : [];
 
+      // Extract pagination info
+      const pagination = (res as any)?.pagination;
+      if (pagination) {
+        setTotalPages(pagination.totalPages || Math.ceil((pagination.total || records.length) / limit));
+        setTotal(pagination.total || records.length);
+      } else {
+        // If no pagination object, calculate from data length
+        // For now, assume all records are loaded if no pagination info
+        setTotalPages(1);
+        setTotal(records.length);
+      }
+
       setData(records);
       
-      // Check today's record
-      const today = new Date().toISOString().split('T')[0];
-      const todayRec = records.find(
-        (r: AttendanceRecord) => new Date(r.date).toISOString().split('T')[0] === today
-      );
-      setTodayRecord(todayRec || null);
+      // Check today's record (only on first page load)
+      if (pageNum === 1) {
+        const today = new Date().toISOString().split('T')[0];
+        const todayRec = records.find(
+          (r: AttendanceRecord) => new Date(r.date).toISOString().split('T')[0] === today
+        );
+        setTodayRecord(todayRec || null);
+      }
     } catch (err) {
       console.error('Failed to load attendance:', err);
     } finally {
@@ -70,8 +88,14 @@ const EmployeeAttendanceTable = () => {
   // Fetch attendance once user is available (matches PM web behavior)
   useEffect(() => {
     if (!currentUser) return;
-    fetchData();
+    fetchData(1);
   }, [currentUser]);
+
+  // Refetch data when page changes
+  useEffect(() => {
+    if (!currentUser) return;
+    fetchData(page);
+  }, [page]);
 
   const handleCheckIn = async () => {
     Alert.alert(
@@ -134,40 +158,76 @@ const EmployeeAttendanceTable = () => {
         <View style={styles.table}>
           {/* Table Header */}
           <View style={styles.tableHeader}>
-            <Text style={[styles.headerCell, styles.serialCell]}>Sr#</Text>
-            <Text style={[styles.headerCell, styles.dateCell]}>Date</Text>
-            <Text style={[styles.headerCell, styles.statusCell]}>Status</Text>
-            <Text style={[styles.headerCell, styles.timeCell]}>Time In</Text>
-            <Text style={[styles.headerCell, styles.timeCell]}>Time Out</Text>
-            <Text style={[styles.headerCell, styles.arrivalCell]}>Arrival Status</Text>
+            <View style={[styles.headerCol, styles.serialCell]}>
+              <Text style={styles.headerCell}>Sr#</Text>
+            </View>
+            <View style={[styles.headerCol, styles.dateCell]}>
+              <Text style={styles.headerCell}>Date</Text>
+            </View>
+            <View style={[styles.headerCol, styles.statusCell]}>
+              <Text style={styles.headerCell}>Status</Text>
+            </View>
+            <View style={[styles.headerCol, styles.timeCell]}>
+              <Text style={styles.headerCell}>Time In</Text>
+            </View>
+            <View style={[styles.headerCol, styles.timeCell]}>
+              <Text style={styles.headerCell}>Time Out</Text>
+            </View>
+            <View style={[styles.headerCol, styles.arrivalCell]}>
+              <Text style={styles.headerCell}>Arrival Status</Text>
+            </View>
           </View>
 
           {/* Table Rows */}
           {data.map((record, index) => {
             const statusColor = getStatusColor(record.status);
             const arrivalColor = getArrivalStatusColor(record.arrivalStatus || '');
+            const serialNumber = ((page - 1) * limit) + index + 1;
             
             return (
               <View key={record._id} style={styles.tableRow}>
-                <Text style={[styles.cell, styles.serialCell]}>{index + 1}</Text>
-                <Text style={[styles.cell, styles.dateCell]}>
+                {/* Sr# */}
+                <View style={[styles.rowCol, styles.serialCell]}>
+                  <Text style={styles.cell}>{serialNumber}</Text>
+                </View>
+
+                {/* Date */}
+                <View style={[styles.rowCol, styles.dateCell]}>
+                  <Text style={styles.cell}>
                   {new Date(record.date).toLocaleDateString()}
                 </Text>
+                </View>
+
+                {/* Status */}
+                <View style={[styles.rowCol, styles.statusCell, styles.statusCellWrapper]}>
                 <View style={[styles.statusBadge, { backgroundColor: statusColor.bg }]}>
                   <Text style={[styles.statusText, { color: statusColor.text }]}>
                     {record.status}
                   </Text>
                 </View>
-                <Text style={[styles.cell, styles.timeCell]}>
+                </View>
+
+                {/* Time In */}
+                <View style={[styles.rowCol, styles.timeCell]}>
+                  <Text style={styles.cell}>
                   {record.checkIn ? formatTimeForDisplay(record.checkIn) : '-'}
                 </Text>
-                <Text style={[styles.cell, styles.timeCell]}>
+                </View>
+
+                {/* Time Out */}
+                <View style={[styles.rowCol, styles.timeCell]}>
+                  <Text style={styles.cell}>
                   {record.checkOut ? formatTimeForDisplay(record.checkOut) : '-'}
                 </Text>
+                </View>
+
+                {/* Arrival Status */}
+                <View style={[styles.rowCol, styles.arrivalCell, styles.arrivalCellWrapper]}>
                 <View style={[styles.arrivalBadge, { backgroundColor: arrivalColor.bg }]}>
                   <Text style={[styles.arrivalText, { color: arrivalColor.text }]}>
                     {record.arrivalStatus || '-'}
                   </Text>
+                  </View>
                 </View>
               </View>
             );
@@ -180,6 +240,46 @@ const EmployeeAttendanceTable = () => {
           )}
         </View>
       </ScrollView>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <View style={styles.paginationContainer}>
+          <Text style={styles.paginationInfo}>
+            Showing {((page - 1) * limit) + 1} - {Math.min(page * limit, total)} of {total}
+          </Text>
+          <View style={styles.paginationControls}>
+            <TouchableOpacity
+              style={[styles.paginationButton, page === 1 && styles.paginationButtonDisabled]}
+              onPress={() => {
+                if (page > 1) {
+                  setPage(page - 1);
+                }
+              }}
+              disabled={page === 1}
+            >
+              <Text style={[styles.paginationButtonText, page === 1 && styles.paginationButtonTextDisabled]}>
+                Previous
+              </Text>
+            </TouchableOpacity>
+            <Text style={styles.paginationPageText}>
+              Page {page} of {totalPages}
+            </Text>
+            <TouchableOpacity
+              style={[styles.paginationButton, page >= totalPages && styles.paginationButtonDisabled]}
+              onPress={() => {
+                if (page < totalPages) {
+                  setPage(page + 1);
+                }
+              }}
+              disabled={page >= totalPages}
+            >
+              <Text style={[styles.paginationButtonText, page >= totalPages && styles.paginationButtonTextDisabled]}>
+                Next
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -239,6 +339,16 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
   },
+  headerCol: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  rowCol: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
   headerCell: {
     fontWeight: '600',
     color: '#374151',
@@ -262,19 +372,26 @@ const styles = StyleSheet.create({
     width: 80,
     paddingHorizontal: 8,
   },
+  statusCellWrapper: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   timeCell: {
     width: 70,
     paddingHorizontal: 8,
   },
   arrivalCell: {
-    width: 100,
+    width: 110,
     paddingHorizontal: 8,
+  },
+  arrivalCellWrapper: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    marginHorizontal: 8,
   },
   statusText: {
     fontSize: 12,
@@ -285,7 +402,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    marginHorizontal: 8,
   },
   arrivalText: {
     fontSize: 12,
@@ -299,6 +415,50 @@ const styles = StyleSheet.create({
   emptyText: {
     color: '#6B7280',
     fontSize: 14,
+  },
+  paginationContainer: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  paginationInfo: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  paginationControls: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  paginationButton: {
+    backgroundColor: '#FB923C',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 6,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  paginationButtonDisabled: {
+    backgroundColor: '#E5E7EB',
+  },
+  paginationButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  paginationButtonTextDisabled: {
+    color: '#9CA3AF',
+  },
+  paginationPageText: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+    minWidth: 80,
+    textAlign: 'center',
   },
 });
 

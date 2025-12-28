@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import useAxios from '../hooks/useAxios';
 import DropdownField from '../components/task/DropdownField';
@@ -40,9 +40,26 @@ export default function TerminateEmployeeScreen() {
   // Errors
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const resetForm = () => {
+    setEmployeeId('');
+    setEffectiveFrom(null);
+    setLastWorkingDay(null);
+    setReasonNote('');
+    setErrors({});
+  };
+
   useEffect(() => {
     loadEmployees();
+    // Reset form when component mounts
+    resetForm();
   }, []);
+
+  // Reset form when screen comes into focus (when navigating back to this screen)
+  useFocusEffect(
+    React.useCallback(() => {
+      resetForm();
+    }, [])
+  );
 
   useEffect(() => {
     // Set minimum date for last working day when effective from changes
@@ -138,6 +155,8 @@ export default function TerminateEmployeeScreen() {
                 data: payload,
               });
 
+              // Reset form before navigating back
+              resetForm();
               Alert.alert('Success', 'Employee terminated successfully', [
                 {
                   text: 'OK',
@@ -177,6 +196,15 @@ export default function TerminateEmployeeScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => {
+            // Navigate to ResignationScreen
+            (navigation as any).navigate('ResignationScreen');
+          }}
+        >
+          <Ionicons name="arrow-back" size={24} color="#111827" />
+        </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Terminate Employee</Text>
         </View>
@@ -301,6 +329,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+    gap: 12,
+  },
+  backButton: {
+    padding: 4,
+    marginRight: 4,
   },
   headerContent: {
     flex: 1,

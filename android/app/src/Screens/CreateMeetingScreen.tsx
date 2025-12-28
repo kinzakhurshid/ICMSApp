@@ -8,9 +8,10 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import useAxios from '../hooks/useAxios';
+import { navigationRef } from '../Services/NavigationService';
 import { useSelector } from 'react-redux';
 import { RootState } from '../states/store';
 import FormField from '../components/task/FormField';
@@ -28,12 +29,9 @@ interface Employee {
 }
 
 const meetingTypes = [
-  { label: 'Daily Standup', value: 'Daily' },
-  { label: 'Weekly', value: 'Weekly' },
+  { label: 'Daily', value: 'Daily' },
+  { label: 'General', value: 'General' },
   { label: 'Sprint', value: 'Sprint' },
-  { label: 'One-on-One', value: 'One-on-One' },
-  { label: 'Team Meeting', value: 'Team Meeting' },
-  { label: 'Other', value: 'Other' },
 ];
 
 export default function CreateMeetingScreen({ route }: any) {
@@ -48,7 +46,7 @@ export default function CreateMeetingScreen({ route }: any) {
   // Form state
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [type, setType] = useState('');
+  const [type, setType] = useState('General');
   const [duration, setDuration] = useState(15);
   const [date, setDate] = useState<Date | null>(null);
   const [time, setTime] = useState<Date | null>(null);
@@ -61,6 +59,39 @@ export default function CreateMeetingScreen({ route }: any) {
 
   // Errors
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Smart back navigation: navigate to Meeting screen
+  const handleBack = () => {
+    // Use navigationRef to navigate to Meeting drawer route
+    if (navigationRef.isReady() && navigationRef.current) {
+      try {
+        navigationRef.current.dispatch(
+          CommonActions.navigate({
+            name: 'Meeting',
+          })
+        );
+        return;
+      } catch (err) {
+        console.error('Navigation error:', err);
+      }
+    }
+
+    // Fallback: Try parent navigator
+    const parent = (navigation as any).getParent?.();
+    if (parent) {
+      try {
+        (parent as any).navigate('Meeting');
+        return;
+      } catch (err) {
+        console.error('Parent navigation error:', err);
+      }
+    }
+
+    // Last resort: goBack
+    if ((navigation as any).canGoBack && typeof (navigation as any).canGoBack === 'function' && (navigation as any).canGoBack()) {
+      (navigation as any).goBack();
+    }
+  };
 
   useEffect(() => {
     loadEmployees();
@@ -92,7 +123,15 @@ export default function CreateMeetingScreen({ route }: any) {
     if (duration < 5 || duration > 240) newErrors.duration = 'Duration must be between 5 and 240 minutes';
     if (!date) newErrors.date = 'Date is required';
     if (!time) newErrors.time = 'Time is required';
-    if (!meetingLink.trim()) newErrors.meetingLink = 'Meeting link is required';
+    if (!meetingLink.trim()) {
+      newErrors.meetingLink = 'Meeting link is required';
+    } else {
+      // Validate URL format (should have protocol)
+      const link = meetingLink.trim();
+      if (!link.match(/^https?:\/\/.+/i)) {
+        newErrors.meetingLink = 'Meeting link must be a valid URL (e.g., https://meet.google.com/abc-xyz)';
+      }
+    }
     if (participants.length === 0) newErrors.participants = 'At least one participant is required';
 
     setErrors(newErrors);
@@ -108,33 +147,12 @@ export default function CreateMeetingScreen({ route }: any) {
     try {
       setLoading(true);
 
-      // Format date and time separately (for separate date/time fields)
+      // Format date and time as per API spec: date = "YYYY-MM-DD", time = "HH:mm"
       const dateStr = date!.toISOString().split('T')[0];
       const timeStr = `${time!.getHours().toString().padStart(2, '0')}:${time!.getMinutes().toString().padStart(2, '0')}`;
-      
-      // Calculate startDate and endDate (API expects ISO dates)
-      const startDateTime = new Date(date!);
-      startDateTime.setHours(time!.getHours(), time!.getMinutes(), 0, 0);
-      const endDateTime = new Date(startDateTime);
-      endDateTime.setMinutes(endDateTime.getMinutes() + duration);
-      
-      const startDateISO = startDateTime.toISOString();
-      const endDateISO = endDateTime.toISOString();
 
-      // Get the employee ID from currentUser - API expects creator field with employee ID
-      // Try multiple possible locations for employee ID
-      const employeeId = (currentUser as any)?.employee?._id || 
-                        (currentUser as any)?.employee?.id ||
-                        (currentUser as any)?.employeeId ||
-                        (currentUser as any)?._id; // Fallback to user ID if employee structure doesn't exist
-      
-      console.log('Current user object:', JSON.stringify(currentUser, null, 2));
-      console.log('Attempting to extract employee ID...');
-      console.log('  - currentUser.employee._id:', (currentUser as any)?.employee?._id);
-      console.log('  - currentUser.employee.id:', (currentUser as any)?.employee?.id);
-      console.log('  - currentUser.employeeId:', (currentUser as any)?.employeeId);
-      console.log('  - currentUser._id:', (currentUser as any)?._id);
-      console.log('  - Final employeeId:', employeeId);
+      // Get the employee ID from currentUser - API expects createdBy field with employee ID
+      const employeeId = (currentUser as any)?.employee?._id;
       
       if (!employeeId) {
         Alert.alert(
@@ -147,22 +165,8 @@ export default function CreateMeetingScreen({ route }: any) {
         return;
       }
 
-      // Get organization ID - can be a string directly or nested in object
-      const organizationId = (currentUser as any)?.organizationId || 
-                            (currentUser as any)?.organization || // Direct string ID
-                            (currentUser as any)?.organization?._id ||
-                            (currentUser as any)?.organization?.id ||
-                            (currentUser as any)?.employee?.organizationId ||
-                            (currentUser as any)?.employee?.organization || // Direct string ID in employee object
-                            (currentUser as any)?.employee?.organization?._id;
-      
-      console.log('Attempting to extract organization ID...');
-      console.log('  - currentUser.organizationId:', (currentUser as any)?.organizationId);
-      console.log('  - currentUser.organization:', (currentUser as any)?.organization);
-      console.log('  - currentUser.organization._id:', (currentUser as any)?.organization?._id);
-      console.log('  - currentUser.employee.organizationId:', (currentUser as any)?.employee?.organizationId);
-      console.log('  - currentUser.employee.organization:', (currentUser as any)?.employee?.organization);
-      console.log('  - Final organizationId:', organizationId);
+      // Get organization ID - API expects currentUser.organization
+      const organizationId = (currentUser as any)?.organization;
       
       if (!organizationId) {
         Alert.alert(
@@ -175,71 +179,41 @@ export default function CreateMeetingScreen({ route }: any) {
         return;
       }
 
-      // Build payload with all required fields
-      // Ensure creator is included in participants if not already there
-      const participantsList = Array.isArray(participants) ? [...participants] : [];
-      if (!participantsList.includes(employeeId)) {
-        participantsList.push(employeeId);
+      // Validate and format meetingLink to ensure it's a full URL with protocol
+      let formattedMeetingLink = meetingLink.trim();
+      if (formattedMeetingLink && !formattedMeetingLink.match(/^https?:\/\//i)) {
+        // If it doesn't start with http:// or https://, add https://
+        formattedMeetingLink = 'https://' + formattedMeetingLink;
       }
-      
-      // Build payload - try createdBy instead of creator as Meeting interface shows createdBy
-      const payload: any = {
+
+      // Ensure type is one of the allowed values: "Daily", "General", "Sprint"
+      const validType = type === 'Daily' || type === 'General' || type === 'Sprint' ? type : 'General';
+
+      // Validate participants: filter to only include valid employee IDs that exist in the employees list
+      const validEmployeeIds = new Set(employees.map(emp => emp._id));
+      const validParticipants = Array.isArray(participants) 
+        ? participants.filter((p: any) => {
+            const participantId = typeof p === 'string' ? p : p._id || p;
+            return participantId && typeof participantId === 'string' && validEmployeeIds.has(participantId);
+          })
+        : [];
+
+      // Build payload exactly as per API specification
+      const payload = {
         name: name.trim(),
-        title: name.trim(),
-        description: description.trim() || '',
-        startDate: startDateISO,
-        endDate: endDateISO,
-        date: dateStr,
-        time: timeStr,
-        duration: parseInt(duration.toString()) || 30,
-        type: type || 'General',
-        status: 'Scheduled',
-        participants: participantsList.length > 0 ? participantsList : [employeeId],
-        createdBy: employeeId, // Try createdBy instead of creator (matches Meeting interface)
-        creator: employeeId, // Keep both just in case
-        organizationId: organizationId,
-        organization: organizationId, // Try both organization and organizationId
+        description: description.trim(),
+        date: dateStr,                    // "YYYY-MM-DD"
+        time: timeStr,                    // "HH:mm"
+        duration: parseInt(duration.toString()),
+        type: validType,                  // Must be "Daily" | "General" | "Sprint"
+        meetingLink: formattedMeetingLink, // Must be full URL with protocol
+        participants: validParticipants,   // Only valid employee IDs
+        createdBy: employeeId,            // employee id of creator
+        organizationId: organizationId,   // org id
       };
-      
-      // Add optional fields
-      if (meetingLink && meetingLink.trim()) {
-        payload.meetingLink = meetingLink.trim();
-        payload.meetingUrl = meetingLink.trim();
-      }
-      
-      // Remove undefined fields
-      Object.keys(payload).forEach(key => {
-        if (payload[key] === undefined) {
-          delete payload[key];
-        }
-      });
-      
-      // Validate that required fields are not empty
-      if (!payload.name || !payload.startDate || !payload.endDate || !payload.createdBy || !payload.organizationId) {
-        Alert.alert('Error', 'Please fill all required fields');
-        setLoading(false);
-        return;
-      }
       
       console.log('=== Meeting Creation Payload ===');
       console.log('Full Payload:', JSON.stringify(payload, null, 2));
-      console.log('Field Check:');
-      console.log('  - name:', payload.name);
-      console.log('  - title:', payload.title);
-      console.log('  - description:', payload.description);
-      console.log('  - startDate:', payload.startDate);
-      console.log('  - endDate:', payload.endDate);
-      console.log('  - date:', payload.date);
-      console.log('  - time:', payload.time);
-      console.log('  - duration:', payload.duration, typeof payload.duration);
-      console.log('  - type:', payload.type);
-      console.log('  - status:', payload.status);
-      console.log('  - participants:', payload.participants, 'Array?', Array.isArray(payload.participants), 'Length:', payload.participants?.length);
-      console.log('  - createdBy:', payload.createdBy);
-      console.log('  - creator:', payload.creator);
-      console.log('  - organizationId:', payload.organizationId);
-      console.log('  - organization:', payload.organization);
-      console.log('  - meetingLink:', payload.meetingLink);
       console.log('================================');
 
       await callApi({
@@ -254,7 +228,7 @@ export default function CreateMeetingScreen({ route }: any) {
       Alert.alert('Success', 'Meeting created successfully', [
         {
           text: 'OK',
-          onPress: () => navigation.goBack(),
+          onPress: handleBack,
         },
       ]);
     } catch (error: any) {
@@ -310,7 +284,7 @@ export default function CreateMeetingScreen({ route }: any) {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
@@ -486,7 +460,7 @@ export default function CreateMeetingScreen({ route }: any) {
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.cancelButton}
-          onPress={() => navigation.goBack()}
+          onPress={handleBack}
           disabled={loading}
         >
           <Text style={styles.cancelButtonText}>Cancel</Text>

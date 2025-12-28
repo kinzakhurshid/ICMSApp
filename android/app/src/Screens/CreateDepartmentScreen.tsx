@@ -26,6 +26,14 @@ interface User {
   };
 }
 
+interface Employee {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  position?: string;
+}
+
 const CreateDepartmentScreen: React.FC = () => {
   const navigation = useNavigation();
   const { callApi } = useAxios();
@@ -39,9 +47,16 @@ const CreateDepartmentScreen: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  
+  // Employee selection state
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+  const [showEmployeesModal, setShowEmployeesModal] = useState(false);
+  const [employeeSearchQuery, setEmployeeSearchQuery] = useState('');
 
   useEffect(() => {
     loadUsers();
+    loadEmployees();
   }, []);
 
   const loadUsers = async () => {
@@ -57,6 +72,25 @@ const CreateDepartmentScreen: React.FC = () => {
       Alert.alert('Error', 'Failed to load users');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadEmployees = async () => {
+    try {
+      const response = await callApi({
+        method: 'GET',
+        url: '/employee',
+      });
+      const employeesData = Array.isArray(response) ? response : (response?.data || []);
+      setEmployees(employeesData.map((emp: any) => ({
+        _id: emp._id || emp.id || '',
+        firstName: emp.firstName || emp.fullName?.split(' ')[0] || '',
+        lastName: emp.lastName || emp.fullName?.split(' ').slice(1).join(' ') || '',
+        email: emp.email || '',
+        position: emp.position || emp.designation || '',
+      })));
+    } catch (error: any) {
+      console.error('Error loading employees:', error);
     }
   };
 
@@ -133,6 +167,11 @@ const CreateDepartmentScreen: React.FC = () => {
         } as any);
       }
 
+      // Append selected employees
+      selectedEmployees.forEach(empId => {
+        formData.append('employees', empId);
+      });
+
       const response = await callApi({
         method: 'POST',
         url: '/departments',
@@ -140,10 +179,20 @@ const CreateDepartmentScreen: React.FC = () => {
       });
 
       if (response?.success !== false) {
+        // Clear form state
+        setName('');
+        setDescription('');
+        setAdmin('');
+        setProfilePicture(null);
+        setSelectedEmployees([]);
+        
         Alert.alert('Success', 'Department created successfully!', [
           {
             text: 'OK',
-            onPress: () => navigation.goBack(),
+            onPress: () => {
+              // After successful creation, always go back to the Departments screen
+              (navigation as any).navigate('Departments');
+            },
           },
         ]);
       } else {
@@ -209,6 +258,42 @@ const CreateDepartmentScreen: React.FC = () => {
             </Text>
             <Ionicons name="chevron-down" size={20} color="#6B7280" />
           </TouchableOpacity>
+        </View>
+
+        {/* Employees */}
+        <View style={styles.fieldContainer}>
+          <Text style={styles.label}>Employees</Text>
+          <TouchableOpacity
+            style={styles.adminInput}
+            onPress={() => setShowEmployeesModal(true)}
+          >
+            <Text style={[styles.adminText, selectedEmployees.length === 0 && styles.adminPlaceholder]}>
+              {selectedEmployees.length === 0 
+                ? 'No employees selected' 
+                : `${selectedEmployees.length} employee${selectedEmployees.length > 1 ? 's' : ''} selected`}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color="#6B7280" />
+          </TouchableOpacity>
+          {selectedEmployees.length > 0 && (
+            <View style={styles.selectedItemsContainer}>
+              {selectedEmployees.map(empId => {
+                const emp = employees.find(e => e._id === empId);
+                if (!emp) return null;
+                return (
+                  <View key={empId} style={styles.selectedItem}>
+                    <Text style={styles.selectedItemText}>
+                      {emp.firstName} {emp.lastName}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => setSelectedEmployees(prev => prev.filter(id => id !== empId))}
+                    >
+                      <Ionicons name="close-circle" size={18} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </View>
+          )}
         </View>
 
         {/* Profile Picture */}
@@ -294,6 +379,68 @@ const CreateDepartmentScreen: React.FC = () => {
                   {user.role && <Text style={styles.modalItemRole}>{user.role}</Text>}
                 </TouchableOpacity>
               ))}
+            </ScrollView>
+          </View>
+        </View>
+      )}
+
+      {/* Employee Selection Modal */}
+      {showEmployeesModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Employees</Text>
+              <TouchableOpacity onPress={() => {
+                setShowEmployeesModal(false);
+                setEmployeeSearchQuery('');
+              }}>
+                <Ionicons name="close" size={24} color="#111827" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={20} color="#9CA3AF" />
+              <TextInput
+                style={styles.modalSearchInput}
+                placeholder="Search employees..."
+                placeholderTextColor="#9CA3AF"
+                value={employeeSearchQuery}
+                onChangeText={setEmployeeSearchQuery}
+              />
+            </View>
+            <ScrollView style={styles.modalList}>
+              {employees
+                .filter(emp => {
+                  const searchLower = employeeSearchQuery.toLowerCase();
+                  const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+                  const email = (emp.email || '').toLowerCase();
+                  return fullName.includes(searchLower) || email.includes(searchLower);
+                })
+                .map(emp => {
+                  const isSelected = selectedEmployees.includes(emp._id);
+                  return (
+                    <TouchableOpacity
+                      key={emp._id}
+                      style={[styles.modalItem, isSelected && styles.modalItemSelected]}
+                      onPress={() => {
+                        if (isSelected) {
+                          setSelectedEmployees(prev => prev.filter(id => id !== emp._id));
+                        } else {
+                          setSelectedEmployees(prev => [...prev, emp._id]);
+                        }
+                      }}
+                    >
+                      <View style={styles.modalItemContent}>
+                        <Text style={styles.modalItemText}>
+                          {emp.firstName} {emp.lastName}
+                        </Text>
+                        {emp.position && <Text style={styles.modalItemRole}>{emp.position}</Text>}
+                      </View>
+                      {isSelected && (
+                        <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
             </ScrollView>
           </View>
         </View>
@@ -497,9 +644,36 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 2,
   },
+  selectedItemsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  selectedItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+  },
+  selectedItemText: {
+    fontSize: 12,
+    color: '#111827',
+    fontWeight: '500',
+  },
+  modalItemContent: {
+    flex: 1,
+  },
 });
 
 export default CreateDepartmentScreen;
+
+
+
+
 
 
 

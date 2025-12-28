@@ -100,7 +100,6 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
       {label && (
         <Text style={styles.label}>
           {label}
-          <Text style={styles.required}> *</Text>
         </Text>
       )}
 

@@ -69,15 +69,17 @@ const CreateQueryScreen: React.FC<CreateQueryScreenProps> = () => {
       formData.append('subject', subject.trim());
       formData.append('description', description.trim());
 
-      // Add files if any
+      // Add files if any – backend expects "images" field
       files.forEach((file, index) => {
         const fileData = {
           uri: file.uri,
           type: file.type || 'application/octet-stream',
           name: file.name || `file_${index}`,
         };
-        formData.append('files', fileData as any);
+        formData.append('images', fileData as any);
       });
+
+      console.log('🔶 [CreateQuery] Submitting query with files count:', files.length);
 
       const response = await callApi({
         method: 'POST',

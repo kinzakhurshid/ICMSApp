@@ -102,7 +102,10 @@ export default function MultiSelectField({
                   style={styles.option}
                   onPress={() => toggleSelection(option.value)}
                 >
-                  <View style={styles.checkbox}>
+                  <View style={[
+                    styles.checkbox,
+                    tempSelected.includes(option.value) && styles.checkboxChecked
+                  ]}>
                     {tempSelected.includes(option.value) && (
                       <Ionicons name="checkmark" size={16} color="#fff" />
                     )}
@@ -230,6 +233,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#fff',
+  },
+  checkboxChecked: {
+    backgroundColor: '#f97316',
+    borderColor: '#f97316',
   },
   optionText: {
     fontSize: 14,

@@ -10,9 +10,9 @@ type Props = {
 
 const EmployeeStructureChart: React.FC<Props> = ({ male, female, other }) => {
   const total = male + female + other || 1;
-  const mPct = Math.round((male / total) * 100);
-  const fPct = Math.round((female / total) * 100);
-  const oPct = 100 - mPct - fPct;
+  const mPct = total > 0 ? Math.round((male / total) * 100) : 0;
+  const fPct = total > 0 ? Math.round((female / total) * 100) : 0;
+  const oPct = Math.max(0, 100 - mPct - fPct);
 
   const size = 140;
   const stroke = 16;
@@ -20,41 +20,55 @@ const EmployeeStructureChart: React.FC<Props> = ({ male, female, other }) => {
   const circum = 2 * Math.PI * radius;
 
   const arc = (pct: number) => (pct / 100) * circum;
+  
+  // Calculate actual percentages to ensure they sum to 100%
+  const actualMPct = total > 0 ? (male / total) * 100 : 0;
+  const actualFPct = total > 0 ? (female / total) * 100 : 0;
+  const actualOPct = 100 - actualMPct - actualFPct;
 
   return (
     <View style={styles.card}>
       <Text style={styles.title}>Employee Structure</Text>
       <View style={{ alignItems: 'center', marginVertical: 8 }}>
         <Svg width={size} height={size}>
+          {/* Background circle */}
           <Circle cx={size/2} cy={size/2} r={radius} stroke="#F3F4F6" strokeWidth={stroke} fill="none" />
-          <Circle
-            cx={size/2}
-            cy={size/2}
-            r={radius}
-            stroke="#FB923C"
-            strokeWidth={stroke}
-            fill="none"
-            strokeDasharray={`${arc(mPct)} ${circum}`}
-            rotation="-90"
-            originX={size/2}
-            originY={size/2}
-            strokeLinecap="round"
-          />
-          <Circle
-            cx={size/2}
-            cy={size/2}
-            r={radius}
-            stroke="#FDBA74"
-            strokeWidth={stroke}
-            fill="none"
-            strokeDasharray={`${arc(fPct)} ${circum}`}
-            strokeDashoffset={arc(mPct)}
-            rotation="-90"
-            originX={size/2}
-            originY={size/2}
-            strokeLinecap="round"
-          />
-          {oPct > 0 && (
+          {/* Male segment */}
+          {actualMPct > 0 && (
+            <Circle
+              cx={size/2}
+              cy={size/2}
+              r={radius}
+              stroke="#FB923C"
+              strokeWidth={stroke}
+              fill="none"
+              strokeDasharray={`${arc(actualMPct)} ${circum}`}
+              strokeDashoffset="0"
+              rotation="-90"
+              originX={size/2}
+              originY={size/2}
+              strokeLinecap="round"
+            />
+          )}
+          {/* Female segment */}
+          {actualFPct > 0 && (
+            <Circle
+              cx={size/2}
+              cy={size/2}
+              r={radius}
+              stroke="#FDBA74"
+              strokeWidth={stroke}
+              fill="none"
+              strokeDasharray={`${arc(actualFPct)} ${circum}`}
+              strokeDashoffset={-arc(actualMPct)}
+              rotation="-90"
+              originX={size/2}
+              originY={size/2}
+              strokeLinecap="round"
+            />
+          )}
+          {/* Other segment */}
+          {actualOPct > 0 && (
             <Circle
               cx={size/2}
               cy={size/2}
@@ -62,8 +76,25 @@ const EmployeeStructureChart: React.FC<Props> = ({ male, female, other }) => {
               stroke="#D1D5DB"
               strokeWidth={stroke}
               fill="none"
-              strokeDasharray={`${arc(oPct)} ${circum}`}
-              strokeDashoffset={arc(mPct + fPct)}
+              strokeDasharray={`${arc(actualOPct)} ${circum}`}
+              strokeDashoffset={-arc(actualMPct + actualFPct)}
+              rotation="-90"
+              originX={size/2}
+              originY={size/2}
+              strokeLinecap="round"
+            />
+          )}
+          {/* Fill remaining gap if percentages don't add up to 100% */}
+          {actualMPct + actualFPct + actualOPct < 100 && (
+            <Circle
+              cx={size/2}
+              cy={size/2}
+              r={radius}
+              stroke="#F3F4F6"
+              strokeWidth={stroke}
+              fill="none"
+              strokeDasharray={`${arc(100 - actualMPct - actualFPct - actualOPct)} ${circum}`}
+              strokeDashoffset={-arc(actualMPct + actualFPct + actualOPct)}
               rotation="-90"
               originX={size/2}
               originY={size/2}

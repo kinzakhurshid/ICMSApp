@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import useAxios from '../hooks/useAxios';
 import FormField from '../components/task/FormField';
@@ -23,6 +23,8 @@ const typeOptions = [
 
 export default function AddHolidayScreen() {
   const navigation = useNavigation();
+  const route = useRoute<any>();
+  const redirectTo = (route.params as any)?.redirectTo as string | undefined;
   const { callApi } = useAxios();
 
   const [submitting, setSubmitting] = useState(false);
@@ -76,7 +78,13 @@ export default function AddHolidayScreen() {
       Alert.alert('Success', 'Holiday added successfully', [
         {
           text: 'OK',
-          onPress: () => navigation.goBack(),
+          onPress: () => {
+            if (redirectTo) {
+              (navigation as any).navigate(redirectTo);
+            } else {
+              navigation.goBack();
+            }
+          },
         },
       ]);
     } catch (error: any) {
@@ -91,6 +99,18 @@ export default function AddHolidayScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => {
+            if (redirectTo) {
+              (navigation as any).navigate(redirectTo);
+            } else {
+              navigation.goBack();
+            }
+          }}
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={22} color="#111827" />
+        </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Add New Holiday</Text>
         </View>
@@ -147,7 +167,13 @@ export default function AddHolidayScreen() {
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.cancelButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => {
+            if (redirectTo) {
+              (navigation as any).navigate(redirectTo);
+            } else {
+              navigation.goBack();
+            }
+          }}
           disabled={submitting}
         >
           <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -182,6 +208,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+  },
+  backButton: {
+    marginRight: 12,
+    padding: 4,
   },
   headerContent: {
     flex: 1,

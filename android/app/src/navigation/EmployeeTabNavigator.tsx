@@ -24,7 +24,7 @@ export type EmployeeTaskStackParamList = {
 
 export type EmployeeLeaveStackParamList = {
   EmployeeLeaveMain: undefined;
-  RequestLeave: { redirectTo?: string } | undefined;
+  RequestLeave: { redirectTo?: string; leaveId?: string } | undefined;
 };
 
 export type EmployeeInboxStackParamList = {

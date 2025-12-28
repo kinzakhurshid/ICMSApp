@@ -134,10 +134,7 @@ export default function AddIdleTimeScreen() {
       Alert.alert('Success', 'Idle time added successfully', [
         {
           text: 'OK',
-          onPress: () => {
-            // Refresh the idle time list by navigating back
-            navigation.goBack();
-          },
+          onPress: () => (navigation as any).navigate('HRIdleTime'),
         },
       ]);
     } catch (error: any) {
@@ -166,6 +163,9 @@ export default function AddIdleTimeScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => (navigation as any).navigate('HRIdleTime')} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={22} color="#111827" />
+        </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Add Idle Time</Text>
           <Text style={styles.headerSubtitle}>
@@ -257,7 +257,7 @@ export default function AddIdleTimeScreen() {
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.cancelButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => (navigation as any).navigate('HRIdleTime')}
           disabled={submitting}
         >
           <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -303,6 +303,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+  },
+  backButton: {
+    marginRight: 12,
+    padding: 4,
   },
   headerContent: {
     flex: 1,

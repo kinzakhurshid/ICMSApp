@@ -45,9 +45,10 @@ const LoginScreen: React.FC = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({email: '', password: ''});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const dispatch = useAppDispatch();
   const {callApi, loading} = useAxios();
-  const { currentUser, token } = useSelector((state: RootState) => state.user);
+  const { currentUser, token, loading: userLoading } = useSelector((state: RootState) => state.user);
    console.log('LoginScreen component rendered',token);
   const validateForm = () => {
     console.log('Validating form'); // Debugging line
@@ -82,11 +83,17 @@ const checkNetworkConnectivity = async () => {
   }
 };
 const handleLogin = async () => {
+  // Prevent multiple simultaneous login attempts
+  if (isSubmitting || userLoading || loading) {
+    return;
+  }
+
   if (!validateForm()) {
     return;
   }
 
   try {
+    setIsSubmitting(true);
     dispatch(loginStart());
        const networkState = await checkNetworkConnectivity();
     if (!networkState.isConnected) {
@@ -132,6 +139,8 @@ const handleLogin = async () => {
       : errorMessage;
     dispatch(loginFailure(displayMessage));
     setErrors(prev => ({...prev, password: displayMessage}));
+  } finally {
+    setIsSubmitting(false);
   }
 };
   // const handleLogin = async () => {
@@ -203,7 +212,7 @@ const handleLogin = async () => {
           <Icon name="lock" size={16} color="#F09819" style={styles.icon} />
           <TextInput
             placeholder="Password"
-            placeholderTextColor="#aaa"
+            placeholderTextColor="#F09819"
             secureTextEntry={!showPassword}
             style={styles.input}
             value={password}
@@ -227,17 +236,17 @@ const handleLogin = async () => {
         <TouchableOpacity
           style={[
             styles.button,
-            (!email || !password) && styles.disabledButton,
+            (!email || !password || isSubmitting || userLoading || loading) && styles.disabledButton,
           ]}
           onPress={handleButtonPress}
-          disabled={!email || !password || loading}
+          disabled={!email || !password || isSubmitting || userLoading || loading}
           activeOpacity={0.7}>
           <LinearGradient
             colors={['#FF512F', '#F09819']}
             style={styles.gradientButton}
             start={{x: 0, y: 0}}
             end={{x: 1, y: 0}}>
-            {loading ? (
+            {(loading || userLoading || isSubmitting) ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.buttonText}>SIGN IN</Text>

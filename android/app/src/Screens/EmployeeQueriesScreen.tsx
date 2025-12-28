@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Dimensions,
+  Alert,
 } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import { useSelector } from 'react-redux';
@@ -43,7 +44,46 @@ interface EmployeeQueriesScreenProps {
 
 const EmployeeQueriesScreen: React.FC<EmployeeQueriesScreenProps> = ({ navigation }) => {
   const { callApi } = useAxios();
-  const { currentUser } = useSelector((state: RootState) => state.user);
+  const { currentUser, token } = useSelector((state: RootState) => state.user);
+  
+  // Get user role
+  const userRole = (currentUser as any)?.role || '';
+  const isHR = userRole === 'HR' || userRole === 'hr';
+  const isOrgAdmin = ['ORG_ADMIN', 'OrgAdmin', 'org_admin', 'Org Admin', 'ORGADMIN', 'orgadmin', 'ORG'].includes(userRole.toString());
+  const isEMP = userRole === 'EMP' || userRole === 'emp' || userRole === 'Employee' || userRole === 'employee';
+  const isPM = userRole === 'PM' || userRole === 'pm';
+  
+  // Helper function to check if query can be deleted
+  const canDeleteQuery = (query: Query): { canDelete: boolean; reason?: string } => {
+    // HR and OrgAdmin cannot delete queries
+    if (isHR || isOrgAdmin) {
+      return { 
+        canDelete: false, 
+        reason: 'HR and Organization Admin users cannot delete queries. You can only mark them as "Solved".' 
+      };
+    }
+    
+    // Check user role - only EMP and PM can delete
+    if (!isEMP && !isPM) {
+      return { 
+        canDelete: false, 
+        reason: `Your role (${userRole}) does not have permission to delete queries. Only Employees (EMP) and Project Managers (PM) can delete queries.` 
+      };
+    }
+    
+    // Check if status is "Pending"
+    if (query.status !== 'Pending') {
+      return { 
+        canDelete: false, 
+        reason: `Cannot delete query. Only queries with status "Pending" can be deleted. Current status: "${query.status || 'Unknown'}".` 
+      };
+    }
+    
+    // Note: Creator check is handled by the API
+    // Since this screen shows the employee's own queries, creator check should pass
+    
+    return { canDelete: true };
+  };
 
   const [records, setRecords] = useState<Query[]>([]);
   const [recordsTotal, setRecordsTotal] = useState(0);
@@ -143,6 +183,104 @@ const EmployeeQueriesScreen: React.FC<EmployeeQueriesScreenProps> = ({ navigatio
   const canPrev = page > 1;
   const canNext = page < totalPages;
 
+  const handleDeleteQuery = async (query: Query) => {
+    // First check if query can be deleted
+    const deleteCheck = canDeleteQuery(query);
+    
+    if (!deleteCheck.canDelete) {
+      Alert.alert(
+        'Cannot Delete Query',
+        deleteCheck.reason || 'This query cannot be deleted.',
+        [{ text: 'OK', style: 'default' }]
+      );
+      return;
+    }
+    
+    // Show confirmation alert
+    Alert.alert(
+      'Delete Query',
+      'Are you sure you want to delete this query? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              if (!token) {
+                Alert.alert('Error', 'Authentication token is missing. Please login again.');
+                return;
+              }
+              
+              // Double-check status before deletion
+              if (query.status !== 'Pending') {
+                Alert.alert(
+                  'Cannot Delete',
+                  `This query cannot be deleted because its status is "${query.status}". Only queries with status "Pending" can be deleted.`
+                );
+                return;
+              }
+              
+              const response = await callApi({
+                method: 'DELETE',
+                url: `/query/${query._id}`,
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                },
+              });
+              
+              // Check if deletion was successful
+              const isSuccess = response?.success !== false && 
+                               (response?.message || 
+                                response?.data?.message || 
+                                response?.status !== 'error');
+              
+              if (isSuccess || response === undefined) {
+                // Remove from local state immediately
+                setRecords(prev => prev.filter(r => r._id !== query._id));
+                setRecordsTotal(prev => Math.max(0, prev - 1));
+                
+                // Refresh the list to ensure consistency
+                await fetchRecords();
+                
+                Alert.alert('Success', 'Query deleted successfully');
+              } else {
+                throw new Error(response?.message || 'Delete operation failed');
+              }
+            } catch (error: any) {
+              console.error('Delete query error:', error);
+              let errorMessage = 'Failed to delete query';
+              
+              if (error?.response?.status === 403) {
+                const apiMessage = error?.response?.data?.message || error?.response?.data?.error;
+                if (apiMessage) {
+                  errorMessage = apiMessage;
+                } else {
+                  errorMessage = 'You do not have permission to delete this query. Only queries with status "Pending" can be deleted, and only by the creator with EMP or PM role.';
+                }
+              } else {
+                errorMessage = error?.response?.data?.message || 
+                               error?.response?.data?.error ||
+                               error?.message ||
+                               'Failed to delete query';
+              }
+              
+              Alert.alert('Error', errorMessage);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleEditQuery = (query: Query) => {
+    navigation.navigate('CreateQuery', { 
+      queryId: query._id, 
+      query: query,
+      editMode: true 
+    });
+  };
+
   const statusBadge = (status?: string) => {
     if (!status) {
       return (
@@ -219,12 +357,13 @@ const EmployeeQueriesScreen: React.FC<EmployeeQueriesScreenProps> = ({ navigatio
         )}
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={{ minWidth: 600 }}>
+          <View style={{ minWidth: 700 }}>
             <View style={styles.tableHead}>
               <Text style={[styles.headCell, { width: 200 }]}>SUBJECT</Text>
               <Text style={[styles.headCell, { width: 120 }]}>STATUS</Text>
               <Text style={[styles.headCell, { width: 140 }]}>CREATED ON</Text>
               <Text style={[styles.headCell, { width: 140 }]}>LAST WORKING DATE</Text>
+              <Text style={[styles.headCell, { width: 120 }]}>ACTIONS</Text>
             </View>
             {recordsLoading ? (
               <View style={styles.loadingRow}>
@@ -236,28 +375,67 @@ const EmployeeQueriesScreen: React.FC<EmployeeQueriesScreenProps> = ({ navigatio
               </View>
             ) : (
               records.map(record => (
-                <TouchableOpacity
-                  key={record._id}
-                  style={styles.tableRow}
-                  onPress={() => {
-                    // Navigate to query detail or task detail
-                    // For now, navigate to CreateQuery with query data for viewing
-                    // You can create a QueryDetailScreen later if needed
-                    navigation.navigate('CreateQuery', { queryId: record._id, viewMode: true });
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.cell, { width: 200 }]} numberOfLines={1}>
-                    {record.subject || '-'}
-                  </Text>
-                  <View style={[styles.cell, { width: 120 }]}>{statusBadge(record.status)}</View>
-                  <Text style={[styles.cell, { width: 140 }]} numberOfLines={1}>
-                    {formatDateDisplay(record.createdAt)}
-                  </Text>
-                  <Text style={[styles.cell, { width: 140 }]} numberOfLines={1}>
-                    {formatDateDisplay(record.lastWorkingDate)}
-                  </Text>
-                </TouchableOpacity>
+                <View key={record._id} style={styles.tableRow}>
+                  <TouchableOpacity
+                    style={styles.tableRowContent}
+                    onPress={() => {
+                      // Navigate to query detail or task detail
+                      // For now, navigate to CreateQuery with query data for viewing
+                      // You can create a QueryDetailScreen later if needed
+                      navigation.navigate('CreateQuery', { queryId: record._id, viewMode: true });
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.cell, { width: 200 }]} numberOfLines={1}>
+                      {record.subject || '-'}
+                    </Text>
+                    <View style={[styles.cell, { width: 120 }]}>{statusBadge(record.status)}</View>
+                    <Text style={[styles.cell, { width: 140 }]} numberOfLines={1}>
+                      {formatDateDisplay(record.createdAt)}
+                    </Text>
+                    <Text style={[styles.cell, { width: 140 }]} numberOfLines={1}>
+                      {formatDateDisplay(record.lastWorkingDate)}
+                    </Text>
+                  </TouchableOpacity>
+                  <View style={[styles.cell, { width: 120, flexDirection: 'row', gap: 8 }]}>
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() => handleEditQuery(record)}
+                    >
+                      <Feather name="edit" size={16} color="#3B82F6" />
+                    </TouchableOpacity>
+                    {(() => {
+                      const deleteCheck = canDeleteQuery(record);
+                      if (!deleteCheck.canDelete) {
+                        // Show disabled button
+                        return (
+                          <TouchableOpacity
+                            style={[styles.actionButton, styles.actionButtonDisabled]}
+                            onPress={() => {
+                              Alert.alert(
+                                'Cannot Delete Query',
+                                deleteCheck.reason || 'This query cannot be deleted.',
+                                [{ text: 'OK', style: 'default' }]
+                              );
+                            }}
+                          >
+                            <Feather name="trash-2" size={16} color="#9CA3AF" />
+                          </TouchableOpacity>
+                        );
+                      }
+                      
+                      // Show active delete button
+                      return (
+                        <TouchableOpacity
+                          style={styles.actionButton}
+                          onPress={() => handleDeleteQuery(record)}
+                        >
+                          <Feather name="trash-2" size={16} color="#EF4444" />
+                        </TouchableOpacity>
+                      );
+                    })()}
+                  </View>
+                </View>
               ))
             )}
           </View>
@@ -425,7 +603,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fff',
   },
+  tableRowContent: {
+    flexDirection: 'row',
+    flex: 1,
+    alignItems: 'center',
+  },
   cell: { fontSize: 13, color: '#374151' },
+  actionButton: {
+    padding: 6,
+    borderRadius: 6,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  actionButtonDisabled: {
+    opacity: 0.5,
+    backgroundColor: '#F3F4F6',
+  },
   loadingRow: { paddingVertical: 40, alignItems: 'center' },
   emptyRow: { paddingVertical: 40, alignItems: 'center' },
   emptyText: { color: '#9CA3AF', fontSize: 14 },
@@ -435,15 +629,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     flexWrap: 'wrap',
     gap: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    marginTop: 8,
   },
-  footerText: { color: '#6B7280', fontSize: 12 },
-  pagination: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  footerText: { color: '#6B7280', fontSize: 12, flexShrink: 1 },
+  pagination: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 8,
+    flexShrink: 0,
+    flexWrap: 'nowrap',
+  },
   pageBtn: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#FB923C',
+    minWidth: 60,
+    alignItems: 'center',
   },
   pageBtnDisabled: {
     borderColor: '#E5E7EB',

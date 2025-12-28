@@ -199,7 +199,7 @@ export default function CreateEmployeeScreen() {
     if (!lastName.trim() || lastName.length > 20) newErrors.lastName = 'Last name is required (max 20 chars)';
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) newErrors.email = 'Valid email is required';
     if (!phoneNumber.trim() || !/^\d+$/.test(phoneNumber)) newErrors.phoneNumber = 'Valid phone number is required';
-    if (password && password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+    if (!password || password.length < 6) newErrors.password = 'Password is required (min 6 characters)';
 
     // Job Details
     if (!role) newErrors.role = 'Role is required';
@@ -207,21 +207,66 @@ export default function CreateEmployeeScreen() {
     if (!position.trim()) newErrors.position = 'Position is required';
     if (!jobType) newErrors.jobType = 'Job type is required';
     if (!hireDate) newErrors.hireDate = 'Hire date is required';
+    if (hireDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const hireDateOnly = new Date(hireDate);
+      hireDateOnly.setHours(0, 0, 0, 0);
+      if (hireDateOnly > today) {
+        newErrors.hireDate = 'Hire date cannot be in the future';
+      }
+    }
     if (!probationDate) newErrors.probationDate = 'Probation date is required';
+    if (hireDate && probationDate && probationDate < hireDate) {
+      newErrors.probationDate = 'Probation date must be after hire date';
+    }
     if (salary < 0) newErrors.salary = 'Salary must be 0 or greater';
 
     // Personal Information
     if (!dateOfBirth) newErrors.dateOfBirth = 'Date of birth is required';
+    if (dateOfBirth) {
+      const today = new Date();
+      const age = today.getFullYear() - dateOfBirth.getFullYear();
+      const monthDiff = today.getMonth() - dateOfBirth.getMonth();
+      const dayDiff = today.getDate() - dateOfBirth.getDate();
+      const actualAge = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
+      if (actualAge < 18) {
+        newErrors.dateOfBirth = 'Employee must be at least 18 years old';
+      }
+      if (actualAge > 100) {
+        newErrors.dateOfBirth = 'Please enter a valid date of birth';
+      }
+    }
     if (!gender) newErrors.gender = 'Gender is required';
-    if (!maritalStatus) newErrors.maritalStatus = 'Marital status is required';
+    // Marital status is optional
     if (!nationality.trim()) newErrors.nationality = 'Nationality is required';
     if (!city.trim()) newErrors.city = 'City is required';
     if (!state.trim()) newErrors.state = 'State is required';
+    
+    // City-State coordination (basic validation)
+    const cityStateMap: Record<string, string> = {
+      'Karachi': 'Sindh',
+      'Lahore': 'Punjab',
+      'Islamabad': 'Islamabad Capital Territory',
+      'Rawalpindi': 'Punjab',
+      'Faisalabad': 'Punjab',
+      'Multan': 'Punjab',
+      'Peshawar': 'Khyber Pakhtunkhwa',
+      'Quetta': 'Balochistan',
+    };
+    if (city.trim() && state.trim() && cityStateMap[city.trim()]) {
+      const expectedState = cityStateMap[city.trim()];
+      if (state.trim() !== expectedState && !state.trim().toLowerCase().includes(expectedState.toLowerCase().split(' ')[0])) {
+        newErrors.city = `City "${city}" typically belongs to "${expectedState}"`;
+      }
+    }
 
     // Emergency Contact
     if (!emergencyName.trim()) newErrors.emergencyName = 'Emergency contact name is required';
     if (!emergencyRelation.trim()) newErrors.emergencyRelation = 'Emergency contact relation is required';
     if (!emergencyPhone.trim() || !/^\d+$/.test(emergencyPhone)) newErrors.emergencyPhone = 'Valid emergency phone is required';
+    
+    // Bank & Tax Details - optional (not required)
 
     // Education
     if (!degree.trim()) newErrors.degree = 'Degree is required';
@@ -233,7 +278,14 @@ export default function CreateEmployeeScreen() {
       if (!exp.company.trim()) newErrors[`experience_${index}_company`] = 'Company is required';
       if (!exp.jobType) newErrors[`experience_${index}_jobType`] = 'Job type is required';
       if (!exp.startDate) newErrors[`experience_${index}_startDate`] = 'Start date is required';
-      if (!exp.isCurrent && !exp.endDate) newErrors[`experience_${index}_endDate`] = 'End date is required';
+      if (!exp.isCurrent && !exp.endDate) {
+        newErrors[`experience_${index}_endDate`] = 'End date is required';
+      }
+      if (exp.startDate && exp.endDate && !exp.isCurrent) {
+        if (exp.endDate < exp.startDate) {
+          newErrors[`experience_${index}_endDate`] = 'End date must be after start date';
+        }
+      }
     });
 
     setErrors(newErrors);
@@ -241,8 +293,20 @@ export default function CreateEmployeeScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) {
-      Alert.alert('Validation Error', 'Please fill all required fields correctly');
+    const isValid = validateForm();
+    if (!isValid) {
+      // Show specific error messages for better user feedback
+      const errorMessages = Object.values(errors).filter(msg => msg);
+      if (errorMessages.length > 0) {
+        // Highlight password error specifically
+        if (errors.password) {
+          Alert.alert('Validation Error', `Password is required (minimum 6 characters).\n\nPlease fill all required fields correctly.`);
+        } else {
+          Alert.alert('Validation Error', `Please fix the following errors:\n\n${errorMessages.slice(0, 3).join('\n')}${errorMessages.length > 3 ? '\n...' : ''}`);
+        }
+      } else {
+        Alert.alert('Validation Error', 'Please fill all required fields correctly');
+      }
       return;
     }
 
@@ -256,7 +320,7 @@ export default function CreateEmployeeScreen() {
       formData.append('lastName', lastName.trim());
       formData.append('email', email.trim());
       formData.append('contactNumber', phoneNumber.trim());
-      if (password) formData.append('password', password);
+      formData.append('password', password);
       if (profileImage) {
         formData.append('profileImage', {
           uri: profileImage.uri,
@@ -319,20 +383,23 @@ export default function CreateEmployeeScreen() {
 
       // Experience (JSON stringified) - always send, even if empty array
       const experiencesData = experiences.map(exp => {
+        // Normalize jobType to match status format (FullTime, PartTime, etc.)
+        const normalizedJobType = 
+          exp.jobType === 'Full-time' ? 'FullTime' :
+          exp.jobType === 'Part-time' ? 'PartTime' :
+          exp.jobType || 'FullTime';
+        
         const expData: any = {
-          position: exp.position.trim(),
-          company: exp.company.trim(),
-          jobType: exp.jobType,
-          startDate: exp.startDate!.toISOString().split('T')[0],
-          isCurrent: exp.isCurrent,
+          position: (exp.position || '').trim(),
+          company: (exp.company || '').trim(),
+          jobType: normalizedJobType,
+          startDate: exp.startDate ? exp.startDate.toISOString().split('T')[0] : '',
+          isCurrent: Boolean(exp.isCurrent), // Ensure it's a boolean
+          description: (exp.description || '').trim(), // Always include description
         };
         // Only add endDate if not current and endDate exists
         if (!exp.isCurrent && exp.endDate) {
           expData.endDate = exp.endDate.toISOString().split('T')[0];
-        }
-        // Only add description if it exists
-        if (exp.description && exp.description.trim()) {
-          expData.description = exp.description.trim();
         }
         return expData;
       });
@@ -434,7 +501,7 @@ export default function CreateEmployeeScreen() {
       Alert.alert('Success', 'Employee created successfully', [
         {
           text: 'OK',
-          onPress: () => navigation.goBack(),
+          onPress: () => (navigation as any).navigate('HREmployees'),
         },
       ]);
     } catch (error: any) {
@@ -465,7 +532,7 @@ export default function CreateEmployeeScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => (navigation as any).navigate('HREmployees')} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
@@ -556,12 +623,13 @@ export default function CreateEmployeeScreen() {
 
             <FormField
               label="Password"
+              required
               value={password}
               onChangeText={(text) => {
                 setPassword(text);
                 if (errors.password) setErrors({ ...errors, password: '' });
               }}
-              placeholder="Password"
+              placeholder="Enter password (min 6 characters)"
               secureTextEntry
               error={errors.password}
             />
@@ -640,6 +708,7 @@ export default function CreateEmployeeScreen() {
                     setHireDate(date);
                     if (errors.hireDate) setErrors({ ...errors, hireDate: '' });
                   }}
+                  maximumDate={new Date()}
                   error={errors.hireDate}
                 />
               </View>
@@ -705,14 +774,13 @@ export default function CreateEmployeeScreen() {
               <View style={styles.column}>
                 <DropdownField
                   label="Marital Status"
-                  required
                   value={maritalStatus}
                   options={maritalStatusOptions}
                   onSelect={(value) => {
                     setMaritalStatus(value);
                     if (errors.maritalStatus) setErrors({ ...errors, maritalStatus: '' });
                   }}
-                  placeholder="Select an option"
+                  placeholder="Select an option (optional)"
                   error={errors.maritalStatus}
                 />
               </View>
@@ -813,7 +881,7 @@ export default function CreateEmployeeScreen() {
                   label="Account Number"
                   value={accountNumber}
                   onChangeText={setAccountNumber}
-                  placeholder="Account Number"
+                  placeholder="Account Number (optional)"
                 />
               </View>
               <View style={styles.column}>
@@ -821,7 +889,7 @@ export default function CreateEmployeeScreen() {
                   label="Bank Name"
                   value={bankName}
                   onChangeText={setBankName}
-                  placeholder="Bank Name"
+                  placeholder="Bank Name (optional)"
                 />
               </View>
             </View>
@@ -832,7 +900,7 @@ export default function CreateEmployeeScreen() {
                   label="Branch"
                   value={branch}
                   onChangeText={setBranch}
-                  placeholder="Branch"
+                  placeholder="Branch (optional)"
                 />
               </View>
               <View style={styles.column}>
@@ -840,7 +908,7 @@ export default function CreateEmployeeScreen() {
                   label="Tax ID"
                   value={taxId}
                   onChangeText={setTaxId}
-                  placeholder="Enter tax ID"
+                  placeholder="Enter tax ID (optional)"
                 />
               </View>
             </View>

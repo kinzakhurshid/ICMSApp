@@ -12,47 +12,13 @@ export function navigate(name: string, params?: any) {
 export function navigateToTab(tabName: string) {
   if (navigationRef.isReady()) {
     try {
-      // Method 1: Try to navigate directly to the tab with screen parameter
-      navigationRef.navigate('MainTabs' as never, { screen: tabName });
-      console.log('🔍 Navigation successful with direct method');
+      // Prefer a simple navigate that preserves the existing history/stack
+      // This avoids resetting the app back to the main dashboard.
+      navigationRef.navigate('MainTabs' as never, { screen: tabName } as never);
+      console.log('🔍 Navigation successful with direct method to tab:', tabName);
     } catch (error) {
-      console.log('🔍 Direct navigation failed, trying alternative:', error);
-      try {
-        // Method 2: Use CommonActions
-        const action = CommonActions.navigate({
-          name: 'MainTabs',
-          params: {
-            screen: tabName,
-          },
-        });
-        navigationRef.dispatch(action);
-        console.log('🔍 Navigation successful with CommonActions');
-      } catch (commonError) {
-        console.log('🔍 CommonActions failed, trying reset method:', commonError);
-        try {
-          // Method 3: Use reset to navigate to the specific tab
-          navigationRef.reset({
-            index: 0,
-            routes: [
-              {
-                name: 'MainTabs' as never,
-                state: {
-                  routes: [
-                    { name: 'HomeTab' as never },
-                    { name: tabName as never },
-                  ],
-                  index: 1, // Set the target tab as active
-                },
-              },
-            ],
-          });
-          console.log('🔍 Navigation successful with reset method');
-        } catch (resetError) {
-          console.log('🔍 All navigation methods failed:', resetError);
-          // Final fallback: just navigate to MainTabs
-          navigationRef.navigate('MainTabs' as never);
-        }
-      }
+      // If navigation fails, just log the error but DO NOT reset to the main dashboard.
+      console.log('🔍 Direct navigation to tab failed:', error);
     }
   }
 }

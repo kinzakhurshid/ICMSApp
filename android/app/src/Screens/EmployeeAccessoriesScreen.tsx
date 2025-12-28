@@ -14,6 +14,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../states/store';
 import useAxios from '../hooks/useAxios';
 import { formatDate } from '../utills/utills';
+import AccessoryRequestTable from '../components/AccessoryRequestTable';
 
 const PAGE_SIZE = 10;
 
@@ -47,6 +48,15 @@ const EmployeeAccessoriesScreen: React.FC<EmployeeAccessoriesScreenProps> = ({ n
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+
+  // Accessory requests state (for current employee)
+  const [requestPage, setRequestPage] = useState(1);
+  const [requestLimit, setRequestLimit] = useState(10);
+  const [requestTotal, setRequestTotal] = useState(0);
+  const [requestSearch, setRequestSearch] = useState('');
+  const [requestStatus, setRequestStatus] = useState('');
+  const [requests, setRequests] = useState<any[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
 
   const formatDateDisplay = (value?: string) => {
     if (!value) return '-';
@@ -112,10 +122,58 @@ const EmployeeAccessoriesScreen: React.FC<EmployeeAccessoriesScreenProps> = ({ n
     }
   };
 
+  const fetchRequests = async (overridePage = requestPage, overrideLimit = requestLimit) => {
+    setRequestsLoading(true);
+    try {
+      const params: any = {
+        page: overridePage,
+        limit: overrideLimit,
+      };
+      if (requestSearch.trim()) params.search = requestSearch.trim();
+      if (requestStatus) params.status = requestStatus;
+
+      console.log('Fetching employee accessory requests with params:', params);
+      const res = await callApi({
+        method: 'GET',
+        url: '/accessory-requests/employee',
+        params,
+      });
+
+      let data: any[] = [];
+      let total = 0;
+
+      if (Array.isArray(res?.data)) {
+        data = res.data;
+        total = res.total || res.data.length || 0;
+      } else if (Array.isArray(res)) {
+        data = res;
+        total = res.length;
+      }
+
+      setRequests(data);
+      setRequestTotal(total);
+      setRequestPage(overridePage);
+      setRequestLimit(overrideLimit);
+      console.log('Employee accessory requests loaded:', data.length, 'Total:', total);
+    } catch (error: any) {
+      console.error('Employee accessory requests fetch error:', error);
+      console.error('Error details:', error?.response?.data || error?.message);
+      setRequests([]);
+      setRequestTotal(0);
+    } finally {
+      setRequestsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchRecords();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, search]); // Direct dependencies - fetchRecords uses these values
+
+  useEffect(() => {
+    fetchRequests(1, requestLimit);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // initial load for requests
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -148,6 +206,11 @@ const EmployeeAccessoriesScreen: React.FC<EmployeeAccessoriesScreenProps> = ({ n
       </View>
     );
   };
+
+  const requestTotalPages = useMemo(
+    () => Math.max(1, Math.ceil((requestTotal || 0) / requestLimit)),
+    [requestTotal, requestLimit],
+  );
 
   return (
     <ScrollView 
@@ -259,6 +322,50 @@ const EmployeeAccessoriesScreen: React.FC<EmployeeAccessoriesScreenProps> = ({ n
           </View>
         </View>
       </View>
+
+      {/* Accessory Requests table (for this employee) */}
+      <AccessoryRequestTable
+        requests={requests}
+        page={requestPage}
+        totalPages={requestTotalPages}
+        search={requestSearch}
+        status={requestStatus}
+        limit={requestLimit}
+        showEmployeeColumn={false}
+        onSearchChange={(val) => {
+          setRequestSearch(val);
+        }}
+        onStatusChange={(val) => {
+          setRequestStatus(val);
+        }}
+        onSearchSubmit={() => {
+          fetchRequests(1, requestLimit);
+        }}
+        onPageChange={(p) => {
+          fetchRequests(p, requestLimit);
+        }}
+        onLimitChange={(l) => {
+          fetchRequests(1, l);
+        }}
+        onLoadAllRequests={async () => {
+          try {
+            const res = await callApi({
+              method: 'GET',
+              url: '/accessory-requests/employee',
+              params: {
+                page: 1,
+                limit: 10000,
+                search: requestSearch,
+                status: requestStatus,
+              },
+            });
+            return res;
+          } catch (err) {
+            console.error('Failed to load all accessory requests (employee):', err);
+            return { data: [] };
+          }
+        }}
+      />
     </ScrollView>
   );
 };

@@ -4,6 +4,7 @@ apply plugin: "com.google.gms.google-services"
 
 react {
     /* React configuration (keep as is) */
+    nodeExecutableAndArgs = ["/Users/kinzakhurshid/.nvm/versions/node/v20.15.1/bin/node"]
 }
 
 def enableProguardInReleaseBuilds = false

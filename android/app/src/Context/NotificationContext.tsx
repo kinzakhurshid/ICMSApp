@@ -123,79 +123,113 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const fetchNotifications = async (page = 1, limit = 50): Promise<void> => {
     try {
       setNotificationsLoading(true);
-      // Fetch all notifications (inbox and general/system notifications)
-      // Unified notifications API (same as web):
-      // GET /notifications?page=1&limit=50
-      // We rely on auth token for current user scoping.
-      const response = await callApi({
-        method: 'GET',
-        url: '/notifications',
-        params: { 
-          page, 
-          limit,
-          type: 'all' // Fetch all types of notifications (inbox and general)
-        },
-      });
 
-      // Support multiple possible response shapes gracefully
+      const userId = getCurrentUserId();
+      if (!userId) {
+        setNotifications([]);
+        setUnreadCount(0);
+        return;
+      }
+
+      // Helper to normalise raw notifications from any backend shape
+      const normaliseItems = (items: any[]): InboxNotification[] => {
+        return items.map((raw: any) => {
+          const readFlag = !!(raw.read || raw.readAt);
+          const deliveredFlag = !!(raw.delivered || raw.deliveredAt);
+
+          // Normalise sender: can be an object or an ID string
+          let sender: NotificationUser | string;
+          if (raw.sender && typeof raw.sender === 'object') {
+            sender = {
+              _id: raw.sender._id || raw.sender.id || '',
+              username: raw.sender.username,
+              profilePicture: raw.sender.profilePicture,
+              name: raw.sender.name,
+            };
+          } else {
+            sender = typeof raw.sender === 'string'
+              ? raw.sender
+              : '';
+          }
+
+          return {
+            _id: raw._id,
+            receiver: raw.receiver,
+            sender,
+            type: raw.type || 'system',
+            chat: raw.chat,
+            relatedMessage: raw.relatedMessage,
+            title: raw.title || '',
+            body: raw.body || '',
+            metadata: raw.metadata || {},
+            read: readFlag,
+            delivered: deliveredFlag,
+            createdAt: raw.createdAt,
+            updatedAt: raw.updatedAt,
+            organizationId: raw.organizationId,
+            action: raw.action,
+            link: raw.link,
+            entity: raw.entity,
+            severity: raw.severity,
+            module: raw.module,
+            deliveredAt: raw.deliveredAt,
+            readAt: raw.readAt,
+            isArchived: raw.isArchived,
+          };
+        });
+      };
+
+      // First try the unified notifications API (used by the web app)
+      let response: any;
       let items: any[] = [];
 
-      if (Array.isArray(response)) {
-        items = response;
-      } else if (Array.isArray(response?.notifications)) {
-        items = response.notifications;
-      } else if (Array.isArray(response?.data)) {
-        items = response.data;
-      } else if (Array.isArray(response?.results)) {
-        items = response.results;
+      try {
+        response = await callApi({
+          method: 'GET',
+          url: '/notifications',
+          params: {
+            page,
+            limit,
+            type: 'all', // Fetch all types of notifications (inbox and general)
+          },
+        });
+
+        if (Array.isArray(response)) {
+          items = response;
+        } else if (Array.isArray(response?.notifications)) {
+          items = response.notifications;
+        } else if (Array.isArray(response?.data)) {
+          items = response.data;
+        } else if (Array.isArray(response?.results)) {
+          items = response.results;
+        }
+      } catch (error) {
+        console.error('Error fetching /notifications, falling back to inbox-notifications list:', error);
+      }
+
+      // If unified API returned nothing, fall back to legacy inbox notifications list
+      if (!items.length) {
+        try {
+          const legacyResponse = await callApi({
+            method: 'GET',
+            url: `/inbox-notifications/user/${userId}`,
+            params: { page, limit },
+          });
+
+          if (Array.isArray(legacyResponse)) {
+            items = legacyResponse;
+          } else if (Array.isArray(legacyResponse?.notifications)) {
+            items = legacyResponse.notifications;
+          } else if (Array.isArray(legacyResponse?.data)) {
+            items = legacyResponse.data;
+          }
+        } catch (legacyError) {
+          console.error('Error fetching legacy inbox notifications:', legacyError);
+        }
       }
 
       // Normalise raw notifications into our InboxNotification shape
-      const normalised: InboxNotification[] = items.map((raw: any) => {
-        const readFlag = !!(raw.read || raw.readAt);
-        const deliveredFlag = !!(raw.delivered || raw.deliveredAt);
-
-        // Normalise sender: can be an object or an ID string
-        let sender: NotificationUser | string;
-        if (raw.sender && typeof raw.sender === 'object') {
-          sender = {
-            _id: raw.sender._id || raw.sender.id || '',
-            username: raw.sender.username,
-            profilePicture: raw.sender.profilePicture,
-            name: raw.sender.name,
-          };
-        } else {
-          sender = typeof raw.sender === 'string'
-            ? raw.sender
-            : '';
-        }
-
-        return {
-          _id: raw._id,
-          receiver: raw.receiver,
-          sender,
-          type: raw.type || 'system',
-          chat: raw.chat,
-          relatedMessage: raw.relatedMessage,
-          title: raw.title || '',
-          body: raw.body || '',
-          metadata: raw.metadata || {},
-          read: readFlag,
-          delivered: deliveredFlag,
-          createdAt: raw.createdAt,
-          updatedAt: raw.updatedAt,
-          organizationId: raw.organizationId,
-          action: raw.action,
-          link: raw.link,
-          entity: raw.entity,
-          severity: raw.severity,
-          module: raw.module,
-          deliveredAt: raw.deliveredAt,
-          readAt: raw.readAt,
-          isArchived: raw.isArchived,
-        };
-      });
-
+      const normalised: InboxNotification[] = normaliseItems(items);
       setNotifications(normalised);
 
       // Derive unread count from the fetched list so badge stays in sync

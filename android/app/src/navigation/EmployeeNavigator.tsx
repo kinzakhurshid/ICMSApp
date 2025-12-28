@@ -15,6 +15,7 @@ import CreateQueryScreen from '../Screens/CreateQueryScreen';
 import EmployeeAccessoriesScreen from '../Screens/EmployeeAccessoriesScreen';
 import CreateAccessoryRequestScreen from '../Screens/CreateAccessoryRequestScreen';
 import ProjectDetailScreen from '../Screens/ProjectDetailScreen';
+import SprintDetailScreen from '../Screens/SprintDetailScreen';
 import Icon from 'react-native-vector-icons/FontAwesome';
 
 export type EmployeeDrawerParamList = {
@@ -30,6 +31,7 @@ export type EmployeeDrawerParamList = {
   Accessories: undefined;
   CreateAccessoryRequest: undefined;
   ProjectDetail: { projectId: string };
+  SprintDetail: { sprintId: string };
 };
 
 const Drawer = createDrawerNavigator<EmployeeDrawerParamList>();
@@ -159,6 +161,14 @@ const EmployeeNavigator: React.FC = () => {
         options={{
           title: 'Project Details',
           drawerItemStyle: { display: 'none' }, // Hide from drawer, only accessible via navigation
+        }}
+      />
+      <Drawer.Screen
+        name="SprintDetail"
+        component={SprintDetailScreen}
+        options={{
+          title: 'Sprint Details',
+          drawerItemStyle: { display: 'none' }, // Hidden, opened from TaskDetail
         }}
       />
     </Drawer.Navigator>

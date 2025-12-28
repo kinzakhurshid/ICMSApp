@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { 
   View, 
   Text, 
@@ -10,7 +10,7 @@ import {
   Dimensions,
   Alert
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import useAxios from '../hooks/useAxios';
@@ -32,40 +32,100 @@ export default function EmployeeProfileScreen() {
     (navigation as any).navigate('EditProfile');
   };
 
+  const employeeId =
+    currentUser?.employee?._id || currentUser?.employee?.id || currentUser?._id;
+
+  // Initial load (run once on mount)
   useEffect(() => {
-    const fetchEmployee = async () => {
+    console.log('🔁 [EmployeeProfile] useEffect initial load - employeeId:', employeeId);
+    let isActive = true;
+    const load = async () => {
       try {
+        console.log('🔶 [EmployeeProfile] load(): start, setLoading(true)');
         setLoading(true);
-        // Handle both employee and OrgAdmin profiles
-        const employeeId = currentUser?.employee?._id || currentUser?.employee?.id || currentUser?._id;
         if (!employeeId) {
           setError('User ID not found');
+          console.log('🔴 [EmployeeProfile] No employeeId available');
           return;
         }
-        // Try employee endpoint first, fallback to user endpoint for OrgAdmin
         try {
+          console.log('🔶 [EmployeeProfile] Fetching /employee/', employeeId);
           const response = await callApi({
-            method: "GET",
+            method: 'GET',
             url: `/employee/${employeeId}`,
           });
-          setEmployee(response);
+          if (isActive) setEmployee(response);
         } catch (employeeError) {
-          // If employee endpoint fails, try user endpoint (for OrgAdmin)
+          console.warn(
+            '⚠️ [EmployeeProfile] /employee failed, trying /user/',
+            employeeId,
+            employeeError,
+          );
           const userResponse = await callApi({
-            method: "GET",
+            method: 'GET',
             url: `/user/${employeeId}`,
           });
-          setEmployee(userResponse);
+          if (isActive) setEmployee(userResponse);
         }
       } catch (err) {
+        if (isActive) {
         setError('Failed to load profile');
-        console.error('Error loading profile:', err);
+          console.error('🔴 [EmployeeProfile] Error loading profile (initial):', err);
+        }
       } finally {
+        if (isActive) {
+          console.log('✅ [EmployeeProfile] load(): finished, setLoading(false)');
         setLoading(false);
       }
+      }
     };
-    fetchEmployee();
-  }, [currentUser?.employee?._id, currentUser?._id]);
+    load();
+    return () => {
+      isActive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Refresh when screen comes back into focus (e.g. after editing profile)
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🔁 [EmployeeProfile] useFocusEffect - screen focused, employeeId:', employeeId);
+      let isActive = true;
+      const load = async () => {
+        try {
+          if (!employeeId) {
+            console.log('🔴 [EmployeeProfile] Focus refresh skipped, no employeeId');
+            return;
+          }
+          console.log('🔶 [EmployeeProfile] Focus refresh: fetching /employee/', employeeId);
+          const response = await callApi({
+            method: 'GET',
+            url: `/employee/${employeeId}`,
+          });
+          if (isActive) setEmployee(response);
+        } catch (employeeError) {
+          try {
+            console.warn(
+              '⚠️ [EmployeeProfile] Focus refresh /employee failed, trying /user/',
+              employeeId,
+              employeeError,
+            );
+            const userResponse = await callApi({
+              method: 'GET',
+              url: `/user/${employeeId}`,
+            });
+            if (isActive) setEmployee(userResponse);
+          } catch (err) {
+            console.error('🔴 [EmployeeProfile] Error refreshing profile on focus:', err);
+          }
+        }
+      };
+      load();
+      return () => {
+        isActive = false;
+      };
+    }, [employeeId]),
+  );
 
   if (loading) return (
     <View style={styles.centered}>

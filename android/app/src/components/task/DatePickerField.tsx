@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, Alert } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
@@ -13,6 +13,8 @@ interface DatePickerFieldProps {
   minimumDate?: Date;
   maximumDate?: Date;
   disabled?: boolean;
+  preventPastDates?: boolean;
+  pastDateMessage?: string;
 }
 
 export default function DatePickerField({
@@ -25,6 +27,8 @@ export default function DatePickerField({
   minimumDate,
   maximumDate,
   disabled = false,
+  preventPastDates = false,
+  pastDateMessage = 'Past attendance cannot be edited',
 }: DatePickerFieldProps) {
   const [showPicker, setShowPicker] = useState(false);
 
@@ -36,11 +40,24 @@ export default function DatePickerField({
     return `${day} / ${month} / ${year}`;
   };
 
+  const isPastDate = (date: Date): boolean => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selected = new Date(date);
+    selected.setHours(0, 0, 0, 0);
+    return selected < today;
+  };
+
   const handleDateChange = (event: any, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
       setShowPicker(false);
     }
     if (selectedDate) {
+      // Check if past dates are prevented and if the selected date is in the past
+      if (preventPastDates && isPastDate(selectedDate)) {
+        Alert.alert('Invalid Date', pastDateMessage);
+        return;
+      }
       onChange(selectedDate);
       if (Platform.OS === 'ios') {
         setShowPicker(false);

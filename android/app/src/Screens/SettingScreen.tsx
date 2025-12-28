@@ -13,11 +13,67 @@ interface SettingsScreenProps {
   navigation: SettingsScreenNavigationProp;
 }
 
+const SETTINGS_STORAGE_KEY = 'appSettings';
+
+interface AppSettings {
+  notificationsEnabled: boolean;
+  darkModeEnabled: boolean;
+}
+
 const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
   const dispatch = useDispatch();
-  const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
-  const [darkModeEnabled, setDarkModeEnabled] = React.useState(false);
-  const [biometricEnabled, setBiometricEnabled] = React.useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = React.useState<boolean>(true);
+  const [darkModeEnabled, setDarkModeEnabled] = React.useState<boolean>(false);
+
+  // Load settings from AsyncStorage on mount
+  React.useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(SETTINGS_STORAGE_KEY);
+        if (stored) {
+          const parsed: Partial<AppSettings> = JSON.parse(stored);
+          if (typeof parsed.notificationsEnabled === 'boolean') {
+            setNotificationsEnabled(parsed.notificationsEnabled);
+          }
+          if (typeof parsed.darkModeEnabled === 'boolean') {
+            setDarkModeEnabled(parsed.darkModeEnabled);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading app settings:', error);
+      }
+    };
+    loadSettings();
+  }, []);
+
+  const saveSettings = async (partial: Partial<AppSettings>) => {
+    try {
+      const current: AppSettings = {
+        notificationsEnabled,
+        darkModeEnabled,
+      };
+      const updated: AppSettings = { ...current, ...partial };
+      await AsyncStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(updated));
+    } catch (error) {
+      console.error('Error saving app settings:', error);
+    }
+  };
+
+  const handleToggleNotifications = (value: boolean) => {
+    setNotificationsEnabled(value);
+    saveSettings({ notificationsEnabled: value });
+  };
+
+  const handleToggleDarkMode = (value: boolean) => {
+    setDarkModeEnabled(value);
+    saveSettings({ darkModeEnabled: value });
+    Alert.alert(
+      'Theme preference saved',
+      value
+        ? 'Dark mode will be applied across supported screens.'
+        : 'Light mode preference saved.'
+    );
+  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -66,12 +122,12 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
         <TouchableOpacity 
           style={styles.settingItem}
           onPress={() => {
-            // Navigate to profile/edit profile screen
-            const user = (navigation as any).getState?.()?.routes?.[0]?.params;
-            if ((navigation as any).navigate) {
-              (navigation as any).navigate('Profile');
-            } else {
-              Alert.alert('Info', 'Account information feature coming soon');
+            // Navigate to profile screen from drawer
+            try {
+              (navigation as any).navigate('EmployeeProfile');
+            } catch (e) {
+              console.warn('Failed to navigate to EmployeeProfile, falling back:', e);
+              Alert.alert('Info', 'Unable to open profile screen.');
             }
           }}
         >
@@ -110,7 +166,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
           </View>
           <Switch
             value={notificationsEnabled}
-            onValueChange={setNotificationsEnabled}
+            onValueChange={handleToggleNotifications}
             trackColor={{ false: '#e2e8f0', true: '#d9534f' }}
             thumbColor="#ffffff"
           />
@@ -123,7 +179,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
           </View>
           <Switch
             value={darkModeEnabled}
-            onValueChange={setDarkModeEnabled}
+            onValueChange={handleToggleDarkMode}
             trackColor={{ false: '#e2e8f0', true: '#d9534f' }}
             thumbColor="#ffffff"
           />
@@ -136,33 +192,12 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
         <TouchableOpacity 
           style={styles.settingItem}
           onPress={() => {
-            Alert.alert(
-              'Help Center',
-              'For assistance, please contact:\n\nEmail: support@icmsapp.com\nPhone: +92-XXX-XXXXXXX',
-              [{ text: 'OK' }]
-            );
+            (navigation as any).navigate('HelpCenter');
           }}
         >
           <View style={styles.settingInfo}>
             <Icon name="help" size={22} color="#d9534f" style={styles.settingIcon} />
             <Text style={styles.settingText}>Help Center</Text>
-          </View>
-          <Icon name="chevron-right" size={22} color="#a0aec0" />
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.settingItem}
-          onPress={() => {
-            Alert.alert(
-              'About App',
-              'ICMS App\nVersion 1.0.0\n\nIntegrated Company Management System',
-              [{ text: 'OK' }]
-            );
-          }}
-        >
-          <View style={styles.settingInfo}>
-            <Icon name="info" size={22} color="#d9534f" style={styles.settingIcon} />
-            <Text style={styles.settingText}>About App</Text>
           </View>
           <Icon name="chevron-right" size={22} color="#a0aec0" />
         </TouchableOpacity>

@@ -17,6 +17,7 @@ import { RootState } from '../states/store';
 import useAxios from '../hooks/useAxios';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { exportToXlsx } from '../utills/utills';
 
 const { width } = Dimensions.get('window');
 
@@ -27,6 +28,9 @@ const periods = [
   { key: 'thisMonth', label: 'This Month' },
   { key: 'allTime', label: 'All Time' }
 ];
+
+const statusOptions = ['All Statuses', 'To Do', 'In Progress', 'In Review', 'Completed', 'Blocked'];
+const monthOptions = ['Month', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 export default function EmployeeTasksScreen() {
   const navigation = useNavigation();
@@ -45,6 +49,28 @@ export default function EmployeeTasksScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showPeriodModal, setShowPeriodModal] = useState(false);
   const [filteredTasks, setFilteredTasks] = useState([]);
+  const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<'Active' | 'Completed'>('Active');
+  const [boardTab, setBoardTab] = useState<'Backlog' | 'Notes'>('Backlog');
+  const [notes, setNotes] = useState<string[]>([]);
+  const [newNote, setNewNote] = useState('');
+  const [showNoteModal, setShowNoteModal] = useState(false);
+
+  // Task table filters similar to PM web
+  const [selectedStatus, setSelectedStatus] = useState('All Statuses');
+  const [selectedMonth, setSelectedMonth] = useState('Month');
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showMonthDropdown, setShowMonthDropdown] = useState(false);
+
+  // Bugs state (per-employee view)
+  const [bugs, setBugs] = useState<any[]>([]);
+  const [bugsLoading, setBugsLoading] = useState(false);
+  const [bugsActiveTab, setBugsActiveTab] = useState<'Active' | 'Completed'>('Active');
+  const [bugsSearchQuery, setBugsSearchQuery] = useState('');
+  const [bugsSelectedStatus, setBugsSelectedStatus] = useState('All Statuses');
+  const [bugsSelectedMonth, setBugsSelectedMonth] = useState('Month');
+  const [showBugsStatusDropdown, setShowBugsStatusDropdown] = useState(false);
+  const [showBugsMonthDropdown, setShowBugsMonthDropdown] = useState(false);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -153,15 +179,237 @@ export default function EmployeeTasksScreen() {
   }, [selectedPeriod, currentUser]);
 
   useEffect(() => {
-    const filtered = tasks.filter(task =>
-      task.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (typeof task.projectId === 'object' ? task.projectId?.name?.toLowerCase().includes(searchQuery.toLowerCase()) : task.project?.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      task.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.priority?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.status?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filtered = tasks.filter((task: any) => {
+      const search = searchQuery.toLowerCase();
+      const status = (task.status || '').toLowerCase();
+
+      // Status filter
+      if (selectedStatus !== 'All Statuses') {
+        const normalized = selectedStatus.toLowerCase().replace(' ', '_');
+        if (status !== normalized) return false;
+      }
+
+      // Month filter (by dueDate)
+      if (selectedMonth !== 'Month' && task.dueDate) {
+        const monthIndex = new Date(task.dueDate).getMonth(); // 0-11
+        const monthName = monthOptions[monthIndex + 1]; // shift by 1 because first is 'Month'
+        if (monthName !== selectedMonth) return false;
+      }
+
+      // Text search
+      if (!search) return true;
+
+      return (
+        task.title?.toLowerCase().includes(search) ||
+        (typeof task.projectId === 'object'
+          ? task.projectId?.name?.toLowerCase().includes(search)
+          : task.project?.toLowerCase().includes(search)) ||
+        task.description?.toLowerCase().includes(search) ||
+        task.priority?.toLowerCase().includes(search) ||
+        status.includes(search)
+      );
+    });
     setFilteredTasks(filtered);
-  }, [tasks, searchQuery]);
+  }, [tasks, searchQuery, selectedStatus, selectedMonth]);
+
+  // Visible tasks based on Active / Completed tab
+  const visibleTasks = filteredTasks.filter((task: any) => {
+    const status = (task.status || '').toLowerCase();
+    if (activeTab === 'Completed') {
+      return status === 'completed';
+    }
+    // Active tab → everything that is not completed
+    return status !== 'completed';
+  });
+
+  // Selection helpers for checkboxes
+  const toggleTaskSelection = (taskId: string) => {
+    setSelectedTasks(prev =>
+      prev.includes(taskId) ? prev.filter(id => id !== taskId) : [...prev, taskId],
+    );
+  };
+
+  const toggleAllTasksSelection = () => {
+    if (visibleTasks.length > 0 && selectedTasks.length === visibleTasks.length) {
+      setSelectedTasks([]);
+    } else {
+      setSelectedTasks(visibleTasks.map((t: any) => t._id).filter(Boolean));
+    }
+  };
+
+  // Update task status (used when moving cards between backlog columns)
+  const handleStatusChange = async (taskId: string, newStatus: string) => {
+    try {
+      await callApi({
+        method: 'PATCH',
+        url: `/task/${taskId}/status`,
+        data: { status: newStatus },
+      });
+
+      // Update local tasks state
+      setTasks(prev =>
+        prev.map(task =>
+          (task as any)._id === taskId ? { ...(task as any), status: newStatus } : task,
+        ),
+      );
+
+      Alert.alert('Success', 'Task status updated successfully');
+    } catch (error: any) {
+      console.error('Error updating task status:', error);
+      const errorMessage =
+        error?.response?.data?.message || error?.message || 'Failed to update task status';
+      Alert.alert('Error', errorMessage);
+    }
+  };
+
+  const openMoveStatusMenu = (task: any) => {
+    if (!task?._id) {
+      return;
+    }
+    Alert.alert('Move Task', 'Select the column to move this task to:', [
+      { text: 'To Do', onPress: () => handleStatusChange(task._id, 'todo') },
+      { text: 'In Progress', onPress: () => handleStatusChange(task._id, 'in_progress') },
+      { text: 'In Review', onPress: () => handleStatusChange(task._id, 'in_review') },
+      { text: 'Completed', onPress: () => handleStatusChange(task._id, 'completed') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  // Bugs: fetch and filter similar to PM TasksScreen, but scoped by organization
+  const fetchBugs = async () => {
+    try {
+      if (!currentUser?.organization) return;
+
+      setBugsLoading(true);
+
+      // Month filter for bugs
+      const now = new Date();
+      let startDate: Date | null = null;
+      let endDate: Date | null = null;
+      if (bugsSelectedMonth !== 'Month') {
+        const monthIndex = monthOptions.indexOf(bugsSelectedMonth) - 1;
+        if (monthIndex >= 0) {
+          startDate = new Date(now.getFullYear(), monthIndex, 1);
+          endDate = new Date(now.getFullYear(), monthIndex + 1, 0, 23, 59, 59, 999);
+        }
+      }
+
+      const params: any = {
+        organizationId: currentUser.organization,
+        status: bugsActiveTab === 'Active' ? 'active' : 'completed',
+        search: bugsSearchQuery,
+        page: 1,
+        limit: 50,
+        isBug: 'true',
+      };
+
+      if (startDate && endDate) {
+        params.startDate = startDate.toISOString();
+        params.endDate = endDate.toISOString();
+      }
+
+      const response = await callApi({
+        method: 'GET',
+        url: '/task/getAll',
+        params,
+      });
+
+      const success = (response as any)?.success;
+      const dataWrapper = (response as any)?.data;
+      const bugsArray: any[] = Array.isArray(dataWrapper?.tasks) ? dataWrapper.tasks : [];
+
+      if (success) {
+        setBugs(bugsArray);
+      } else {
+        setBugs([]);
+      }
+    } catch (err) {
+      console.error('Failed to fetch bugs (employee):', err);
+    } finally {
+      setBugsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBugs();
+  }, [currentUser?.organization, bugsActiveTab, bugsSearchQuery, bugsSelectedMonth]);
+
+  const filteredBugs = bugs.filter((bug: any) => {
+    if (bugsSelectedStatus !== 'All Statuses') {
+      const normalized = bugsSelectedStatus.toLowerCase().replace(' ', '_');
+      if ((bug.status || '').toLowerCase() !== normalized) return false;
+    }
+    if (!bugsSearchQuery) return true;
+    const s = bugsSearchQuery.toLowerCase();
+    return (
+      bug.title?.toLowerCase().includes(s) ||
+      (typeof bug.projectId === 'object'
+        ? bug.projectId?.name?.toLowerCase().includes(s)
+        : (bug.projectId || '').toString().toLowerCase().includes(s))
+    );
+  });
+
+  const handleExportBugs = async () => {
+    try {
+      if (!filteredBugs.length) {
+        Alert.alert('Info', 'No bugs to export');
+        return;
+      }
+
+      const rows = filteredBugs.map((bug: any, index: number) => ({
+        no: index + 1,
+        project:
+          typeof bug.projectId === 'object'
+            ? bug.projectId?.name || 'N/A'
+            : bug.project || 'N/A',
+        title: bug.title || 'N/A',
+        startDate: bug.startDate || '',
+        dueDate: bug.dueDate || '',
+        priority: bug.priority || 'N/A',
+        status: bug.status || 'N/A',
+      }));
+
+      await exportToXlsx({
+        filename: `employee-bugs-${new Date().toISOString().split('T')[0]}`,
+        columns: [
+          { key: 'no', header: 'NO#' },
+          { key: 'project', header: 'PROJECT' },
+          { key: 'title', header: 'TITLE' },
+          { key: 'startDate', header: 'START' },
+          { key: 'dueDate', header: 'DUE' },
+          { key: 'priority', header: 'PRIORITY' },
+          { key: 'status', header: 'STATUS' },
+        ],
+        rows,
+      });
+
+      Alert.alert('Success', 'Bugs exported successfully');
+    } catch (error: any) {
+      console.error('Error exporting bugs:', error);
+      Alert.alert('Error', error?.message || 'Failed to export bugs');
+    }
+  };
+
+  // Simple Kanban-style grouping for backlog board (uses all filtered tasks)
+  const boardBuckets = {
+    todo: [] as any[],
+    in_progress: [] as any[],
+    in_review: [] as any[],
+    completed: [] as any[],
+  };
+
+  filteredTasks.forEach((task: any) => {
+    const status = (task.status || '').toLowerCase();
+    if (status === 'completed') {
+      boardBuckets.completed.push(task);
+    } else if (status === 'in_review') {
+      boardBuckets.in_review.push(task);
+    } else if (status === 'in_progress') {
+      boardBuckets.in_progress.push(task);
+    } else {
+      boardBuckets.todo.push(task);
+    }
+  });
 
   if (loading && tasks.length === 0) return (
     <View style={styles.centered}>
@@ -266,31 +514,260 @@ export default function EmployeeTasksScreen() {
         </View>
       </View>
 
+      {/* Backlog / Notes board (web-style) */}
+      <View style={styles.boardSection}>
+        <View style={styles.boardHeader}>
+          <View style={styles.boardTabs}>
+            <TouchableOpacity
+              style={[styles.boardTab, boardTab === 'Backlog' && styles.boardTabActive]}
+              onPress={() => setBoardTab('Backlog')}
+            >
+              <Text style={[styles.boardTabText, boardTab === 'Backlog' && styles.boardTabTextActive]}>
+                Backlog
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.boardTab, boardTab === 'Notes' && styles.boardTabActive]}
+              onPress={() => setBoardTab('Notes')}
+            >
+              <Text style={[styles.boardTabText, boardTab === 'Notes' && styles.boardTabTextActive]}>
+                Notes
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {boardTab === 'Backlog' ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.boardScroll}
+            contentContainerStyle={styles.boardColumnsContainer}
+          >
+            {/* To Do */}
+            <View style={styles.boardColumn}>
+              <Text style={styles.boardColumnTitle}>To Do {boardBuckets.todo.length > 0 ? `(${boardBuckets.todo.length})` : ''}</Text>
+              <View style={styles.boardDropArea}>
+                {boardBuckets.todo.length === 0 ? (
+                  <Text style={styles.boardEmptyText}>Drop tasks here</Text>
+                ) : (
+                  boardBuckets.todo.map((task: any) => (
+                    <TouchableOpacity
+                      key={task._id}
+                      style={styles.boardCard}
+                      activeOpacity={0.8}
+                      onLongPress={() => openMoveStatusMenu(task)}
+                      onPress={() => {
+                        if (task._id && navigation) {
+                          (navigation as any).navigate('TaskDetail', { taskId: task._id });
+                        }
+                      }}
+                    >
+                      <Text style={styles.boardCardTitle} numberOfLines={2}>
+                        {task.title || 'Untitled Task'}
+                      </Text>
+                      <Text style={styles.boardCardProject} numberOfLines={1}>
+                        {typeof task.projectId === 'object' ? task.projectId?.name || 'N/A' : task.project || 'N/A'}
+                      </Text>
+                      <Text style={styles.boardCardMeta}>
+                        Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'N/A'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </View>
+            </View>
+
+            {/* In Progress */}
+            <View style={styles.boardColumn}>
+              <Text style={styles.boardColumnTitle}>In Progress {boardBuckets.in_progress.length > 0 ? `(${boardBuckets.in_progress.length})` : ''}</Text>
+              <View style={styles.boardDropArea}>
+                {boardBuckets.in_progress.length === 0 ? (
+                  <Text style={styles.boardEmptyText}>Drop tasks here</Text>
+                ) : (
+                  boardBuckets.in_progress.map((task: any) => (
+                    <TouchableOpacity
+                      key={task._id}
+                      style={styles.boardCard}
+                      activeOpacity={0.8}
+                      onLongPress={() => openMoveStatusMenu(task)}
+                      onPress={() => {
+                        if (task._id && navigation) {
+                          (navigation as any).navigate('TaskDetail', { taskId: task._id });
+                        }
+                      }}
+                    >
+                      <Text style={styles.boardCardTitle} numberOfLines={2}>
+                        {task.title || 'Untitled Task'}
+                      </Text>
+                      <Text style={styles.boardCardProject} numberOfLines={1}>
+                        {typeof task.projectId === 'object' ? task.projectId?.name || 'N/A' : task.project || 'N/A'}
+                      </Text>
+                      <Text style={styles.boardCardMeta}>
+                        Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'N/A'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </View>
+            </View>
+
+            {/* In Review */}
+            <View style={styles.boardColumn}>
+              <Text style={styles.boardColumnTitle}>In Review {boardBuckets.in_review.length > 0 ? `(${boardBuckets.in_review.length})` : ''}</Text>
+              <View style={styles.boardDropArea}>
+                {boardBuckets.in_review.length === 0 ? (
+                  <Text style={styles.boardEmptyText}>Drop tasks here</Text>
+                ) : (
+                  boardBuckets.in_review.map((task: any) => (
+                    <TouchableOpacity
+                      key={task._id}
+                      style={styles.boardCard}
+                      activeOpacity={0.8}
+                      onLongPress={() => openMoveStatusMenu(task)}
+                      onPress={() => {
+                        if (task._id && navigation) {
+                          (navigation as any).navigate('TaskDetail', { taskId: task._id });
+                        }
+                      }}
+                    >
+                      <Text style={styles.boardCardTitle} numberOfLines={2}>
+                        {task.title || 'Untitled Task'}
+                      </Text>
+                      <Text style={styles.boardCardProject} numberOfLines={1}>
+                        {typeof task.projectId === 'object' ? task.projectId?.name || 'N/A' : task.project || 'N/A'}
+                      </Text>
+                      <Text style={styles.boardCardMeta}>
+                        Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'N/A'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </View>
+            </View>
+
+            {/* Completed */}
+            <View style={styles.boardColumn}>
+              <Text style={styles.boardColumnTitle}>Completed {boardBuckets.completed.length > 0 ? `(${boardBuckets.completed.length})` : ''}</Text>
+              <View style={styles.boardDropArea}>
+                {boardBuckets.completed.length === 0 ? (
+                  <Text style={styles.boardEmptyText}>Drop tasks here</Text>
+                ) : (
+                  boardBuckets.completed.map((task: any) => (
+                    <TouchableOpacity
+                      key={task._id}
+                      style={styles.boardCard}
+                      activeOpacity={0.8}
+                      onLongPress={() => openMoveStatusMenu(task)}
+                      onPress={() => {
+                        if (task._id && navigation) {
+                          (navigation as any).navigate('TaskDetail', { taskId: task._id });
+                        }
+                      }}
+                    >
+                      <Text style={styles.boardCardTitle} numberOfLines={2}>
+                        {task.title || 'Untitled Task'}
+                      </Text>
+                      <Text style={styles.boardCardProject} numberOfLines={1}>
+                        {typeof task.projectId === 'object' ? task.projectId?.name || 'N/A' : task.project || 'N/A'}
+                      </Text>
+                      <Text style={styles.boardCardMeta}>
+                        Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'N/A'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </View>
+            </View>
+          </ScrollView>
+        ) : (
+          <View style={styles.notesPlaceholder}>
+            <View style={styles.notesCard}>
+              <Text style={styles.notesPlus}>+</Text>
+            </View>
+          </View>
+        )}
+      </View>
+
       {/* Task Overview Section */}
       <View style={styles.taskOverviewCard}>
         <View style={styles.taskOverviewHeader}>
-          <Text style={styles.taskOverviewTitle}>Task Overview</Text>
+          <Text style={styles.taskOverviewTitle}>Tasks</Text>
+
+          {/* Active / Completed tabs (desktop-style) */}
+          <View style={styles.tasksTabs}>
+            <TouchableOpacity
+              style={[
+                styles.tasksTab,
+                activeTab === 'Active' && styles.tasksTabActive,
+              ]}
+              onPress={() => setActiveTab('Active')}
+            >
+              <Text
+                style={[
+                  styles.tasksTabText,
+                  activeTab === 'Active' && styles.tasksTabTextActive,
+                ]}
+              >
+                Active
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.tasksTab,
+                activeTab === 'Completed' && styles.tasksTabActive,
+              ]}
+              onPress={() => setActiveTab('Completed')}
+            >
+              <Text
+                style={[
+                  styles.tasksTabText,
+                  activeTab === 'Completed' && styles.tasksTabTextActive,
+                ]}
+              >
+                Completed
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           <TouchableOpacity style={styles.exportButton}>
             <Icon name="download" size={14} color="#FFFFFF" />
             <Text style={styles.exportButtonText}>Export All</Text>
           </TouchableOpacity>
         </View>
         
-        {/* Search and Filter Bar */}
+        {/* Search and Filter Bar (month + status + search) */}
         <View style={styles.searchFilterBar}>
+          {/* First row: Month + All Statuses */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <TouchableOpacity
+              style={styles.filterDropdown}
+              onPress={() => setShowMonthDropdown(true)}
+            >
+              <Text style={styles.filterDropdownText}>{selectedMonth}</Text>
+              <MaterialIcons name="arrow-drop-down" size={18} color="#6B7280" style={styles.filterDropdownIcon} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.filterDropdown}
+              onPress={() => setShowStatusDropdown(true)}
+            >
+              <Text style={styles.filterDropdownText}>{selectedStatus}</Text>
+              <MaterialIcons name="arrow-drop-down" size={18} color="#6B7280" style={styles.filterDropdownIcon} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Second row: Search bar full width */}
           <View style={styles.searchContainer}>
             <Icon name="search" size={16} color="#9CA3AF" style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search..."
+              placeholder="Search tasks"
               placeholderTextColor="#9CA3AF"
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
           </View>
-          <TouchableOpacity style={styles.filterButton}>
-            <Icon name="filter" size={16} color="#6B7280" />
-          </TouchableOpacity>
         </View>
 
             {/* Scrollable Table Container */}
@@ -303,9 +780,13 @@ export default function EmployeeTasksScreen() {
               <View style={styles.tableWrapper}>
                 {/* Table Header */}
                 <View style={styles.tableHeader}>
-                  <View style={styles.checkboxColumn}>
-                    <TouchableOpacity style={styles.checkbox} />
-                  </View>
+                  <TouchableOpacity
+                    style={styles.checkboxColumn}
+                    onPress={toggleAllTasksSelection}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[styles.checkbox, selectedTasks.length === visibleTasks.length && visibleTasks.length > 0 && styles.checkboxChecked]} />
+                  </TouchableOpacity>
                   <Text style={[styles.tableHeaderText, styles.projectHeader]}>PROJECT</Text>
                   <View style={styles.sortableColumn}>
                     <Text style={[styles.tableHeaderText, styles.taskHeader]}>TASK</Text>
@@ -337,9 +818,15 @@ export default function EmployeeTasksScreen() {
                       <ActivityIndicator size="small" color="#f97316" />
                       <Text style={styles.emptyStateText}>Loading tasks...</Text>
                     </View>
-                  ) : filteredTasks.length > 0 ? (
-                    filteredTasks.map((task, index) => (
-                      <TaskRow key={task._id || index} task={task} navigation={navigation} />
+                  ) : visibleTasks.length > 0 ? (
+                    visibleTasks.map((task: any, index: number) => (
+                      <TaskRow
+                        key={task._id || index}
+                        task={task}
+                        navigation={navigation}
+                        isSelected={selectedTasks.includes(task._id)}
+                        onToggleSelect={() => toggleTaskSelection(task._id)}
+                      />
                     ))
                   ) : (
                     <View style={styles.emptyState}>
@@ -351,7 +838,9 @@ export default function EmployeeTasksScreen() {
 
                 {/* Pagination */}
                 <View style={styles.paginationContainer}>
-                  <Text style={styles.paginationText}>Showing {filteredTasks.length > 0 ? 1 : 0} to {filteredTasks.length} of {filteredTasks.length} entries</Text>
+                  <Text style={styles.paginationText}>
+                    Showing {visibleTasks.length > 0 ? 1 : 0} to {visibleTasks.length} of {visibleTasks.length} entries
+                  </Text>
                   <View style={styles.paginationControls}>
                     <TouchableOpacity style={styles.paginationButton}>
                       <Icon name="chevron-left" size={14} color="#6B7280" />
@@ -372,6 +861,355 @@ export default function EmployeeTasksScreen() {
             </ScrollView>
       </View>
 
+      {/* Bugs Section (below tasks table, matching Tasks layout) */}
+      <View style={styles.taskOverviewCard}>
+        <View style={styles.taskOverviewHeader}>
+          <Text style={styles.taskOverviewTitle}>Bugs</Text>
+
+          {/* Active / Completed tabs in header, same as Tasks */}
+          <View style={styles.tasksTabs}>
+            <TouchableOpacity
+              style={[
+                styles.tasksTab,
+                bugsActiveTab === 'Active' && styles.tasksTabActive,
+              ]}
+              onPress={() => setBugsActiveTab('Active')}
+            >
+              <Text
+                style={[
+                  styles.tasksTabText,
+                  bugsActiveTab === 'Active' && styles.tasksTabTextActive,
+                ]}
+              >
+                Active
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.tasksTab,
+                bugsActiveTab === 'Completed' && styles.tasksTabActive,
+              ]}
+              onPress={() => setBugsActiveTab('Completed')}
+            >
+              <Text
+                style={[
+                  styles.tasksTabText,
+                  bugsActiveTab === 'Completed' && styles.tasksTabTextActive,
+                ]}
+              >
+                Completed
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Bugs filters row: first line Month + All Statuses, second line search + Export */}
+        <View style={styles.searchFilterBar}>
+          {/* First row: Month + All Statuses */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <TouchableOpacity
+              style={styles.filterDropdown}
+              onPress={() => setShowBugsMonthDropdown(true)}
+            >
+              <Text style={styles.filterDropdownText}>{bugsSelectedMonth}</Text>
+              <MaterialIcons
+                name="arrow-drop-down"
+                size={18}
+                color="#6B7280"
+                style={styles.filterDropdownIcon}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.filterDropdown}
+              onPress={() => setShowBugsStatusDropdown(true)}
+            >
+              <Text style={styles.filterDropdownText}>{bugsSelectedStatus}</Text>
+              <MaterialIcons
+                name="arrow-drop-down"
+                size={18}
+                color="#6B7280"
+                style={styles.filterDropdownIcon}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Second row: search + Export All */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%', gap: 8 }}>
+            <View style={[styles.searchContainer, { flex: 1 }]}>
+              <Icon name="search" size={16} color="#9CA3AF" style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search bugs"
+                placeholderTextColor="#9CA3AF"
+                value={bugsSearchQuery}
+                onChangeText={setBugsSearchQuery}
+              />
+            </View>
+
+            <TouchableOpacity style={styles.exportButton} onPress={handleExportBugs}>
+              <Icon name="download" size={14} color="#FFFFFF" />
+              <Text style={styles.exportButtonText}>Export All</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Tasks Status Dropdown Modal */}
+        {showStatusDropdown && (
+          <Modal
+            visible={showStatusDropdown}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setShowStatusDropdown(false)}
+          >
+            <TouchableOpacity
+              style={styles.modalOverlay}
+              activeOpacity={1}
+              onPress={() => setShowStatusDropdown(false)}
+            >
+              <View style={styles.dropdownMenu}>
+                {statusOptions.map((status) => (
+                  <TouchableOpacity
+                    key={status}
+                    style={[
+                      styles.dropdownItem,
+                      selectedStatus === status && styles.dropdownItemSelected,
+                    ]}
+                    onPress={() => {
+                      setSelectedStatus(status);
+                      setShowStatusDropdown(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownItemText,
+                        selectedStatus === status && styles.dropdownItemTextSelected,
+                      ]}
+                    >
+                      {status}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </TouchableOpacity>
+          </Modal>
+        )}
+
+        {/* Tasks Month Dropdown Modal */}
+        {showMonthDropdown && (
+          <Modal
+            visible={showMonthDropdown}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setShowMonthDropdown(false)}
+          >
+            <TouchableOpacity
+              style={styles.modalOverlay}
+              activeOpacity={1}
+              onPress={() => setShowMonthDropdown(false)}
+            >
+              <View style={styles.dropdownMenu}>
+                <ScrollView
+                  showsVerticalScrollIndicator={true}
+                  nestedScrollEnabled={true}
+                >
+                  {monthOptions.map((month) => (
+                    <TouchableOpacity
+                      key={month}
+                      style={[
+                        styles.dropdownItem,
+                        selectedMonth === month && styles.dropdownItemSelected,
+                      ]}
+                      onPress={() => {
+                        setSelectedMonth(month);
+                        setShowMonthDropdown(false);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.dropdownItemText,
+                          selectedMonth === month && styles.dropdownItemTextSelected,
+                        ]}
+                      >
+                        {month}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+        )}
+
+        {/* Bugs Status Dropdown Modal */}
+        {showBugsStatusDropdown && (
+          <Modal
+            visible={showBugsStatusDropdown}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setShowBugsStatusDropdown(false)}
+          >
+            <TouchableOpacity
+              style={styles.modalOverlay}
+              activeOpacity={1}
+              onPress={() => setShowBugsStatusDropdown(false)}
+            >
+              <View style={styles.dropdownMenu}>
+                {statusOptions.map((status) => (
+                  <TouchableOpacity
+                    key={status}
+                    style={[
+                      styles.dropdownItem,
+                      bugsSelectedStatus === status && styles.dropdownItemSelected,
+                    ]}
+                    onPress={() => {
+                      setBugsSelectedStatus(status);
+                      setShowBugsStatusDropdown(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownItemText,
+                        bugsSelectedStatus === status && styles.dropdownItemTextSelected,
+                      ]}
+                    >
+                      {status}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </TouchableOpacity>
+          </Modal>
+        )}
+
+        {/* Bugs Month Dropdown Modal */}
+        {showBugsMonthDropdown && (
+          <Modal
+            visible={showBugsMonthDropdown}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setShowBugsMonthDropdown(false)}
+          >
+            <TouchableOpacity
+              style={styles.modalOverlay}
+              activeOpacity={1}
+              onPress={() => setShowBugsMonthDropdown(false)}
+            >
+              <View style={styles.dropdownMenu}>
+                <ScrollView
+                  showsVerticalScrollIndicator={true}
+                  nestedScrollEnabled={true}
+                >
+                  {monthOptions.map((month) => (
+                    <TouchableOpacity
+                      key={month}
+                      style={[
+                        styles.dropdownItem,
+                        bugsSelectedMonth === month && styles.dropdownItemSelected,
+                      ]}
+                      onPress={() => {
+                        setBugsSelectedMonth(month);
+                        setShowBugsMonthDropdown(false);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.dropdownItemText,
+                          bugsSelectedMonth === month && styles.dropdownItemTextSelected,
+                        ]}
+                      >
+                        {month}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+        )}
+
+        {/* Bugs Table */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={true}
+          style={styles.tableScrollContainer}
+          contentContainerStyle={styles.tableContentContainer}
+        >
+          <View style={styles.tableWrapper}>
+            <View style={styles.tableHeader}>
+              <Text style={[styles.tableHeaderText, { width: 60, marginRight: 8 }]}>NO#</Text>
+              <Text style={[styles.tableHeaderText, { width: 160, marginRight: 8 }]}>PROJECT</Text>
+              <Text style={[styles.tableHeaderText, { width: 240, marginRight: 8 }]}>TITLE</Text>
+              <Text style={[styles.tableHeaderText, { width: 130, marginRight: 8 }]}>START</Text>
+              <Text style={[styles.tableHeaderText, { width: 130, marginRight: 8 }]}>DUE</Text>
+              <Text style={[styles.tableHeaderText, { width: 110, marginRight: 8 }]}>
+                PRIORITY
+              </Text>
+              <Text style={[styles.tableHeaderText, { width: 120, marginRight: 8 }]}>
+                STATUS
+              </Text>
+            </View>
+            {bugsLoading ? (
+              <View style={styles.emptyState}>
+                <ActivityIndicator size="small" color="#f97316" />
+              </View>
+            ) : filteredBugs.length > 0 ? (
+              filteredBugs.map((bug: any, index: number) => (
+                <View key={bug._id || index} style={styles.taskRow}>
+                  <Text style={[styles.dueDateCell, { width: 60, textAlign: 'left' }]}>
+                    {index + 1}
+                  </Text>
+                  <Text style={[styles.projectCell, { width: 160 }]} numberOfLines={1}>
+                    {typeof bug.projectId === 'object'
+                      ? bug.projectId?.name || 'N/A'
+                      : bug.project || 'N/A'}
+                  </Text>
+                  <Text style={[styles.taskCell, { width: 240 }]} numberOfLines={1}>
+                    {bug.title || 'N/A'}
+                  </Text>
+                  <Text style={[styles.dueDateCell, { width: 130 }]}>
+                    {bug.startDate
+                      ? new Date(bug.startDate).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })
+                      : 'N/A'}
+                  </Text>
+                  <Text style={[styles.dueDateCell, { width: 130 }]}>
+                    {bug.dueDate
+                      ? new Date(bug.dueDate).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })
+                      : 'N/A'}
+                  </Text>
+                  <View style={[styles.priorityColumn, { width: 110 }]}>
+                    <View style={[styles.priorityBadge, { backgroundColor: '#6B7280' }]}>
+                      <Text style={styles.priorityText}>
+                        {bug.priority
+                          ? bug.priority.charAt(0).toUpperCase() + bug.priority.slice(1)
+                          : 'N/A'}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={[styles.statusColumn, { width: 120 }]}>
+                    <View style={[styles.statusBadge, { backgroundColor: '#3B82F6' }]}>
+                      <Text style={styles.statusText}>{bug.status || 'N/A'}</Text>
+                    </View>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>No bugs found</Text>
+              </View>
+            )}
+              </View>
+            </ScrollView>
+      </View>
+
       {/* Period Selection Modal */}
       <Modal
         visible={showPeriodModal}
@@ -387,17 +1225,19 @@ export default function EmployeeTasksScreen() {
                 key={period.key}
                 style={[
                   styles.modalItem,
-                  selectedPeriod.key === period.key && styles.modalItemSelected
+                  selectedPeriod.key === period.key && styles.modalItemSelected,
                 ]}
                 onPress={() => {
                   setSelectedPeriod(period);
                   setShowPeriodModal(false);
                 }}
               >
-                <Text style={[
+                <Text
+                  style={[
                   styles.modalItemText,
-                  selectedPeriod.key === period.key && styles.modalItemTextSelected
-                ]}>
+                    selectedPeriod.key === period.key && styles.modalItemTextSelected,
+                  ]}
+                >
                   {period.label}
                 </Text>
               </TouchableOpacity>
@@ -419,7 +1259,7 @@ function StatItem({ label, value, color, separatorColor }) {
   );
 }
 
-    function TaskRow({ task, navigation }) {
+    function TaskRow({ task, navigation, isSelected, onToggleSelect }) {
       const getPriorityColor = (priority) => {
         switch (priority?.toLowerCase()) {
           case 'critical': return '#DC2626';
@@ -472,9 +1312,23 @@ function StatItem({ label, value, color, separatorColor }) {
           }}
           activeOpacity={0.7}
         >
-          <View style={styles.checkboxColumn}>
-            <TouchableOpacity style={styles.taskCheckbox} />
-          </View>
+          <TouchableOpacity
+            style={styles.checkboxColumn}
+            onPress={(e) => {
+              e.stopPropagation();
+              if (onToggleSelect) {
+                onToggleSelect();
+              }
+            }}
+            activeOpacity={0.8}
+          >
+            <View
+              style={[
+                styles.taskCheckbox,
+                isSelected && styles.checkboxChecked,
+              ]}
+            />
+          </TouchableOpacity>
           <Text style={[styles.taskProject, styles.projectCell]} numberOfLines={2}>
             {typeof task.projectId === 'object' ? task.projectId?.name || 'N/A' : task.project || 'N/A'}
           </Text>
@@ -627,8 +1481,8 @@ const styles = StyleSheet.create({
   
   // Search and Filter Styles
   searchFilterBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
     marginBottom: 12,
     gap: 8,
   },
@@ -671,10 +1525,185 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     gap: 6,
   },
+
+  // Tasks tabs (Active / Completed) aligned with header like web
+  tasksTabs: {
+    flexDirection: 'row',
+    borderRadius: 999,
+    backgroundColor: '#F1F5F9',
+    padding: 2,
+    marginRight: 12,
+  },
+  tasksTab: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  tasksTabActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  tasksTabText: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  tasksTabTextActive: {
+    color: '#1E293B',
+    fontWeight: '600',
+  },
+
+  // Board (Backlog) styles
+  boardSection: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  boardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  boardTabs: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    paddingBottom: 4,
+  },
+  boardTab: {
+    marginRight: 16,
+    paddingBottom: 8,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  boardTabActive: {
+    borderBottomColor: '#3B82F6',
+  },
+  boardTabText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  boardTabTextActive: {
+    color: '#3B82F6',
+    fontWeight: '600',
+  },
+  boardScroll: {
+    marginTop: 8,
+  },
+  boardColumnsContainer: {
+    paddingVertical: 8,
+    paddingRight: 4,
+  },
+  boardColumn: {
+    width: 220,
+    marginRight: 12,
+  },
+  boardColumnTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1E293B',
+    marginBottom: 8,
+  },
+  boardDropArea: {
+    minHeight: 140,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    padding: 8,
+    backgroundColor: '#F9FAFB',
+  },
+  boardEmptyText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginTop: 24,
+  },
+  boardCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 8,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  boardCardTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  boardCardProject: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  boardCardMeta: {
+    fontSize: 11,
+    color: '#9CA3AF',
+  },
+  notesPlaceholder: {
+    paddingVertical: 24,
+    paddingHorizontal: 12,
+  },
+  notesPlaceholderText: {
+    fontSize: 13,
+    color: '#9CA3AF',
+  },
+  notesCard: {
+    width: 80,
+    height: 140,
+    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notesPlus: {
+    fontSize: 32,
+    color: '#9CA3AF',
+    fontWeight: '600',
+  },
   exportButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
+  },
+  // Generic pill-style dropdown for Month / All Statuses
+  filterDropdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+    minWidth: 120,
+  },
+  filterDropdownText: {
+    fontSize: 13,
+    color: '#111827',
+    fontWeight: '500',
+  },
+  filterDropdownIcon: {
+    marginLeft: 4,
   },
   
   // Scrollable Table Styles
@@ -739,6 +1768,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#D1D5DB',
     borderRadius: 4,
+  },
+  checkboxChecked: {
+    backgroundColor: '#F97316',
+    borderColor: '#F97316',
   },
   
   // Header Column Styles
@@ -990,6 +2023,40 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  // Lightweight dropdown menu for Month / Status filters
+  dropdownMenu: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    width: '90%',
+    maxWidth: 340,
+    maxHeight: 320,
+    alignSelf: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  dropdownItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    marginHorizontal: 4,
+    marginVertical: 2,
+  },
+  dropdownItemSelected: {
+    backgroundColor: '#FFE7D3',
+  },
+  dropdownItemText: {
+    fontSize: 14,
+    color: '#374151',
+  },
+  dropdownItemTextSelected: {
+    color: '#C2410C',
     fontWeight: '600',
   },
 });

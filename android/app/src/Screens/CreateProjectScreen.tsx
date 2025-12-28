@@ -9,7 +9,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import DocumentPicker, { DocumentPickerResponse } from 'react-native-document-picker';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -44,8 +44,23 @@ const statusOptions = [
 
 export default function CreateProjectScreen() {
   const navigation = useNavigation();
+  const route = useRoute<any>();
   const { callApi } = useAxios();
   const { currentUser } = useSelector((state: RootState) => state.user);
+
+  // Back navigation:
+  // - If opened from Org Admin projects, go explicitly to OrgProjects
+  // - If opened from PM Projects tab, rely on goBack to return to ProjectsTab
+  // - Otherwise, just goBack as a sensible default
+  const handleBack = () => {
+    const from = route.params?.from;
+
+    if (from === 'OrgProjects') {
+      (navigation as any).navigate('OrgProjects');
+    } else {
+      (navigation as any).goBack();
+    }
+  };
 
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -156,7 +171,7 @@ export default function CreateProjectScreen() {
       Alert.alert('Success', 'Project created successfully', [
         {
           text: 'OK',
-          onPress: () => navigation.goBack(),
+          onPress: handleBack,
         },
       ]);
     } catch (error: any) {
@@ -181,7 +196,7 @@ export default function CreateProjectScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
@@ -335,7 +350,7 @@ export default function CreateProjectScreen() {
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.cancelButton}
-          onPress={() => navigation.goBack()}
+          onPress={handleBack}
           disabled={submitting}
         >
           <Text style={styles.cancelButtonText}>Cancel</Text>

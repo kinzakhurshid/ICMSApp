@@ -40,16 +40,18 @@ const CreateAccessoryRequestScreen: React.FC<CreateAccessoryRequestScreenProps> 
     setSubmitting(true);
 
     try {
-      // Try common endpoint patterns for accessory requests
-      // This can be adjusted based on actual API endpoint
+      console.log('🔶 [CreateAccessoryRequest] Submitting accessory request');
+
       const response = await callApi({
         method: 'POST',
-        url: '/accessories/request', // or '/accessory-requests' or '/accessories/requests'
+        url: '/accessory-requests',
         data: {
           subject: subject.trim(),
           description: description.trim(),
         },
       });
+
+      console.log('✅ [CreateAccessoryRequest] Response:', response);
 
       if (response?.success !== false) {
         Alert.alert('Success', 'Accessory request submitted successfully', [
@@ -68,40 +70,13 @@ const CreateAccessoryRequestScreen: React.FC<CreateAccessoryRequestScreenProps> 
         Alert.alert('Error', response?.message || 'Failed to submit accessory request');
       }
     } catch (error: any) {
-      console.error('Error submitting accessory request:', error);
-      
-      // If endpoint doesn't exist, try alternative
-      if (error?.response?.status === 404) {
-        // Try alternative endpoint
-        try {
-          const altResponse = await callApi({
-            method: 'POST',
-            url: '/accessory-requests',
-            data: {
-              subject: subject.trim(),
-              description: description.trim(),
-            },
-          });
-          
-          if (altResponse?.success !== false) {
-            Alert.alert('Success', 'Accessory request submitted successfully', [
-              {
-                text: 'OK',
-                onPress: () => {
-                  setSubject('');
-                  setDescription('');
-                  navigation.goBack();
-                },
-              },
-            ]);
-            return;
-          }
-        } catch (altError) {
-          // Fall through to show error
-        }
-      }
-      
-      Alert.alert('Error', error?.response?.data?.message || error?.message || 'Failed to submit accessory request. Please try again.');
+      console.error('🔴 [CreateAccessoryRequest] Error submitting accessory request:', error);
+      Alert.alert(
+        'Error',
+        error?.response?.data?.message ||
+          error?.message ||
+          'Failed to submit accessory request. Please try again.',
+      );
     } finally {
       setSubmitting(false);
     }
@@ -248,6 +223,10 @@ const styles = StyleSheet.create({
 });
 
 export default CreateAccessoryRequestScreen;
+
+
+
+
 
 
 

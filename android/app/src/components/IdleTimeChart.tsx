@@ -29,7 +29,12 @@ const IdleTimeChart: React.FC<Props> = ({ title, data }) => {
                 <View style={styles.barBg}>
                   <View style={[styles.barFill, { height: `${(point.value / max) * 100}%` }]} />
                 </View>
-                <Text style={styles.label} numberOfLines={1}>{point.label}</Text>
+                <Text
+                  style={styles.label}
+                  numberOfLines={2}
+                >
+                  {point.label}
+                </Text>
                 <Text style={styles.value}>{point.value.toFixed(2)}h</Text>
               </View>
             ))}
@@ -57,14 +62,14 @@ const styles = StyleSheet.create({
   chartArea: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: 18,
+    gap: 12,
   },
   emptyWrap: {
     justifyContent: 'center',
     height: 160,
   },
   barItem: {
-    flex: 1,
+    width: 80, // fixed width so all bars are same width regardless of label length
     alignItems: 'center',
   },
   barBg: {
@@ -82,8 +87,9 @@ const styles = StyleSheet.create({
   },
   label: {
     marginTop: 8,
-    fontSize: 12,
+    fontSize: 11,
     color: '#6B7280',
+    textAlign: 'center',
   },
   value: {
     marginTop: 2,

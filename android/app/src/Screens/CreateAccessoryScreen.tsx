@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import useAxios from '../hooks/useAxios';
 import FormField from '../components/task/FormField';
@@ -23,6 +23,8 @@ const conditionOptions = [
 
 export default function CreateAccessoryScreen() {
   const navigation = useNavigation();
+  const route = useRoute<any>();
+  const redirectTo = (route.params as any)?.redirectTo as string | undefined;
   const { callApi } = useAxios();
 
   const [loadingCategories, setLoadingCategories] = useState(true);
@@ -100,7 +102,16 @@ export default function CreateAccessoryScreen() {
       });
 
       Alert.alert('Success', 'Accessory created successfully!', [
-        { text: 'OK', onPress: () => navigation.goBack() },
+        {
+          text: 'OK',
+          onPress: () => {
+            if (redirectTo) {
+              (navigation as any).navigate(redirectTo);
+            } else {
+              navigation.goBack();
+            }
+          },
+        },
       ]);
     } catch (error: any) {
       console.error('Error creating accessory:', error);
@@ -310,6 +321,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+
 
 
 
