@@ -971,19 +971,18 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   paginationContainer: {
-    flexDirection: 'column',
-    justifyContent: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
-    gap: 8,
+    paddingHorizontal: 4,
   },
   paginationInfo: {
     fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
+    color: '#6B7280',
   },
   paginationButtons: {
     flexDirection: 'row',
@@ -993,14 +992,17 @@ const styles = StyleSheet.create({
   paginationButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: '#FF6B35',
     backgroundColor: 'white',
+    minWidth: 70,
+    alignItems: 'center',
   },
   paginationButtonDisabled: {
     borderColor: '#E5E7EB',
     backgroundColor: '#F9FAFB',
+    opacity: 0.5,
   },
   paginationButtonText: {
     fontSize: 14,
@@ -1014,7 +1016,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#374151',
     fontWeight: '500',
-    minWidth: 80,
+    minWidth: 100,
+    textAlign: 'center',
     textAlign: 'center',
   },
   detailOverlay: {

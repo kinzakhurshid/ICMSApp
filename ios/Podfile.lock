@@ -618,6 +618,9 @@ PODS:
   - RNScreens (3.25.0):
     - React-Core
     - React-RCTImage
+  - RNShare (12.2.1):
+    - RCT-Folly (= 2021.07.22.00)
+    - React-Core
   - RNSound (0.11.0):
     - React
     - RNSound/Core (= 0.11.0)
@@ -713,6 +716,7 @@ DEPENDENCIES:
   - RNPermissions (from `../node_modules/react-native-permissions`)
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
+  - RNShare (from `../node_modules/react-native-share`)
   - RNSound (from `../node_modules/react-native-sound`)
   - RNSVG (from `../node_modules/react-native-svg`)
   - RNVectorIcons (from `../node_modules/react-native-vector-icons`)
@@ -859,6 +863,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-reanimated"
   RNScreens:
     :path: "../node_modules/react-native-screens"
+  RNShare:
+    :path: "../node_modules/react-native-share"
   RNSound:
     :path: "../node_modules/react-native-sound"
   RNSVG:
@@ -948,6 +954,7 @@ SPEC CHECKSUMS:
   RNPermissions: 0b0cdb0dfcc2fabc136a3d596220cc3d91977d79
   RNReanimated: 1af9a7dcf56d61c3d6cdb23d3196b341269b5a19
   RNScreens: 4f2dbf88d1ba333a4455a29833e30510b21f14c5
+  RNShare: 07cb5b7da38964689b87b6c8671e99278f574b41
   RNSound: 436aa4de81ae87b90e1781b5dd9247df3aa4622a
   RNSVG: 67c430ac7a54043cac37f6bd7bc94f8e22d8a64a
   RNVectorIcons: 2a7ec3ea0e8af048e16f8d30bfaedc21d649c502

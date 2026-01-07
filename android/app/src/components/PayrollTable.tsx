@@ -189,6 +189,10 @@ const PayrollTable: React.FC<PayrollTableProps> = ({ onRefresh, dateRange }) => 
 
       console.log('Mapped payroll data:', JSON.stringify(payrollData.slice(0, 1), null, 2));
       setPayrolls(payrollData);
+      
+      // Log for debugging pagination
+      const calculatedTotalPages = Math.max(1, Math.ceil((response.pagination?.total || payrollData.length) / limit));
+      console.log(`📊 Payroll pagination - Page: ${page}, Total: ${response.pagination?.total || payrollData.length}, TotalPages: ${calculatedTotalPages}, Displayed: ${payrollData.length}, Limit: ${limit}`);
     } catch (error) {
       console.error('Error fetching payrolls:', error);
       Alert.alert('Error', 'Failed to load payrolls');
@@ -660,7 +664,7 @@ const PayrollTable: React.FC<PayrollTableProps> = ({ onRefresh, dateRange }) => 
       {!loading && total > 0 && (
         <View style={styles.paginationContainer}>
           <Text style={styles.paginationInfo}>
-            Showing {((page - 1) * limit) + 1} - {Math.min(page * limit, total)} of {total}
+            Showing {payrolls.length > 0 ? ((page - 1) * limit) + 1 : 0} - {Math.min((page - 1) * limit + payrolls.length, total)} of {total}
           </Text>
           <View style={styles.paginationButtons}>
             <TouchableOpacity
@@ -673,7 +677,7 @@ const PayrollTable: React.FC<PayrollTableProps> = ({ onRefresh, dateRange }) => 
               </Text>
             </TouchableOpacity>
             <Text style={styles.paginationPageText}>
-              Page {page} of {Math.ceil(total / limit) || 1}
+              Page {page} of {Math.max(1, Math.ceil(total / limit))}
             </Text>
             <TouchableOpacity
               style={[styles.paginationButton, page >= Math.ceil(total / limit) && styles.paginationButtonDisabled]}
@@ -1160,19 +1164,18 @@ const styles = StyleSheet.create({
     minWidth: 200,
   },
   paginationContainer: {
-    flexDirection: 'column',
-    justifyContent: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
-    gap: 8,
+    paddingHorizontal: 4,
   },
   paginationInfo: {
     fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
+    color: '#6B7280',
   },
   paginationButtons: {
     flexDirection: 'row',
@@ -1182,14 +1185,17 @@ const styles = StyleSheet.create({
   paginationButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: '#FB923C',
     backgroundColor: 'white',
+    minWidth: 70,
+    alignItems: 'center',
   },
   paginationButtonDisabled: {
     borderColor: '#E5E7EB',
     backgroundColor: '#F9FAFB',
+    opacity: 0.5,
   },
   paginationButtonText: {
     fontSize: 14,
@@ -1203,7 +1209,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#374151',
     fontWeight: '500',
-    minWidth: 80,
+    minWidth: 100,
     textAlign: 'center',
   },
   // Detail modal styles

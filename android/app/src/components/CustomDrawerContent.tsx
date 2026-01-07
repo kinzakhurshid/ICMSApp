@@ -184,6 +184,11 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
       route: 'OrgMainTabs',
       screen: 'InboxTab'
     },
+    { 
+      label: 'Website Chatbox', 
+      icon: <MaterialIcons name="chat" size={22} color="#FF5722" />, 
+      route: 'WebsiteChatbox'
+    },
   ] : [
     // Employee menu items - using EmployeeTabNavigator tab names
     { 

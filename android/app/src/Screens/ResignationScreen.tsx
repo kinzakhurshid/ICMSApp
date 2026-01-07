@@ -183,7 +183,13 @@ const ResignationScreen: React.FC = () => {
 
         setResignations(formattedList);
         setCurrentPage(response.page || page);
-        setTotalPages(response.pages || 1);
+        // Calculate totalPages based on actual data length and entriesPerPage
+        const serverTotalPages = response.pages || 1;
+        const calculatedTotalPages = response.total ? Math.max(1, Math.ceil(response.total / entriesPerPage)) : serverTotalPages;
+        setTotalPages(calculatedTotalPages);
+        
+        // Log for debugging
+        console.log(`📊 Resignation pagination - Page: ${page}, Total: ${response.total || formattedList.length}, TotalPages: ${calculatedTotalPages}, Displayed: ${formattedList.length}, EntriesPerPage: ${entriesPerPage}`);
       } else if (Array.isArray(response)) {
         const formattedList = response.map((resignation: any) =>
           mapEmployeeNameAndDesignation(resignation)

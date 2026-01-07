@@ -11,7 +11,7 @@ import {
   Modal,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { exportToXlsx } from '../utills/utills';
+import { exportToXlsx, exportWithSelection } from '../utills/utills';
 import SearchableSelect from './SearchableSelect';
 import useAxios from '../hooks/useAxios';
 
@@ -50,6 +50,7 @@ const AccessoryRequestTable: React.FC<AccessoryRequestTableProps> = ({
   const [searchTerm, setSearchTerm] = useState(search);
   const [showFilters, setShowFilters] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editingRequest, setEditingRequest] = useState<any | null>(null);
   const [editSubject, setEditSubject] = useState('');
   const [editDescription, setEditDescription] = useState('');
@@ -76,6 +77,22 @@ const AccessoryRequestTable: React.FC<AccessoryRequestTableProps> = ({
     }
   };
 
+  const handleSelectRequest = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) 
+        ? prev.filter(reqId => reqId !== id)
+        : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.length === requests.length && requests.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(requests.map(req => req._id));
+    }
+  };
+
   const handleExport = async () => {
     try {
       setExporting(true);
@@ -87,8 +104,29 @@ const AccessoryRequestTable: React.FC<AccessoryRequestTableProps> = ({
         return;
       }
 
-      await exportToXlsx({
-        filename: `accessory-requests-${new Date().toISOString().split('T')[0]}`,
+      // Prepare export data
+      const exportData = allData.map((req: any, index: number) => ({
+        sr: index + 1,
+        employee:
+          req.employee?.fullName ||
+          req.employee?.name ||
+          `${req.employee?.firstName || ''} ${req.employee?.lastName || ''}`.trim() ||
+          'N/A',
+        subject: req.subject || 'N/A',
+        description: req.description || '',
+        status: req.status || 'N/A',
+        createdAt: formatDate(req.createdAt),
+        _id: req._id, // Keep ID for selection
+      }));
+
+      // Get selected rows if any
+      const selectedRows = selectedIds.length > 0
+        ? exportData.filter((row: any) => selectedIds.includes(row._id))
+        : [];
+
+      // Use exportWithSelection for robust export with selection support
+      await exportWithSelection({
+        filename: 'accessory-requests',
         columns: [
           { key: 'sr', header: 'SR#' },
           { key: 'employee', header: 'EMPLOYEE' },
@@ -97,21 +135,10 @@ const AccessoryRequestTable: React.FC<AccessoryRequestTableProps> = ({
           { key: 'status', header: 'STATUS' },
           { key: 'createdAt', header: 'CREATED AT' },
         ],
-        rows: allData.map((req: any, index: number) => ({
-          sr: index + 1,
-          employee:
-            req.employee?.fullName ||
-            req.employee?.name ||
-            `${req.employee?.firstName || ''} ${req.employee?.lastName || ''}`.trim() ||
-            'N/A',
-          subject: req.subject || 'N/A',
-          description: req.description || '',
-          status: req.status || 'N/A',
-          createdAt: formatDate(req.createdAt),
-        })),
+        rows: exportData,
+        selectedRows: selectedRows.length > 0 ? selectedRows : undefined,
+        showSelectionDialog: selectedRows.length > 0,
       });
-
-      Alert.alert('Success', 'Accessory requests exported successfully');
     } catch (error) {
       console.error('Error exporting accessory requests:', error);
       Alert.alert('Error', 'Failed to export accessory requests');
@@ -245,6 +272,7 @@ const AccessoryRequestTable: React.FC<AccessoryRequestTableProps> = ({
         <View style={styles.tableContainer}>
           {/* Table Header */}
           <View style={styles.tableHeader}>
+            <View style={styles.checkboxHeaderCell} />
             <Text style={[styles.headerText, styles.srCol]}>#</Text>
             {showEmployeeColumn && (
               <Text style={[styles.headerText, styles.employeeCol]}>EMPLOYEE</Text>
@@ -263,7 +291,32 @@ const AccessoryRequestTable: React.FC<AccessoryRequestTableProps> = ({
             </View>
           ) : (
             requests.map((req: any, index: number) => (
-              <View key={req._id || index} style={styles.tableRow}>
+              <TouchableOpacity
+                key={req._id || index}
+                style={[styles.tableRow, selectedIds.includes(req._id) && styles.tableRowSelected]}
+                onPress={() => {
+                  // Show request details in a modal or navigate to detail screen
+                  Alert.alert(
+                    'Request Details',
+                    `Subject: ${req.subject || 'N/A'}\n\nDescription: ${req.description || 'N/A'}\n\nStatus: ${req.status || 'N/A'}\n\nCreated: ${formatDate(req.createdAt)}`,
+                    [{ text: 'OK' }]
+                  );
+                }}
+                activeOpacity={0.7}
+              >
+                <TouchableOpacity
+                  style={styles.checkboxCell}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleSelectRequest(req._id);
+                  }}
+                >
+                  <Icon 
+                    name={selectedIds.includes(req._id) ? "check-box" : "check-box-outline-blank"} 
+                    size={20} 
+                    color={selectedIds.includes(req._id) ? "#FF6B35" : "#9CA3AF"} 
+                  />
+                </TouchableOpacity>
                 <Text style={[styles.cellText, styles.srCol]}>{(page - 1) * limit + index + 1}</Text>
                 {showEmployeeColumn && (
                   <Text style={[styles.cellText, styles.employeeCol]} numberOfLines={1}>
@@ -291,13 +344,16 @@ const AccessoryRequestTable: React.FC<AccessoryRequestTableProps> = ({
                   {(req.status || '').toLowerCase() === 'pending' && (
                     <TouchableOpacity
                       style={styles.editButton}
-                      onPress={() => startEdit(req)}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        startEdit(req);
+                      }}
                     >
                       <Icon name="edit" size={18} color="#FF6B35" />
                     </TouchableOpacity>
                   )}
                 </View>
-              </View>
+              </TouchableOpacity>
             ))
           )}
         </View>
@@ -480,6 +536,34 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontWeight: '600',
+  },
+  selectAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF5F0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#FF6B35',
+  },
+  selectAllText: {
+    color: '#FF6B35',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  checkboxCell: {
+    width: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingRight: 8,
+  },
+  checkboxHeaderCell: {
+    width: 40,
+  },
+  tableRowSelected: {
+    backgroundColor: '#FFF5F0',
   },
   filtersContainer: {
     marginTop: 8,

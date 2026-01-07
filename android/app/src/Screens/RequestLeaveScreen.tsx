@@ -101,10 +101,17 @@ const RequestLeaveScreen: React.FC = () => {
       if (!leaveId) return;
       try {
         setLoadingExisting(true);
-        const res = await callApi({
+        // Use a timeout to show loading state, but fetch immediately
+        const fetchPromise = callApi({
           method: 'GET',
           url: `/leave/${leaveId}`,
         });
+
+        // Race: show loading for at least 300ms to avoid flicker, but don't delay if API is fast
+        const [res] = await Promise.all([
+          fetchPromise,
+          new Promise(resolve => setTimeout(resolve, 300))
+        ]);
 
         const data = (res as any)?.data || res;
 

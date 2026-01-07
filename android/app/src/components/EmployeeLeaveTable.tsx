@@ -26,6 +26,9 @@ const EmployeeLeaveTable = () => {
   const [data, setData] = useState<Leave[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [total, setTotal] = useState(0);
 
   const fetchData = async () => {
     if (!employeeId) return;
@@ -35,17 +38,35 @@ const EmployeeLeaveTable = () => {
         method: 'GET',
         url: '/leave/employee',
         params: {
-          page: 1,
-          limit: 50,
+          page,
+          limit,
           sortField: 'createdAt',
           sortOrder: 'desc',
         },
       });
 
-      setData(res?.data || []);
+      // Handle different response structures
+      let leavesData: Leave[] = [];
+      if (Array.isArray(res)) {
+        leavesData = res;
+        setTotal(res.length);
+      } else if (res?.data && Array.isArray(res.data)) {
+        leavesData = res.data;
+        setTotal(res.pagination?.total || res.total || res.data.length);
+      } else if (res?.data?.data && Array.isArray(res.data.data)) {
+        leavesData = res.data.data;
+        setTotal(res.data.pagination?.total || res.data.total || res.data.data.length);
+      } else {
+        leavesData = [];
+        setTotal(0);
+      }
+
+      setData(leavesData);
     } catch (err) {
       console.error('Failed to load leaves:', err);
       Alert.alert('Error', 'Failed to load leave data');
+      setData([]);
+      setTotal(0);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -54,7 +75,7 @@ const EmployeeLeaveTable = () => {
 
   useEffect(() => {
     fetchData();
-  }, [employeeId]);
+  }, [employeeId, page]);
 
   const handleRequestLeave = () => {
     navigation.navigate('RequestLeave', { redirectTo: 'EmployeeLeaveMain' });
@@ -199,6 +220,38 @@ const EmployeeLeaveTable = () => {
           )}
         </View>
       </ScrollView>
+
+      {/* Pagination */}
+      {total > 0 && (
+        <View style={styles.paginationContainer}>
+          <Text style={styles.paginationInfo}>
+            Showing {((page - 1) * limit) + 1} - {Math.min(page * limit, total)} of {total}
+          </Text>
+          <View style={styles.paginationButtons}>
+            <TouchableOpacity
+              style={[styles.paginationButton, page === 1 && styles.paginationButtonDisabled]}
+              onPress={() => setPage(prev => Math.max(1, prev - 1))}
+              disabled={page === 1}
+            >
+              <Text style={[styles.paginationButtonText, page === 1 && styles.paginationButtonTextDisabled]}>
+                Previous
+              </Text>
+            </TouchableOpacity>
+            <Text style={styles.paginationPageText}>
+              Page {page} of {Math.max(1, Math.ceil(total / limit))}
+            </Text>
+            <TouchableOpacity
+              style={[styles.paginationButton, page >= Math.ceil(total / limit) && styles.paginationButtonDisabled]}
+              onPress={() => setPage(prev => prev + 1)}
+              disabled={page >= Math.ceil(total / limit)}
+            >
+              <Text style={[styles.paginationButtonText, page >= Math.ceil(total / limit) && styles.paginationButtonTextDisabled]}>
+                Next
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -323,6 +376,52 @@ const styles = StyleSheet.create({
   emptyText: {
     color: '#6B7280',
     fontSize: 14,
+  },
+  paginationContainer: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  paginationInfo: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  paginationButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  paginationButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  paginationButtonDisabled: {
+    backgroundColor: '#F9FAFB',
+    borderColor: '#E5E7EB',
+    opacity: 0.5,
+  },
+  paginationButtonText: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  paginationButtonTextDisabled: {
+    color: '#9CA3AF',
+  },
+  paginationPageText: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+    minWidth: 80,
+    textAlign: 'center',
   },
 });
 

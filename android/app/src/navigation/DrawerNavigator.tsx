@@ -57,6 +57,8 @@ import CreateDepartmentScreen from '../Screens/CreateDepartmentScreen';
 import EditDepartmentScreen from '../Screens/EditDepartmentScreen';
 import EditProfileScreen from '../Screens/EditProfileScreen';
 import CreateProjectScreen from '../Screens/CreateProjectScreen';
+import EditProjectScreen from '../Screens/EditProjectScreen';
+import WebsiteChatboxScreen from '../Screens/WebsiteChatboxScreen';
 
 export type DrawerParamList = {
   MainTabs: undefined;
@@ -100,6 +102,7 @@ export type DrawerParamList = {
   CreateDepartment: undefined;
   EditDepartment: { departmentId: string };
   CreateProject: undefined;
+  EditProject: { projectId: string };
   OrgAdminProfile: undefined;
   EmployeeProfile: undefined;
   EditProfile: undefined;
@@ -107,6 +110,7 @@ export type DrawerParamList = {
   HiringDetail: { hiringId: string };
   EditHiring: { hiringId: string };
   ProjectDetail: { projectId: string };
+  WebsiteChatbox: undefined;
 };
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
@@ -224,6 +228,17 @@ const DrawerNavigator: React.FC = () => {
         options={{
           title: 'Create Project',
           // Use the screen's own header/back button instead of Drawer/AppHeader
+          headerShown: false,
+          drawerItemStyle: { display: 'none' },
+        }}
+      />
+
+      {/* Org Admin Edit Project Screen (reuse PM EditProjectScreen, hidden from drawer) */}
+      <Drawer.Screen
+        name="EditProject"
+        component={EditProjectScreen}
+        options={{
+          title: 'Edit Project',
           headerShown: false,
           drawerItemStyle: { display: 'none' },
         }}
@@ -661,6 +676,17 @@ const DrawerNavigator: React.FC = () => {
                   title: 'Edit Profile',
                   headerShown: true,
                   drawerItemStyle: { display: 'none' }, // Hide from drawer, only accessible via navigation
+                }}
+              />
+              
+              {/* Website Chatbox Screen */}
+              <Drawer.Screen
+                name="WebsiteChatbox"
+                component={WebsiteChatboxScreen}
+                options={{ 
+                  title: 'Website Chatbox',
+                  headerShown: false, // Use screen's own header
+                  drawerItemStyle: {}, // Show in drawer for all users
                 }}
               />
             </Drawer.Navigator>

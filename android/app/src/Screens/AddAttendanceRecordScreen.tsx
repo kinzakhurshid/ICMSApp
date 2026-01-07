@@ -319,6 +319,17 @@ export default function AddAttendanceRecordScreen() {
                   } else if (value !== 'Half-day') {
                     // Clear half-day type if not half-day
                     setHalfDayType('');
+                  } else if (value === 'Half-day' && checkInTime) {
+                    // Auto-suggest half-day type based on check-in time
+                    const [hours] = checkInTime.split(':');
+                    const hour = parseInt(hours, 10);
+                    if (hour < 13) {
+                      // Before 1 PM = first half
+                      setHalfDayType('first');
+                    } else {
+                      // After 1 PM = second half
+                      setHalfDayType('second');
+                    }
                   }
                 }}
                 placeholder="Select status"
@@ -333,6 +344,19 @@ export default function AddAttendanceRecordScreen() {
                 onChange={(time) => {
                   setCheckInTime(time);
                   if (errors.checkInTime) setErrors({ ...errors, checkInTime: '' });
+                  
+                  // Auto-suggest half-day type based on check-in time when status is Half-day
+                  if (status === 'Half-day' && time) {
+                    const [hours] = time.split(':');
+                    const hour = parseInt(hours, 10);
+                    if (hour < 13) {
+                      // Before 1 PM = first half
+                      setHalfDayType('first');
+                    } else {
+                      // After 1 PM = second half
+                      setHalfDayType('second');
+                    }
+                  }
                 }}
                 error={errors.checkInTime}
                 disabled={status === 'Absent' || status === 'Leave'}

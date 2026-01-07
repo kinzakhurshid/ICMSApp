@@ -602,14 +602,22 @@ const MessageInput: React.FC<{
       {/* Reply Preview */}
       {replyTo && (
         <View style={styles.replyPreview}>
+          <View style={styles.replyIndicator} />
           <View style={styles.replyContent}>
-            <Text style={styles.replySender}>Replying to {replyTo.sender.name}</Text>
-            <Text style={styles.replyText} numberOfLines={1}>
-              {replyTo.content}
+            <View style={styles.replyHeader}>
+              <Ionicons name="arrow-undo" size={16} color="#FF6B35" />
+              <Text style={styles.replySender}>Replying to {replyTo.sender.name}</Text>
+            </View>
+            <Text style={styles.replyText} numberOfLines={2}>
+              {replyTo.content || 'Attachment'}
             </Text>
           </View>
-          <TouchableOpacity onPress={onCancelReply} style={styles.cancelReply}>
-            <Ionicons name="close" size={20} color="#666" />
+          <TouchableOpacity 
+            onPress={onCancelReply} 
+            style={styles.cancelReply}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="close-circle" size={24} color="#999" />
           </TouchableOpacity>
         </View>
       )}
@@ -617,14 +625,22 @@ const MessageInput: React.FC<{
       {/* Edit Preview */}
       {editingMessage && (
         <View style={styles.editPreview}>
+          <View style={styles.editIndicator} />
           <View style={styles.editContent}>
-            <Text style={styles.editSender}>Editing message</Text>
-            <Text style={styles.editText} numberOfLines={1}>
-              {editingMessage.content}
+            <View style={styles.editHeader}>
+              <Ionicons name="create-outline" size={16} color="#3B82F6" />
+              <Text style={styles.editSender}>Editing message</Text>
+            </View>
+            <Text style={styles.editText} numberOfLines={2}>
+              {editingMessage.content || 'Attachment'}
             </Text>
           </View>
-          <TouchableOpacity onPress={onCancelEdit} style={styles.cancelReply}>
-            <Ionicons name="close" size={20} color="#666" />
+          <TouchableOpacity 
+            onPress={onCancelEdit} 
+            style={styles.cancelReply}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="close-circle" size={24} color="#999" />
           </TouchableOpacity>
         </View>
       )}
@@ -801,47 +817,85 @@ const styles = StyleSheet.create({
   replyPreview: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#F0F7FF',
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF6B35',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#E5E5E5',
+    marginBottom: 0,
+  },
+  replyIndicator: {
+    width: 4,
+    height: 40,
+    backgroundColor: '#FF6B35',
+    borderRadius: 2,
+    marginRight: 12,
   },
   replyContent: {
     flex: 1,
+    marginRight: 8,
+  },
+  replyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   replySender: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#007AFF',
+    color: '#FF6B35',
+    marginLeft: 6,
   },
   replyText: {
     fontSize: 14,
     color: '#666',
-    marginTop: 2,
+    lineHeight: 18,
   },
   editPreview: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#fff3cd',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#EFF6FF',
+    borderLeftWidth: 4,
+    borderLeftColor: '#3B82F6',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#E5E5E5',
+    marginBottom: 0,
+  },
+  editIndicator: {
+    width: 4,
+    height: 40,
+    backgroundColor: '#3B82F6',
+    borderRadius: 2,
+    marginRight: 12,
   },
   editContent: {
     flex: 1,
+    marginRight: 8,
+  },
+  editHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   editSender: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#856404',
+    color: '#3B82F6',
+    marginLeft: 6,
   },
   editText: {
     fontSize: 14,
-    color: '#856404',
-    marginTop: 2,
+    color: '#4B5563',
+    lineHeight: 18,
   },
   cancelReply: {
     padding: 4,
+    borderRadius: 20,
+    backgroundColor: 'transparent',
   },
   attachmentsContainer: {
     flexDirection: 'row',

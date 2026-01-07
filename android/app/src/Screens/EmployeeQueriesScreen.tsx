@@ -274,10 +274,11 @@ const EmployeeQueriesScreen: React.FC<EmployeeQueriesScreenProps> = ({ navigatio
   };
 
   const handleEditQuery = (query: Query) => {
-    navigation.navigate('CreateQuery', { 
+    // Navigate to QueryDetail screen for editing
+    navigation.navigate('QueryDetail', { 
       queryId: query._id, 
       query: query,
-      editMode: true 
+      redirectTo: 'EmployeeQueries'
     });
   };
 
@@ -379,10 +380,12 @@ const EmployeeQueriesScreen: React.FC<EmployeeQueriesScreenProps> = ({ navigatio
                   <TouchableOpacity
                     style={styles.tableRowContent}
                     onPress={() => {
-                      // Navigate to query detail or task detail
-                      // For now, navigate to CreateQuery with query data for viewing
-                      // You can create a QueryDetailScreen later if needed
-                      navigation.navigate('CreateQuery', { queryId: record._id, viewMode: true });
+                      // Navigate to QueryDetail screen to view query details
+                      navigation.navigate('QueryDetail', { 
+                        queryId: record._id, 
+                        query: record,
+                        redirectTo: 'EmployeeQueries'
+                      });
                     }}
                     activeOpacity={0.7}
                   >

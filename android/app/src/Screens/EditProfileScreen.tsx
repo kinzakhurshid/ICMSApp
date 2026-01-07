@@ -362,11 +362,23 @@ export default function EditProfileScreen() {
         } as any);
       }
 
+      // Validate DOB before submitting
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (dateOfBirth > today) {
+        Alert.alert('Validation Error', 'Date of birth cannot be in the future');
+        setSaving(false);
+        return;
+      }
+
       // API call
       await callApi({
         method: 'PUT',
         url: `/employee/updateOne/${currentUser.employee._id}`,
         data: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
 
       Alert.alert('Success', 'Profile updated successfully', [
@@ -409,7 +421,13 @@ export default function EditProfileScreen() {
         navigation={navigation} 
         title="Edit Profile" 
         showBackButton={true}
-        onBackPress={() => (navigation as any).navigate('EmployeeProfile')}
+        onBackPress={() => {
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          } else {
+            (navigation as any).navigate('EmployeeProfile');
+          }
+        }}
       />
       
       {/* Tabs */}
@@ -442,8 +460,13 @@ export default function EditProfileScreen() {
                 <TextInput
                   style={styles.input}
                   value={firstName}
-                  onChangeText={setFirstName}
+                  onChangeText={(text) => {
+                    // Only allow letters, spaces, hyphens, and apostrophes
+                    const filtered = text.replace(/[^a-zA-Z\s'-]/g, '');
+                    setFirstName(filtered);
+                  }}
                   placeholder="First Name"
+                  placeholderTextColor="#9CA3AF"
                 />
               </View>
               <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
@@ -451,8 +474,13 @@ export default function EditProfileScreen() {
                 <TextInput
                   style={styles.input}
                   value={lastName}
-                  onChangeText={setLastName}
+                  onChangeText={(text) => {
+                    // Only allow letters, spaces, hyphens, and apostrophes
+                    const filtered = text.replace(/[^a-zA-Z\s'-]/g, '');
+                    setLastName(filtered);
+                  }}
                   placeholder="Last Name"
+                  placeholderTextColor="#9CA3AF"
                 />
               </View>
             </View>
@@ -464,6 +492,7 @@ export default function EditProfileScreen() {
                 value={email}
                 onChangeText={setEmail}
                 placeholder="Email"
+                placeholderTextColor="#9CA3AF"
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
@@ -471,13 +500,14 @@ export default function EditProfileScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Phone Number</Text>
-              <TextInput
-                style={styles.input}
-                value={contactNumber}
-                onChangeText={setContactNumber}
-                placeholder="Contact Number"
-                keyboardType="phone-pad"
-              />
+                <TextInput
+                  style={styles.input}
+                  value={contactNumber}
+                  onChangeText={setContactNumber}
+                  placeholder="Contact Number"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="phone-pad"
+                />
             </View>
 
             <View style={styles.row}>
@@ -507,7 +537,9 @@ export default function EditProfileScreen() {
                     setShowDatePicker(true);
                   }}
                 >
-                  <Text>{dateOfBirth.toLocaleDateString()}</Text>
+                  <Text style={dateOfBirth ? {} : { color: '#9CA3AF' }}>
+                    {dateOfBirth ? dateOfBirth.toLocaleDateString() : 'Select Date of Birth'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -538,6 +570,7 @@ export default function EditProfileScreen() {
                   value={city}
                   onChangeText={setCity}
                   placeholder="City"
+                  placeholderTextColor="#9CA3AF"
                 />
               </View>
               <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
@@ -547,6 +580,7 @@ export default function EditProfileScreen() {
                   value={state}
                   onChangeText={setState}
                   placeholder="State"
+                  placeholderTextColor="#9CA3AF"
                 />
               </View>
             </View>
@@ -558,6 +592,7 @@ export default function EditProfileScreen() {
                 value={nationality}
                 onChangeText={setNationality}
                 placeholder="Nationality"
+                placeholderTextColor="#9CA3AF"
               />
             </View>
 
@@ -570,6 +605,7 @@ export default function EditProfileScreen() {
                 value={emergencyName}
                 onChangeText={setEmergencyName}
                 placeholder="Emergency Contact Name"
+                placeholderTextColor="#9CA3AF"
               />
             </View>
 
@@ -581,6 +617,7 @@ export default function EditProfileScreen() {
                   value={emergencyRelation}
                   onChangeText={setEmergencyRelation}
                   placeholder="Relation"
+                  placeholderTextColor="#9CA3AF"
                 />
               </View>
               <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
@@ -590,6 +627,7 @@ export default function EditProfileScreen() {
                   value={emergencyPhone}
                   onChangeText={setEmergencyPhone}
                   placeholder="Phone Number"
+                  placeholderTextColor="#9CA3AF"
                   keyboardType="phone-pad"
                 />
               </View>
@@ -609,6 +647,7 @@ export default function EditProfileScreen() {
                 value={position}
                 onChangeText={setPosition}
                 placeholder="Position"
+                placeholderTextColor="#9CA3AF"
               />
             </View>
 
@@ -631,6 +670,7 @@ export default function EditProfileScreen() {
                 value={role}
                 onChangeText={setRole}
                 placeholder="Role"
+                placeholderTextColor="#9CA3AF"
               />
             </View>
 
@@ -641,6 +681,7 @@ export default function EditProfileScreen() {
                 value={status}
                 onChangeText={setStatus}
                 placeholder="Status (e.g., FullTime, PartTime)"
+                placeholderTextColor="#9CA3AF"
               />
             </View>
 
@@ -651,6 +692,7 @@ export default function EditProfileScreen() {
                 value={salary}
                 onChangeText={setSalary}
                 placeholder="Salary"
+                placeholderTextColor="#9CA3AF"
                 keyboardType="numeric"
               />
             </View>
@@ -673,6 +715,7 @@ export default function EditProfileScreen() {
                   value={skillInput}
                   onChangeText={setSkillInput}
                   placeholder="Add a skill"
+                  placeholderTextColor="#9CA3AF"
                   onSubmitEditing={addSkill}
                 />
                 <TouchableOpacity style={styles.addButton} onPress={addSkill}>
@@ -695,6 +738,7 @@ export default function EditProfileScreen() {
                 value={degree}
                 onChangeText={setDegree}
                 placeholder="Degree (e.g., BS, MS)"
+                placeholderTextColor="#9CA3AF"
               />
             </View>
 
@@ -705,6 +749,7 @@ export default function EditProfileScreen() {
                 value={institute}
                 onChangeText={setInstitute}
                 placeholder="Institute Name"
+                placeholderTextColor="#9CA3AF"
               />
             </View>
           </View>
@@ -722,6 +767,7 @@ export default function EditProfileScreen() {
                 value={taxId}
                 onChangeText={setTaxId}
                 placeholder="Tax ID"
+                placeholderTextColor="#9CA3AF"
               />
             </View>
 
@@ -734,6 +780,7 @@ export default function EditProfileScreen() {
                 value={bankName}
                 onChangeText={setBankName}
                 placeholder="Bank Name"
+                placeholderTextColor="#9CA3AF"
               />
             </View>
 
@@ -744,6 +791,7 @@ export default function EditProfileScreen() {
                 value={accountNumber}
                 onChangeText={setAccountNumber}
                 placeholder="Account Number"
+                placeholderTextColor="#9CA3AF"
                 keyboardType="numeric"
               />
             </View>
@@ -755,6 +803,7 @@ export default function EditProfileScreen() {
                 value={branch}
                 onChangeText={setBranch}
                 placeholder="Branch"
+                placeholderTextColor="#9CA3AF"
               />
             </View>
           </View>
@@ -910,9 +959,25 @@ export default function EditProfileScreen() {
           value={dateOfBirth}
           mode={datePickerMode || 'date'}
           display="default"
+          maximumDate={new Date()} // Cannot be in the future
+          minimumDate={new Date(1900, 0, 1)} // Reasonable minimum date
           onChange={(event, selectedDate) => {
             setShowDatePicker(Platform.OS === 'ios');
             if (selectedDate) {
+              // Validate: DOB should be in the past
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              if (selectedDate > today) {
+                Alert.alert('Invalid Date', 'Date of birth cannot be in the future');
+                return;
+              }
+              // Validate: Person should be at least 13 years old (reasonable minimum)
+              const minAge = new Date();
+              minAge.setFullYear(minAge.getFullYear() - 13);
+              if (selectedDate > minAge) {
+                Alert.alert('Invalid Date', 'Date of birth must be at least 13 years ago');
+                return;
+              }
               setDateOfBirth(selectedDate);
             }
           }}

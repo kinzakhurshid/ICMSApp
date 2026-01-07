@@ -168,6 +168,18 @@ export default function CreateProjectScreen() {
         },
       });
 
+      // Clear all form fields after successful creation
+      setName('');
+      setPriority('Medium');
+      setDescription('');
+      setStatus('Upcoming');
+      setProjectManager('');
+      setTeamMembers([]);
+      setStartDate(null);
+      setEndDate(null);
+      setDocument(null);
+      setErrors({});
+
       Alert.alert('Success', 'Project created successfully', [
         {
           text: 'OK',

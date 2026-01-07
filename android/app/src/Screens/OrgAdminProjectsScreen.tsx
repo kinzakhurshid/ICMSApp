@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import useAxios from '../hooks/useAxios';
 import ProjectKpiCard from '../components/ProjectKpiCard';
 import StatusBadge from '../components/StatusBadge';
@@ -33,50 +33,110 @@ const OrgAdminProjectsScreen: React.FC = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>(''); // all by default
   const [exporting, setExporting] = useState(false);
+  
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [totalProjects, setTotalProjects] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const PAGE_SIZE = 10;
+  
+  // Stats from API
+  const [stats, setStats] = useState({
+    'Total Projects': 0,
+    'In Progress': 0,
+    'Completed': 0,
+    'Not Started': 0,
+    'On Hold': 0,
+    'Cancelled': 0,
+    'Upcoming': 0,
+    'High Priority': 0,
+  });
 
-  // Fetch all projects for the organization (super admin view)
+  // Fetch projects with pagination
   const fetchProjects = useCallback(async () => {
     try {
-      console.log('🔶 [OrgAdminProjects] fetchProjects: starting request');
+      console.log('🔶 [OrgAdminProjects] fetchProjects: starting request', { page, search, statusFilter });
       setLoading(true);
       setError(null);
 
       const startedAt = Date.now();
+      
+      // Build query string matching the API format: /projects?page=1&limit=10&search=&status=&priority=
+      const searchParam = search.trim() || '';
+      const statusParam = statusFilter || '';
+      const priorityParam = ''; // Can be added later if priority filter is needed
+      
+      const url = `/projects?page=${page}&limit=${PAGE_SIZE}&search=${encodeURIComponent(searchParam)}&status=${encodeURIComponent(statusParam)}&priority=${encodeURIComponent(priorityParam)}`;
+
       const response = await callApi({
         method: 'GET',
-        url: '/projects?page=1&limit=1000&search=&status=',
+        url,
       });
 
       console.log('🔶 [OrgAdminProjects] fetchProjects: raw response', JSON.stringify(response, null, 2));
 
       const success = (response as any)?.success;
       let rawProjects: any[] = [];
+      let paginationData: any = {};
+      let statsData: any = {};
 
-      if (Array.isArray((response as any)?.data)) {
-        console.log('🔶 [OrgAdminProjects] fetchProjects: using response.data array');
-        rawProjects = (response as any).data;
+      // Handle different response shapes
+      if ((response as any)?.data) {
+        if (Array.isArray((response as any).data)) {
+          rawProjects = (response as any).data;
+        } else if ((response as any).data?.projects && Array.isArray((response as any).data.projects)) {
+          rawProjects = (response as any).data.projects;
+          paginationData = (response as any).data.pagination || {};
+          statsData = (response as any).data.stats || {};
+        } else if ((response as any).data?.data && Array.isArray((response as any).data.data)) {
+          rawProjects = (response as any).data.data;
+          paginationData = (response as any).data.pagination || {};
+          statsData = (response as any).data.stats || {};
+        }
       } else if (Array.isArray((response as any)?.projects)) {
-        console.log('🔶 [OrgAdminProjects] fetchProjects: using response.projects array');
         rawProjects = (response as any).projects;
       } else if (Array.isArray(response as any)) {
-        console.log('🔶 [OrgAdminProjects] fetchProjects: using response as array directly');
         rawProjects = response as any;
-      } else {
-        console.log(
-          '⚠️ [OrgAdminProjects] fetchProjects: response shape not recognized, defaulting to empty list',
-        );
       }
 
-      console.log(
-        '🔶 [OrgAdminProjects] fetchProjects: success flag & rawProjects length',
-        success,
-        Array.isArray(rawProjects) ? rawProjects.length : 'not-array',
-      );
+      // Extract stats from response (preferred) or response.data.stats
+      if ((response as any)?.stats) {
+        statsData = (response as any).stats;
+      } else if ((response as any)?.data?.stats) {
+        statsData = (response as any).data.stats;
+      }
+
+      // Extract pagination info
+      const total = paginationData.total || (response as any)?.pagination?.total || (response as any)?.total || rawProjects.length;
+      const totalPagesCount = paginationData.totalPages || (response as any)?.pagination?.totalPages || Math.ceil(total / PAGE_SIZE) || 1;
 
       if (rawProjects && Array.isArray(rawProjects)) {
         setProjects(rawProjects as Project[]);
+        setTotalProjects(total);
+        // Ensure totalPages is at least 1 and matches the actual data
+        const actualTotalPages = Math.max(1, totalPagesCount);
+        setTotalPages(actualTotalPages);
+        
+        // Log for debugging
+        console.log(`📊 Projects pagination - Page: ${page}, Total: ${total}, TotalPages: ${actualTotalPages}, Displayed: ${rawProjects.length}`);
+        
+        // Update stats from API response
+        if (statsData && Object.keys(statsData).length > 0) {
+          setStats({
+            'Total Projects': total,
+            'In Progress': statsData['In Progress'] || statsData['in_progress'] || 0,
+            'Completed': statsData['Completed'] || statsData['completed'] || 0,
+            'Not Started': statsData['Not Started'] || statsData['not_started'] || 0,
+            'On Hold': statsData['On Hold'] || statsData['on_hold'] || 0,
+            'Cancelled': statsData['Cancelled'] || statsData['cancelled'] || 0,
+            'Upcoming': statsData['Upcoming'] || statsData['upcoming'] || 0,
+            'High Priority': 0, // Calculate from projects if needed
+          });
+        }
       } else {
         setProjects([]);
+        setTotalProjects(0);
+        setTotalPages(1);
         setError('Invalid project data received from server');
         console.log('🔴 [OrgAdminProjects] Unexpected projects API shape for OrgAdmin:', response);
       }
@@ -85,7 +145,10 @@ const OrgAdminProjectsScreen: React.FC = () => {
         '✅ [OrgAdminProjects] fetchProjects: finished',
         JSON.stringify(
           {
-            total: Array.isArray(rawProjects) ? rawProjects.length : 0,
+            total,
+            totalPages: totalPagesCount,
+            currentPage: page,
+            projectsCount: Array.isArray(rawProjects) ? rawProjects.length : 0,
             durationMs: Date.now() - startedAt,
           },
           null,
@@ -105,9 +168,30 @@ const OrgAdminProjectsScreen: React.FC = () => {
   useEffect(() => {
     console.log('🔁 [OrgAdminProjects] useEffect: initial mount, fetching projects');
     fetchProjects();
-    // We intentionally leave the dependency array empty so this only runs once per mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [page]);
+
+  useEffect(() => {
+    // Reset to page 1 when search or status filter changes
+    setPage(1);
+  }, [search, statusFilter]);
+
+  useEffect(() => {
+    // Fetch when search or status filter changes (after page reset)
+    if (page === 1) {
+      fetchProjects();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, statusFilter]);
+
+  // Refresh projects when screen comes into focus (e.g., after creating a project)
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🔁 [OrgAdminProjects] useFocusEffect: screen focused, refetching projects');
+      fetchProjects();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+  );
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'N/A';
@@ -120,7 +204,7 @@ const OrgAdminProjectsScreen: React.FC = () => {
     });
   };
 
-  // Filtered list based on search + status filter
+  // Filtered list based on search + status filter (for current page display)
   const filteredProjects = useMemo(() => {
     const byStatus = statusFilter
       ? projects.filter((p) => (p.status || '').toLowerCase() === statusFilter.toLowerCase())
@@ -137,23 +221,24 @@ const OrgAdminProjectsScreen: React.FC = () => {
     );
   }, [projects, search, statusFilter]);
 
-  // KPI data derived from current list
-  const totalProjects = projects.length;
-  const inProgress = projects.filter((p) => p.status === 'In Progress').length;
-  const completed = projects.filter((p) => p.status === 'Completed').length;
-  const notStarted = projects.filter((p) => p.status === 'Not Started').length;
-
+  // KPI data derived from all projects (not just current page)
+  // Note: These stats should ideally come from the API, but for now we calculate from current page
+  // In a real scenario, you'd want to fetch stats separately or get them from the API response
+  // Calculate High Priority from current page (or could be added to API stats)
   const highPriority = projects.filter((p) => p.priority === 'High' || p.priority === 'Critical').length;
 
+  // Use stats from API response instead of calculating from current page
   const kpiData = useMemo(
     () => [
-    { title: 'Total Projects', value: totalProjects, icon: 'grid-view', color: '#6b7280' },
-      { title: 'In Progress', value: inProgress, icon: 'play-circle-outline', color: '#f97316' },
-      { title: 'Completed', value: completed, icon: 'check-circle', color: '#22c55e' },
-      { title: 'Not Started', value: notStarted, icon: 'pause-circle-outline', color: '#9ca3af' },
+      { title: 'Total Projects', value: stats['Total Projects'], icon: 'folder', color: '#6b7280' },
+      { title: 'In Progress', value: stats['In Progress'], icon: 'trending-up', color: '#f97316' },
+      { title: 'Completed', value: stats['Completed'], icon: 'check-circle', color: '#22c55e' },
+      { title: 'Not Started', value: stats['Not Started'], icon: 'schedule', color: '#9ca3af' },
+      { title: 'Upcoming', value: stats['Upcoming'], icon: 'event', color: '#3b82f6' },
+      { title: 'On Hold', value: stats['On Hold'], icon: 'pause-circle', color: '#f59e0b' },
       { title: 'High Priority', value: highPriority, icon: 'priority-high', color: '#ef4444' },
     ],
-    [totalProjects, inProgress, completed, notStarted, highPriority],
+    [stats, highPriority],
   );
 
   // Horizontal KPI carousel
@@ -184,7 +269,35 @@ const OrgAdminProjectsScreen: React.FC = () => {
     try {
       setExporting(true);
 
-      if (!filteredProjects.length) {
+      // Fetch all projects for export (not just current page)
+      // Using the same API format: /projects?page=1&limit=10&search=&status=&priority=
+      const searchParam = search.trim() || '';
+      const statusParam = statusFilter || '';
+      const priorityParam = ''; // Can be added later if priority filter is needed
+      
+      const url = `/projects?page=1&limit=10000&search=${encodeURIComponent(searchParam)}&status=${encodeURIComponent(statusParam)}&priority=${encodeURIComponent(priorityParam)}`;
+
+      const response = await callApi({
+        method: 'GET',
+        url,
+      });
+
+      let allProjects: any[] = [];
+      if ((response as any)?.data) {
+        if (Array.isArray((response as any).data)) {
+          allProjects = (response as any).data;
+        } else if ((response as any).data?.projects && Array.isArray((response as any).data.projects)) {
+          allProjects = (response as any).data.projects;
+        } else if ((response as any).data?.data && Array.isArray((response as any).data.data)) {
+          allProjects = (response as any).data.data;
+        }
+      } else if (Array.isArray((response as any)?.projects)) {
+        allProjects = (response as any).projects;
+      } else if (Array.isArray(response as any)) {
+        allProjects = response as any;
+      }
+
+      if (!allProjects.length) {
         Alert.alert('Export', 'No projects to export');
         return;
       }
@@ -202,7 +315,7 @@ const OrgAdminProjectsScreen: React.FC = () => {
           { key: 'budget', header: 'Budget' },
           { key: 'spent', header: 'Amount Spent' },
         ],
-        rows: filteredProjects.map((p, index) => ({
+        rows: allProjects.map((p, index) => ({
           sr: index + 1,
           name: p.name,
           manager: p.projectManager?.fullName || 'N/A',
@@ -249,14 +362,6 @@ const OrgAdminProjectsScreen: React.FC = () => {
       {/* KPI row */}
       <View style={styles.titleRow}>
         <Text style={styles.title}>Projects Overview</Text>
-        <View style={styles.arrowRow}>
-          <TouchableOpacity style={styles.arrowBtn} onPress={() => scrollBy(-1)}>
-            <Text style={styles.arrowText}>{'<'}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.arrowBtn} onPress={() => scrollBy(1)}>
-            <Text style={styles.arrowText}>{'>'}</Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
       <ScrollView
@@ -289,7 +394,7 @@ const OrgAdminProjectsScreen: React.FC = () => {
           <View style={styles.searchInputContainer}>
             <Ionicons name="search" size={18} color="#9CA3AF" style={{ marginRight: 6 }} />
             <TextInput
-              placeholder="Search by name, description or manager..."
+              placeholder="Search projects..."
               placeholderTextColor="#9CA3AF"
               style={styles.searchInput}
               value={search}
@@ -302,6 +407,19 @@ const OrgAdminProjectsScreen: React.FC = () => {
             onPress={() => setStatusFilter('')}
           >
             <Text style={[styles.iconBtnText, statusFilter === '' && styles.iconBtnTextActive]}>All</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.iconBtn, statusFilter === 'Not Started' && styles.iconBtnActive]}
+            onPress={() => setStatusFilter('Not Started')}
+          >
+            <Text
+              style={[
+                styles.iconBtnText,
+                statusFilter === 'Not Started' && styles.iconBtnTextActive,
+              ]}
+            >
+              Not Started
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.iconBtn, statusFilter === 'In Progress' && styles.iconBtnActive]}
@@ -317,6 +435,19 @@ const OrgAdminProjectsScreen: React.FC = () => {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
+            style={[styles.iconBtn, statusFilter === 'On Hold' && styles.iconBtnActive]}
+            onPress={() => setStatusFilter('On Hold')}
+          >
+            <Text
+              style={[
+                styles.iconBtnText,
+                statusFilter === 'On Hold' && styles.iconBtnTextActive,
+              ]}
+            >
+              On Hold
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
             style={[styles.iconBtn, statusFilter === 'Completed' && styles.iconBtnActive]}
             onPress={() => setStatusFilter('Completed')}
           >
@@ -327,6 +458,19 @@ const OrgAdminProjectsScreen: React.FC = () => {
               ]}
             >
               Completed
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.iconBtn, statusFilter === 'Cancelled' && styles.iconBtnActive]}
+            onPress={() => setStatusFilter('Cancelled')}
+          >
+            <Text
+              style={[
+                styles.iconBtnText,
+                statusFilter === 'Cancelled' && styles.iconBtnTextActive,
+              ]}
+            >
+              Cancelled
             </Text>
           </TouchableOpacity>
 
@@ -347,42 +491,128 @@ const OrgAdminProjectsScreen: React.FC = () => {
         </View>
 
         {/* Table header */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View style={styles.tableHeader}>
-          <Text style={[styles.th, { flex: 2 }]}>PROJECT NAME</Text>
-          <Text style={[styles.th, { flex: 1 }]}>START DATE</Text>
-          <Text style={[styles.th, { flex: 1 }]}>END DATE</Text>
-          <Text style={[styles.th, { flex: 1 }]}>STATUS</Text>
-          <Text style={[styles.th, { flex: 1 }]}>PRIORITY</Text>
-        </View>
+            <Text style={[styles.th, { width: 50 }]}>SR#</Text>
+            <Text style={[styles.th, { width: 180 }]}>PROJECT NAME</Text>
+            <Text style={[styles.th, { width: 120 }]}>START DATE</Text>
+            <Text style={[styles.th, { width: 120 }]}>END DATE</Text>
+            <Text style={[styles.th, { width: 130 }]}>STATUS</Text>
+            <Text style={[styles.th, { width: 100 }]}>PRIORITY</Text>
+            <Text style={[styles.th, { width: 100 }]}>ACTIONS</Text>
+          </View>
+        </ScrollView>
 
         {/* Rows */}
-        {filteredProjects.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>
-              {search || statusFilter ? 'No projects match your filters.' : 'No projects available.'}
-            </Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View>
+            {projects.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyText}>
+                  {search || statusFilter ? 'No projects match your filters.' : 'No projects available.'}
+                </Text>
+              </View>
+            ) : (
+              projects.map((p, index) => (
+                <View key={p._id} style={styles.tr}>
+                  <Text style={[styles.td, { width: 50 }]}>{(page - 1) * PAGE_SIZE + index + 1}</Text>
+                  <TouchableOpacity
+                    style={[styles.td, { width: 180 }]}
+                    activeOpacity={0.7}
+                    onPress={() => handleProjectPress(p)}
+                  >
+                    <Text style={styles.tdText} numberOfLines={1}>
+                      {p.name}
+                    </Text>
+                  </TouchableOpacity>
+                  <Text style={[styles.td, { width: 120 }]}>{formatDate(p.startDate)}</Text>
+                  <Text style={[styles.td, { width: 120 }]}>{formatDate(p.endDate)}</Text>
+                  <View style={[styles.badge, { width: 130 }]}>
+                    <StatusBadge status={p.status} size="small" />
+                  </View>
+                  <View style={[styles.badge, { width: 100 }]}>
+                    <PriorityBadge priority={p.priority} variant="outlined" vertical={false} />
+                  </View>
+                  <View style={[styles.actionsColumn, { width: 100 }]}>
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() => {
+                        navigation.navigate('EditProject', { projectId: p._id, from: 'OrgProjects' });
+                      }}
+                    >
+                      <Ionicons name="create-outline" size={18} color="#f97316" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() => {
+                        Alert.alert(
+                          'Delete Project',
+                          `Are you sure you want to delete "${p.name}"?`,
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: 'Delete',
+                              style: 'destructive',
+                              onPress: async () => {
+                                try {
+                                  await callApi({
+                                    method: 'DELETE',
+                                    url: `/projects/${p._id}`,
+                                  });
+                                  Alert.alert('Success', 'Project deleted successfully');
+                                  fetchProjects();
+                                } catch (error: any) {
+                                  Alert.alert('Error', error?.response?.data?.message || 'Failed to delete project');
+                                }
+                              },
+                            },
+                          ]
+                        );
+                      }}
+                    >
+                      <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))
+            )}
           </View>
-        ) : (
-          filteredProjects.map((p) => (
+        </ScrollView>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <View style={styles.paginationContainer}>
             <TouchableOpacity
-              key={p._id}
-              style={styles.tr}
-              activeOpacity={0.7}
-              onPress={() => handleProjectPress(p)}
+              style={[styles.pageButton, page === 1 && styles.pageButtonDisabled]}
+              onPress={() => setPage(prev => Math.max(1, prev - 1))}
+              disabled={page === 1}
             >
-              <Text style={[styles.td, { flex: 2 }]} numberOfLines={1}>
-                {p.name}
+              <Ionicons name="chevron-back" size={18} color={page === 1 ? '#9CA3AF' : '#111827'} />
+              <Text style={[styles.pageButtonText, page === 1 && styles.pageButtonTextDisabled]}>
+                Previous
               </Text>
-              <Text style={[styles.td, { flex: 1 }]}>{formatDate(p.startDate)}</Text>
-              <Text style={[styles.td, { flex: 1 }]}>{formatDate(p.endDate)}</Text>
-              <View style={[styles.badge, { flex: 1 }]}>
-                <StatusBadge status={p.status} size="small" />
-              </View>
-              <View style={[styles.badge, { flex: 1 }]}>
-                <PriorityBadge priority={p.priority} variant="outlined" vertical={false} />
-              </View>
             </TouchableOpacity>
-          ))
+
+            <View style={styles.pageInfo}>
+              <Text style={styles.pageInfoText}>
+                Page {page} of {totalPages}
+              </Text>
+              <Text style={styles.pageInfoSubtext}>
+                Showing {projects.length > 0 ? ((page - 1) * PAGE_SIZE) + 1 : 0}-{Math.min((page - 1) * PAGE_SIZE + projects.length, totalProjects)} of {totalProjects}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.pageButton, page >= totalPages && styles.pageButtonDisabled]}
+              onPress={() => setPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={page >= totalPages}
+            >
+              <Text style={[styles.pageButtonText, page >= totalPages && styles.pageButtonTextDisabled]}>
+                Next
+              </Text>
+              <Ionicons name="chevron-forward" size={18} color={page >= totalPages ? '#9CA3AF' : '#111827'} />
+            </TouchableOpacity>
+        </View>
         )}
       </View>
     </ScrollView>
@@ -428,17 +658,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   title: { fontSize: 22, fontWeight: '700', color: '#1F2937' },
-  arrowRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  arrowBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  arrowText: { fontSize: 16, color: '#6b7280' },
   listCard: {
     margin: 15,
     padding: 15,
@@ -528,20 +747,41 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E5E7EB',
     paddingVertical: 10,
     marginTop: 8,
+    minWidth: 800,
   },
-  th: { fontSize: 12, color: '#374151', fontWeight: '700' },
+  th: { fontSize: 11, color: '#374151', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   tr: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
-    gap: 8,
+    minWidth: 800,
   },
-  td: { fontSize: 13, color: '#374151' },
+  td: { 
+    fontSize: 13, 
+    color: '#374151',
+    paddingHorizontal: 4,
+    justifyContent: 'center',
+  },
+  tdText: {
+    fontSize: 13,
+    color: '#374151',
+  },
   badge: {
     justifyContent: 'center',
     alignItems: 'flex-start',
+    paddingHorizontal: 4,
+  },
+  actionsColumn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 4,
+  },
+  actionButton: {
+    padding: 4,
   },
   emptyState: {
     paddingVertical: 24,
@@ -550,6 +790,52 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     color: '#9CA3AF',
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    marginTop: 8,
+  },
+  pageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+    gap: 6,
+  },
+  pageButtonDisabled: {
+    opacity: 0.5,
+    backgroundColor: '#F9FAFB',
+  },
+  pageButtonText: {
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: '500',
+  },
+  pageButtonTextDisabled: {
+    color: '#9CA3AF',
+  },
+  pageInfo: {
+    alignItems: 'center',
+  },
+  pageInfoText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  pageInfoSubtext: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
   },
 });
 

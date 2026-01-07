@@ -326,6 +326,14 @@ const MeetingScreen: React.FC = () => {
     loadData();
   }, []);
 
+  // Refresh data when screen comes into focus (e.g., after creating a meeting)
+  React.useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadData();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
   // Reload data when component mounts or user changes
   useEffect(() => {
     if (displayUser) {

@@ -82,6 +82,7 @@ const OrgAdminActivitiesScreen: React.FC = () => {
   const [weekHistory, setWeekHistory] = useState<any>(null);
   const [monthHistory, setMonthHistory] = useState<any>(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'online' | 'offline'>('all');
 
   // Screenshots state
   const [screenshots, setScreenshots] = useState<ScreenshotActivity[]>([]);
@@ -282,8 +283,16 @@ const OrgAdminActivitiesScreen: React.FC = () => {
     return `${employee.firstName} ${employee.lastName}`.trim();
   };
 
-  // Filter employees based on search query
+  // Filter employees based on search query and status filter
   const filteredEmployees = employees.filter((employee) => {
+    // Apply status filter (online/offline)
+    if (statusFilter !== 'all') {
+      const isOnline = isEmployeeOnline(employee);
+      if (statusFilter === 'online' && !isOnline) return false;
+      if (statusFilter === 'offline' && isOnline) return false;
+    }
+    
+    // Apply search query filter
     if (!employeeSearchQuery.trim()) return true;
     const searchLower = employeeSearchQuery.toLowerCase();
     const fullName = getEmployeeDisplayName(employee).toLowerCase();
@@ -325,7 +334,7 @@ const OrgAdminActivitiesScreen: React.FC = () => {
       0
     );
     const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
+    const minutes = Math.floor(totalMinutes % 60); // Ensure integer, no decimals
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   };
 
@@ -334,7 +343,7 @@ const OrgAdminActivitiesScreen: React.FC = () => {
     if (!overview?.today?.idleTime) return '00:00';
     const totalMinutes = overview.today.idleTime.totalIdleTimeMinutes || 0;
     const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
+    const minutes = Math.floor(totalMinutes % 60); // Ensure integer, no decimals
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   };
 
@@ -421,9 +430,18 @@ const OrgAdminActivitiesScreen: React.FC = () => {
               <Text style={styles.positionText}>{employee.position || employee.role}</Text>
             </View>
           </View>
-          <View style={styles.cardMenu}>
+          <TouchableOpacity
+            style={styles.cardMenu}
+            onPress={() => {
+              // Quick action menu - show options
+              // TODO: Implement quick actions (view details, etc.)
+              setSelectedEmployee(employee);
+              setActiveTab('overview');
+            }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <MaterialIcons name="more-vert" size={18} color="#9CA3AF" />
-          </View>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.cardMetrics}>
@@ -687,7 +705,7 @@ const OrgAdminActivitiesScreen: React.FC = () => {
           <PieChart
             data={pieData}
             width={width - 64}
-            height={200}
+            height={180}
             chartConfig={chartConfig}
             accessor="minutes"
             backgroundColor="transparent"
@@ -696,10 +714,14 @@ const OrgAdminActivitiesScreen: React.FC = () => {
           />
         </View>
         <View style={styles.chartLegend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#3B82F6' }]} />
-            <Text style={styles.legendText}>Minutes</Text>
-          </View>
+          {sortedApps.map((app, index) => (
+            <View key={app.appName} style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: `hsl(${index * 60}, 70%, 50%)` }]} />
+              <Text style={styles.legendText} numberOfLines={1}>
+                {app.appName.length > 15 ? app.appName.substring(0, 15) + '...' : app.appName} ({app.totalDurationMinutes}m)
+              </Text>
+            </View>
+          ))}
         </View>
       </View>
     );
@@ -833,6 +855,42 @@ const OrgAdminActivitiesScreen: React.FC = () => {
             </Text>
             <MaterialIcons name="calendar-today" size={18} color="#FB923C" />
           </TouchableOpacity>
+          
+          {/* Quick date selection buttons */}
+          <View style={styles.quickDateButtons}>
+            <TouchableOpacity
+              style={[styles.quickDateButton, shotDate === new Date().toISOString().slice(0, 10) && styles.quickDateButtonActive]}
+              onPress={() => setShotDate(new Date().toISOString().slice(0, 10))}
+            >
+              <Text style={[styles.quickDateButtonText, shotDate === new Date().toISOString().slice(0, 10) && styles.quickDateButtonTextActive]}>
+                Today
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.quickDateButton]}
+              onPress={() => {
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                setShotDate(yesterday.toISOString().slice(0, 10));
+              }}
+            >
+              <Text style={styles.quickDateButtonText}>
+                Yesterday
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.quickDateButton]}
+              onPress={() => {
+                const weekAgo = new Date();
+                weekAgo.setDate(weekAgo.getDate() - 7);
+                setShotDate(weekAgo.toISOString().slice(0, 10));
+              }}
+            >
+              <Text style={styles.quickDateButtonText}>
+                Week Ago
+              </Text>
+            </TouchableOpacity>
+          </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.appFilters}>
             {['all', 'Chrome', 'VSCode', 'Slack', 'UnrealEditor'].map((app) => (
@@ -992,6 +1050,7 @@ const OrgAdminActivitiesScreen: React.FC = () => {
           mode="date"
             display="calendar"
             onChange={handleDateChange}
+            maximumDate={new Date()} // Allow past dates, but not future dates
         />
       )}
 
@@ -1095,6 +1154,49 @@ const OrgAdminActivitiesScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
+        {/* Status Filter */}
+        <View style={styles.filterContainer}>
+          <Text style={styles.filterLabel}>Filter by Status</Text>
+          <View style={styles.filterButtons}>
+            <TouchableOpacity
+              style={[styles.filterButton, statusFilter === 'all' && styles.filterButtonActive]}
+              onPress={() => setStatusFilter('all')}
+            >
+              <Text style={[styles.filterButtonText, statusFilter === 'all' && styles.filterButtonTextActive]}>
+                All
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterButton, statusFilter === 'online' && styles.filterButtonActive]}
+              onPress={() => setStatusFilter('online')}
+            >
+              <MaterialIcons 
+                name="circle" 
+                size={12} 
+                color={statusFilter === 'online' ? '#fff' : '#22C55E'} 
+                style={{ marginRight: 4 }}
+              />
+              <Text style={[styles.filterButtonText, statusFilter === 'online' && styles.filterButtonTextActive]}>
+                Online
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterButton, statusFilter === 'offline' && styles.filterButtonActive]}
+              onPress={() => setStatusFilter('offline')}
+            >
+              <MaterialIcons 
+                name="circle" 
+                size={12} 
+                color={statusFilter === 'offline' ? '#fff' : '#9CA3AF'} 
+                style={{ marginRight: 4 }}
+              />
+              <Text style={[styles.filterButtonText, statusFilter === 'offline' && styles.filterButtonTextActive]}>
+                Offline
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* All Employees Overview */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
@@ -1102,8 +1204,13 @@ const OrgAdminActivitiesScreen: React.FC = () => {
           <Text style={styles.sectionTitle}>All Employees Overview</Text>
                 </View>
         <View style={styles.employeesGrid}>
-          {employees.map((employee) => renderEmployeeCard(employee))}
+          {filteredEmployees.map((employee) => renderEmployeeCard(employee))}
         </View>
+        {filteredEmployees.length === 0 && (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>No employees found</Text>
+          </View>
+        )}
       </View>
       </ScrollView>
 
@@ -1124,7 +1231,7 @@ const OrgAdminActivitiesScreen: React.FC = () => {
             setEmployeeSearchQuery('');
           }}
         >
-          <View style={styles.dropdownModal} onStartShouldSetResponder={() => true}>
+          <View style={styles.dropdownModal}>
             <View style={styles.dropdownHeader}>
               <Text style={styles.dropdownTitle}>Select Employee</Text>
               <TouchableOpacity
@@ -1909,6 +2016,72 @@ const styles = StyleSheet.create({
   },
   appUsagePieChart: {
     marginTop: 8,
+    marginBottom: 8,
+  },
+  filterContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 12,
+    marginBottom: 16,
+  },
+  filterLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FB923C',
+    marginBottom: 8,
+  },
+  filterButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  filterButtonActive: {
+    backgroundColor: '#FB923C',
+    borderColor: '#FB923C',
+  },
+  filterButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  filterButtonTextActive: {
+    color: '#fff',
+  },
+  quickDateButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  quickDateButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  quickDateButtonActive: {
+    backgroundColor: '#FB923C',
+    borderColor: '#FB923C',
+  },
+  quickDateButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  quickDateButtonTextActive: {
+    color: '#fff',
   },
   stackedChartContainer: {
     flexDirection: 'row',

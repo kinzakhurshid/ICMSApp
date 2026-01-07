@@ -337,6 +337,8 @@ const EmployeeAccessoriesScreen: React.FC<EmployeeAccessoriesScreenProps> = ({ n
         }}
         onStatusChange={(val) => {
           setRequestStatus(val);
+          // Immediately fetch with new status filter
+          fetchRequests(1, requestLimit);
         }}
         onSearchSubmit={() => {
           fetchRequests(1, requestLimit);

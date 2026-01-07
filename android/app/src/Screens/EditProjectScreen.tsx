@@ -67,6 +67,20 @@ export default function EditProjectScreen() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Back navigation:
+  // - If opened from Org Admin projects, go explicitly to OrgProjects
+  // - If opened from PM Projects tab, rely on goBack to return to ProjectsTab
+  // - Otherwise, just goBack as a sensible default
+  const handleBack = () => {
+    const from = (route.params as any)?.from;
+
+    if (from === 'OrgProjects') {
+      (navigation as any).navigate('OrgProjects');
+    } else {
+      navigation.goBack();
+    }
+  };
+
   useEffect(() => {
     loadEmployees();
     if (projectId) {

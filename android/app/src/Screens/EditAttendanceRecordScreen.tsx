@@ -11,6 +11,8 @@ import {
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import useAxios from '../hooks/useAxios';
+import { useSelector } from 'react-redux';
+import { RootState } from '../states/store';
 import FormField from '../components/task/FormField';
 import DropdownField from '../components/task/DropdownField';
 import DatePickerField from '../components/task/DatePickerField';
@@ -35,6 +37,8 @@ interface AttendanceRecord {
   status: 'Present' | 'Absent' | 'Late' | 'Half Day' | 'On Leave';
   checkIn?: string;
   checkOut?: string;
+  checkInTime?: string; // API field name
+  checkOutTime?: string; // API field name
   timeIn?: string;
   timeOut?: string;
   arrivalStatus?: 'On Time' | 'Late' | 'Early';
@@ -44,8 +48,8 @@ interface AttendanceRecord {
 const statusOptions = [
   { label: 'Present', value: 'Present' },
   { label: 'Absent', value: 'Absent' },
-  { label: 'Half Day', value: 'Half Day' },
-  { label: 'On Leave', value: 'On Leave' },
+  { label: 'Half Day', value: 'Half-day' }, // API expects 'Half-day' with hyphen
+  { label: 'On Leave', value: 'Leave' }, // API expects 'Leave' not 'On Leave'
 ];
 
 const arrivalStatusOptions = [
@@ -54,12 +58,22 @@ const arrivalStatusOptions = [
   { label: 'Early', value: 'Early' },
 ];
 
+const halfDayTypeOptions = [
+  { label: 'First Half (Before 1 PM)', value: 'first' },
+  { label: 'Second Half (After 1 PM)', value: 'second' },
+];
+
 export default function EditAttendanceRecordScreen() {
   const navigation = useNavigation();
   const route = useRoute<any>();
   const { callApi } = useAxios();
+  const { currentUser } = useSelector((state: RootState) => state.user);
 
   const initialRecord: AttendanceRecord | undefined = route.params?.record;
+  
+  // Check if user is super admin/org admin
+  const displayUser = currentUser || (useSelector((state: RootState) => state.user) as any).user;
+  const isOrgAdmin = ['ORG_ADMIN','OrgAdmin','org_admin','Org Admin','ORGADMIN','orgadmin','ORG'].includes(((displayUser as any)?.role || '').toString());
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -69,10 +83,11 @@ export default function EditAttendanceRecordScreen() {
   // Form state
   const [employeeId, setEmployeeId] = useState('');
   const [date, setDate] = useState<Date | null>(null);
-  const [status, setStatus] = useState<'Present' | 'Absent' | 'Late' | 'Half Day' | 'On Leave'>('Present');
+  const [status, setStatus] = useState<'Present' | 'Absent' | 'Late' | 'Half-day' | 'Leave'>('Present');
   const [checkInTime, setCheckInTime] = useState('');
   const [checkOutTime, setCheckOutTime] = useState('');
   const [arrivalStatus, setArrivalStatus] = useState<'On Time' | 'Late' | 'Early' | ''>('');
+  const [halfDayType, setHalfDayType] = useState(''); // 'first' or 'second' for Half-day
   const [notes, setNotes] = useState('');
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -83,34 +98,40 @@ export default function EditAttendanceRecordScreen() {
 
   useEffect(() => {
     if (initialRecord) {
-      // Check if the record's date is in the past
-      const recordDate = initialRecord.date ? new Date(initialRecord.date) : null;
-      if (recordDate) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const recordDateOnly = new Date(recordDate);
-        recordDateOnly.setHours(0, 0, 0, 0);
-        
-        if (recordDateOnly < today) {
-          Alert.alert(
-            'Cannot Edit Past Attendance',
-            'Past attendance cannot be edited. Please contact your administrator if you need to make changes.',
-            [
-              {
-                text: 'OK',
-                onPress: () => navigation.goBack(),
-              },
-            ]
-          );
-          setLoading(false);
-          return;
+      // Only check for past dates if user is NOT super admin/org admin
+      if (!isOrgAdmin) {
+        const recordDate = initialRecord.date ? new Date(initialRecord.date) : null;
+        if (recordDate) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const recordDateOnly = new Date(recordDate);
+          recordDateOnly.setHours(0, 0, 0, 0);
+          
+          if (recordDateOnly < today) {
+            Alert.alert(
+              'Cannot Edit Past Attendance',
+              'Past attendance cannot be edited. Please contact your administrator if you need to make changes.',
+              [
+                {
+                  text: 'OK',
+                  onPress: () => {
+                    // Navigate back to attendance screen instead of main screen
+                    const redirectTo = route.params?.redirectTo || 'HRAttendance';
+                    (navigation as any).navigate(redirectTo);
+                  },
+                },
+              ]
+            );
+            setLoading(false);
+            return;
+          }
         }
       }
       
       hydrateFromRecord(initialRecord);
       setLoading(false);
     }
-  }, [initialRecord]);
+  }, [initialRecord, isOrgAdmin]);
 
   const loadEmployees = async () => {
     try {
@@ -147,10 +168,62 @@ export default function EditAttendanceRecordScreen() {
 
     setEmployeeId(empId);
     setDate(rec.date ? new Date(rec.date) : null);
-    setStatus(rec.status || 'Present');
-    setCheckInTime(rec.checkIn || rec.timeIn || '');
-    setCheckOutTime(rec.checkOut || rec.timeOut || '');
+    // Map status values to match API format
+    let mappedStatus = rec.status || 'Present';
+    if (mappedStatus === 'Half Day') mappedStatus = 'Half-day';
+    if (mappedStatus === 'On Leave') mappedStatus = 'Leave';
+    setStatus(mappedStatus as any);
+    
+    // Fix: Extract time from checkInTime (API), checkIn, or timeIn - handle both date-time strings and time-only strings
+    const checkInValue = rec.checkInTime || rec.checkIn || rec.timeIn || '';
+    if (checkInValue) {
+      // If it's a date-time string, extract just the time part
+      if (checkInValue.includes('T') || checkInValue.includes(' ')) {
+        try {
+          const date = new Date(checkInValue);
+          if (!isNaN(date.getTime())) {
+            // Format as HH:mm
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            setCheckInTime(`${hours}:${minutes}`);
+          } else {
+            setCheckInTime(checkInValue);
+          }
+        } catch (e) {
+          setCheckInTime(checkInValue);
+        }
+      } else {
+        setCheckInTime(checkInValue);
+      }
+    } else {
+      setCheckInTime('');
+    }
+    
+    // Same for checkOut - check checkOutTime (API), checkOut, or timeOut
+    const checkOutValue = rec.checkOutTime || rec.checkOut || rec.timeOut || '';
+    if (checkOutValue) {
+      if (checkOutValue.includes('T') || checkOutValue.includes(' ')) {
+        try {
+          const date = new Date(checkOutValue);
+          if (!isNaN(date.getTime())) {
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            setCheckOutTime(`${hours}:${minutes}`);
+          } else {
+            setCheckOutTime(checkOutValue);
+          }
+        } catch (e) {
+          setCheckOutTime(checkOutValue);
+        }
+      } else {
+        setCheckOutTime(checkOutValue);
+      }
+    } else {
+      setCheckOutTime('');
+    }
+    
     setArrivalStatus((rec.arrivalStatus as any) || '');
+    setHalfDayType((rec.halfDayType as any) || '');
     setNotes(rec.notes || '');
   };
 
@@ -161,8 +234,8 @@ export default function EditAttendanceRecordScreen() {
     if (!date) newErrors.date = 'Date is required';
     if (!status) newErrors.status = 'Status is required';
 
-    // Validate that date is not in the past
-    if (date) {
+    // Only validate past dates if user is NOT super admin/org admin
+    if (date && !isOrgAdmin) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const selectedDate = new Date(date);
@@ -173,18 +246,28 @@ export default function EditAttendanceRecordScreen() {
       }
     }
     
-    // If status is Absent, don't require check-in/check-out times
-    if (status === 'Absent') {
-      // Clear check-in/check-out times and arrival status for absent employees
+    // If status is Absent or Leave, don't require check-in/check-out times
+    if (status === 'Absent' || status === 'Leave') {
+      // Clear check-in/check-out times and arrival status for absent/leave employees
       setCheckInTime('');
       setCheckOutTime('');
       setArrivalStatus('');
+      setHalfDayType('');
+    } else if (status === 'Half-day') {
+      // For Half-day, require check-in time and half-day type
+      if (!checkInTime) newErrors.checkInTime = 'Check in time is required';
+      if (!halfDayType) newErrors.halfDayType = 'Half-day type is required (First or Second half)';
+      if (checkOutTime && checkOutTime <= checkInTime) {
+        newErrors.checkOutTime = 'Check out time must be after check in time';
+      }
+      // Arrival status is optional for half-day
     } else {
-      // For non-absent statuses, require check-in time
+      // For Present status, require check-in time and arrival status
       if (!checkInTime) newErrors.checkInTime = 'Check in time is required';
       if (checkOutTime && checkOutTime <= checkInTime) {
         newErrors.checkOutTime = 'Check out time must be after check in time';
       }
+      if (!arrivalStatus) newErrors.arrivalStatus = 'Arrival status is required';
     }
 
     setErrors(newErrors);
@@ -203,35 +286,102 @@ export default function EditAttendanceRecordScreen() {
       setSubmitting(true);
 
       // Combine local form state into attendance object
+      // Match the API format used in AddAttendanceRecordScreen
       const attendance: any = {
         employeeId,
         date: date!.toISOString().split('T')[0],
         status,
-        notes: notes.trim() || undefined,
       };
 
-      // Only include times and arrival status if not Absent
-      if (status !== 'Absent') {
-        attendance.checkIn = checkInTime || undefined;
-        attendance.checkOut = checkOutTime || undefined;
-        attendance.arrivalStatus = arrivalStatus || undefined;
+      // Only add notes if they exist
+      if (notes && notes.trim()) {
+        attendance.notes = notes.trim();
       }
 
-      await callApi({
+      // Only include times and arrival status if not Absent or Leave
+      if (status !== 'Absent' && status !== 'Leave') {
+        // Send both checkInTime (as time string) and checkIn (as date-time string)
+        // The API might need both formats to properly save the times
+        if (checkInTime && checkInTime.trim() && date) {
+          // Send time string as-is (HH:mm format)
+          attendance.checkInTime = checkInTime.trim();
+          
+          // Also construct and send full date-time string for checkIn field
+          const [hours, minutes] = checkInTime.trim().split(':');
+          if (hours && minutes) {
+            const checkInDateTime = new Date(date);
+            checkInDateTime.setUTCHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+            attendance.checkIn = checkInDateTime.toISOString();
+          }
+        }
+        
+        // Same for checkOutTime
+        if (checkOutTime && checkOutTime.trim() && date) {
+          // Send time string as-is (HH:mm format)
+          attendance.checkOutTime = checkOutTime.trim();
+          
+          // Also construct and send full date-time string for checkOut field
+          const [hours, minutes] = checkOutTime.trim().split(':');
+          if (hours && minutes) {
+            const checkOutDateTime = new Date(date);
+            checkOutDateTime.setUTCHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+            attendance.checkOut = checkOutDateTime.toISOString();
+          }
+        }
+        
+        // Include arrivalStatus if provided
+        if (arrivalStatus && arrivalStatus.trim()) {
+          attendance.arrivalStatus = arrivalStatus.trim();
+        }
+        
+        // For Half-day, include halfDayType
+        if (status === 'Half-day' && halfDayType) {
+          attendance.halfDayType = halfDayType;
+        }
+      } else {
+        // For Absent/Leave, explicitly set times to undefined (don't send empty strings)
+        attendance.checkInTime = undefined;
+        attendance.checkOutTime = undefined;
+        attendance.checkIn = undefined;
+        attendance.checkOut = undefined;
+        attendance.arrivalStatus = undefined;
+      }
+
+      console.log('📤 Updating attendance with data:', JSON.stringify(attendance, null, 2));
+      console.log('📤 Record ID:', initialRecord._id);
+      console.log('📤 CheckInTime:', checkInTime);
+      console.log('📤 CheckOutTime:', checkOutTime);
+
+      const response = await callApi({
         method: 'PUT',
         url: `/attendance/${initialRecord._id}`,
         data: attendance,
       });
 
+      console.log('✅ Attendance update response:', JSON.stringify(response, null, 2));
+      console.log('✅ Response data:', JSON.stringify(response?.data, null, 2));
+      console.log('✅ CheckInTime in response:', response?.data?.checkInTime);
+      console.log('✅ CheckOutTime in response:', response?.data?.checkOutTime);
+      console.log('✅ CheckIn in response:', response?.data?.checkIn);
+      console.log('✅ CheckOut in response:', response?.data?.checkOut);
+      
+      // Note: The API response doesn't always include checkIn/checkOut immediately
+      // The table will refetch when navigating back, which should include the updated times
+
       Alert.alert('Success', 'Attendance updated successfully', [
         {
           text: 'OK',
-          onPress: () => navigation.goBack(),
+          onPress: () => {
+            // Navigate back to attendance screen - it will auto-refresh via navigation listener
+            const redirectTo = route.params?.redirectTo || 'HRAttendance';
+            (navigation as any).navigate(redirectTo);
+          },
         },
       ]);
     } catch (error: any) {
-      console.error('Error updating attendance:', error);
-      Alert.alert('Error', error?.response?.data?.message || 'Failed to update attendance');
+      console.error('❌ Error updating attendance:', error);
+      console.error('❌ Error details:', JSON.stringify(error, null, 2));
+      Alert.alert('Error', error?.response?.data?.message || error?.message || 'Failed to update attendance');
     } finally {
       setSubmitting(false);
     }
@@ -288,24 +438,26 @@ export default function EditAttendanceRecordScreen() {
                 required
                 value={date}
                 onChange={(selectedDate) => {
-                  // Check if the selected date is in the past
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  const selected = new Date(selectedDate);
-                  selected.setHours(0, 0, 0, 0);
-                  
-                  if (selected < today) {
-                    Alert.alert('Invalid Date', 'Past attendance cannot be edited. Please select today\'s date or a future date.');
-                    return;
+                  // Only check for past dates if user is NOT super admin/org admin
+                  if (!isOrgAdmin) {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const selected = new Date(selectedDate);
+                    selected.setHours(0, 0, 0, 0);
+                    
+                    if (selected < today) {
+                      Alert.alert('Invalid Date', 'Past attendance cannot be edited. Please select today\'s date or a future date.');
+                      return;
+                    }
                   }
                   
                   setDate(selectedDate);
                   if (errors.date) setErrors({ ...errors, date: '' });
                 }}
-                maximumDate={new Date()}
-                minimumDate={new Date()}
-                preventPastDates={true}
-                pastDateMessage="Past attendance cannot be edited. Please select today's date or a future date."
+                maximumDate={isOrgAdmin ? undefined : new Date()}
+                minimumDate={isOrgAdmin ? undefined : new Date()}
+                preventPastDates={!isOrgAdmin}
+                pastDateMessage={isOrgAdmin ? undefined : "Past attendance cannot be edited. Please select today's date or a future date."}
                 error={errors.date}
               />
             </View>
@@ -322,11 +474,26 @@ export default function EditAttendanceRecordScreen() {
                 onSelect={(value) => {
                   setStatus(value as any);
                   if (errors.status) setErrors({ ...errors, status: '' });
-                  // Clear times and arrival status if Absent
-                  if (value === 'Absent') {
+                  // Clear times and arrival status if Absent or Leave
+                  if (value === 'Absent' || value === 'Leave') {
                     setCheckInTime('');
                     setCheckOutTime('');
                     setArrivalStatus('');
+                    setHalfDayType('');
+                  } else if (value !== 'Half-day') {
+                    // Clear half-day type if not half-day
+                    setHalfDayType('');
+                  } else if (value === 'Half-day' && checkInTime) {
+                    // Auto-suggest half-day type based on check-in time
+                    const [hours] = checkInTime.split(':');
+                    const hour = parseInt(hours, 10);
+                    if (hour < 13) {
+                      // Before 1 PM = first half
+                      setHalfDayType('first');
+                    } else {
+                      // After 1 PM = second half
+                      setHalfDayType('second');
+                    }
                   }
                 }}
                 placeholder="Select status"
@@ -336,20 +503,56 @@ export default function EditAttendanceRecordScreen() {
             <View style={styles.column}>
               <TimePickerField
                 label="Check In Time"
-                required={status !== 'Absent'}
+                required={status !== 'Absent' && status !== 'Leave'}
                 value={checkInTime}
                 onChange={(time) => {
                   setCheckInTime(time);
                   if (errors.checkInTime) setErrors({ ...errors, checkInTime: '' });
+                  
+                  // Auto-suggest half-day type based on check-in time when status is Half-day
+                  if (status === 'Half-day' && time) {
+                    const [hours] = time.split(':');
+                    const hour = parseInt(hours, 10);
+                    if (hour < 13) {
+                      // Before 1 PM = first half
+                      setHalfDayType('first');
+                    } else {
+                      // After 1 PM = second half
+                      setHalfDayType('second');
+                    }
+                  }
                 }}
                 error={errors.checkInTime}
-                disabled={status === 'Absent'}
+                disabled={status === 'Absent' || status === 'Leave'}
               />
             </View>
           </View>
 
+          {/* Half Day Type - Only show for Half-day status */}
+          {status === 'Half-day' && (
+            <View style={styles.twoColumn}>
+              <View style={styles.column}>
+                <DropdownField
+                  label="Half Day Type"
+                  required
+                  value={halfDayType}
+                  options={halfDayTypeOptions}
+                  onSelect={(value) => {
+                    setHalfDayType(value);
+                    if (errors.halfDayType) setErrors({ ...errors, halfDayType: '' });
+                  }}
+                  placeholder="Select half day type"
+                  error={errors.halfDayType}
+                />
+              </View>
+              <View style={styles.column}>
+                {/* Empty column for spacing */}
+              </View>
+            </View>
+          )}
+
           {/* Check Out Time and Arrival Status */}
-          {status !== 'Absent' && (
+          {status !== 'Absent' && status !== 'Leave' && (
             <View style={styles.twoColumn}>
               <View style={styles.column}>
                 <TimePickerField

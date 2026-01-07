@@ -267,54 +267,141 @@ const DepartmentDetailScreen: React.FC = () => {
       return;
     }
 
-    if (!department) {
+    if (!department || !departmentId) {
       Alert.alert('Error', 'Department data not loaded');
       return;
     }
 
     setAddingEmployees(true);
     try {
-      // Get current employee IDs
-      const currentEmployeeIds = employees.map(emp => emp._id);
-      
-      // Combine current and new employee IDs (avoid duplicates)
-      const allEmployeeIds = [...new Set([...currentEmployeeIds, ...selectedEmployeeIds])];
-
-      // Use FormData similar to CreateDepartmentScreen and EditDepartmentScreen
-      const formData = new FormData();
-      
-      // Include existing department fields to avoid clearing them
-      if (department.name) {
-        formData.append('name', department.name);
-      }
-      if (department.description) {
-        formData.append('description', department.description);
-      }
-      if (department.admin?._id) {
-        formData.append('admin', department.admin._id);
-      }
-      
-      // Append all employee IDs (existing + new)
-      allEmployeeIds.forEach(empId => {
-        formData.append('employees', empId);
+      // Employees are assigned to departments by updating each employee's department field
+      // First fetch each employee's data, then update with department included
+      const updatePromises = selectedEmployeeIds.map(async (employeeId) => {
+        try {
+          // Fetch current employee data first
+          const employeeData = await callApi({
+            method: 'GET',
+            url: `/employee/${employeeId}`,
+          });
+          
+          // Create FormData with all existing employee fields plus the new department
+          const formData = new FormData();
+          
+          // Add all required fields from existing employee data
+          if (employeeData.firstName) formData.append('firstName', employeeData.firstName);
+          if (employeeData.lastName) formData.append('lastName', employeeData.lastName);
+          if (employeeData.email) formData.append('email', employeeData.email);
+          if (employeeData.contactNumber) formData.append('contactNumber', employeeData.contactNumber);
+          if (employeeData.role) formData.append('role', employeeData.role);
+          if (employeeData.position) formData.append('position', employeeData.position);
+          if (employeeData.status) formData.append('status', employeeData.status);
+          if (employeeData.hireDate) formData.append('hireDate', employeeData.hireDate);
+          if (employeeData.salary) formData.append('salary', String(employeeData.salary));
+          if (employeeData.gender) formData.append('gender', employeeData.gender);
+          if (employeeData.city) formData.append('city', employeeData.city);
+          if (employeeData.state) formData.append('state', employeeData.state);
+          if (employeeData.nationality) formData.append('nationality', employeeData.nationality);
+          if (employeeData.maritalStatus) formData.append('maritalStatus', employeeData.maritalStatus);
+          if (employeeData.dateOfBirth) formData.append('dateOfBirth', employeeData.dateOfBirth);
+          if (employeeData.taxId) formData.append('taxId', employeeData.taxId);
+          
+          // Add the department field (this is what we're updating)
+          formData.append('department', departmentId);
+          
+          // Add organization if present
+          if (employeeData.organization) {
+            formData.append('organization', employeeData.organization);
+          } else if (department?.organization) {
+            formData.append('organization', department.organization);
+          }
+          
+          // Add optional fields if they exist
+          if (employeeData.emergencyContact) {
+            formData.append('emergencyContact', JSON.stringify(employeeData.emergencyContact));
+          }
+          if (employeeData.education) {
+            formData.append('education', JSON.stringify(employeeData.education));
+          }
+          if (employeeData.bankAccount) {
+            formData.append('bankAccount', JSON.stringify(employeeData.bankAccount));
+          }
+          if (employeeData.skills && Array.isArray(employeeData.skills)) {
+            formData.append('skills', JSON.stringify(employeeData.skills));
+          }
+          if (employeeData.experiences && Array.isArray(employeeData.experiences)) {
+            formData.append('experiences', JSON.stringify(employeeData.experiences));
+          }
+          
+          return callApi({
+            method: 'PUT',
+            url: `/employee/updateOne/${employeeId}`,
+            data: formData,
+          });
+        } catch (fetchError: any) {
+          console.error(`Error fetching employee ${employeeId}:`, fetchError);
+          throw fetchError;
+        }
       });
 
-      const response = await callApi({
-        method: 'PUT',
-        url: `/departments/${departmentId}`,
-        data: formData,
-      });
-
-      if (response?.success !== false) {
-        Alert.alert('Success', 'Employees added successfully');
-        setShowAddEmployeeModal(false);
-        setSelectedEmployeeIds([]);
-        setEmployeeSearchQuery('');
-        loadEmployees();
-        loadDepartment(); // Refresh department to update employee count
+      const results = await Promise.allSettled(updatePromises);
+      
+      // Check for failures
+      const failures = results.filter(result => result.status === 'rejected');
+      const successes = results.filter(result => result.status === 'fulfilled');
+      
+      console.log(`Successfully updated ${successes.length} out of ${selectedEmployeeIds.length} employees`);
+      
+      // Helper function to refresh after adding
+      const handleRefreshAfterAdd = () => {
+        // Reload department first to update employee count
+        loadDepartment();
+        
+        // Reset to page 1 and clear filters to show new employees
+        // This will trigger the useEffect to reload employees with fresh data
+        // Add a longer delay to ensure API has fully processed the update
+        setTimeout(() => {
+          setPage(1);
+          setSearch('');
+          setFilters({
+            gender: '',
+            position: '',
+            status: '',
+          });
+          
+          // Force reload employees after state updates
+          setTimeout(() => {
+            loadEmployees();
+          }, 100);
+        }, 500);
+      };
+      
+      if (failures.length > 0) {
+        console.error('Some employee updates failed:', failures);
+        const errorMessages = failures.map((f: any) => f.reason?.message || f.reason?.response?.data?.error || 'Unknown error').join(', ');
+        Alert.alert(
+          'Partial Success', 
+          `${successes.length} employees added successfully. ${failures.length} failed: ${errorMessages}`,
+          [
+            {
+              text: 'OK',
+              onPress: handleRefreshAfterAdd,
+            },
+          ]
+        );
       } else {
-        Alert.alert('Error', response?.message || 'Failed to add employees');
+        // All succeeded
+        Alert.alert('Success', 'Employees added successfully', [
+          {
+            text: 'OK',
+            onPress: handleRefreshAfterAdd,
+          },
+        ]);
       }
+      
+      // Close modal and reset selection
+      setShowAddEmployeeModal(false);
+      setSelectedEmployeeIds([]);
+      setEmployeeSearchQuery('');
     } catch (error: any) {
       console.error('Error adding employees:', error);
       Alert.alert('Error', error?.response?.data?.error || error?.message || 'Failed to add employees');

@@ -53,7 +53,7 @@ const ResignationTable: React.FC<ResignationTableProps> = ({
   onDelete,
   formatDate,
   currentPage,
-  totalPages,
+  totalPages: propTotalPages,
   onPageChange,
   onFilterChange,
   filters,
@@ -63,6 +63,16 @@ const ResignationTable: React.FC<ResignationTableProps> = ({
 }) => {
   const [showFilters, setShowFilters] = useState(false);
   const [searchTerm, setSearchTerm] = useState(filters.search);
+  
+  // Calculate pagination based on actual displayed data
+  const totalRecords = allResignations.length;
+  const calculatedTotalPages = Math.max(1, Math.ceil(totalRecords / entriesPerPage));
+  const totalPages = calculatedTotalPages;
+  
+  // Slice data to show only current page
+  const startIndex = (currentPage - 1) * entriesPerPage;
+  const endIndex = startIndex + entriesPerPage;
+  const displayedResignations = allResignations.slice(startIndex, endIndex);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -356,8 +366,8 @@ const ResignationTable: React.FC<ResignationTableProps> = ({
                 <Text style={styles.loadingText}>Loading...</Text>
               </View>
             ) : (
-              allResignations.map((resignation, index) => 
-                renderTableRow(resignation, index, false, false)
+              displayedResignations.map((resignation, index) => 
+                renderTableRow(resignation, startIndex + index, false, false)
               )
             )}
           </View>

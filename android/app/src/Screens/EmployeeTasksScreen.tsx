@@ -61,6 +61,10 @@ export default function EmployeeTasksScreen() {
   const [selectedMonth, setSelectedMonth] = useState('Month');
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
+  
+  // Sorting state
+  const [sortField, setSortField] = useState<'status' | 'priority' | 'dueDate' | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Bugs state (per-employee view)
   const [bugs, setBugs] = useState<any[]>([]);
@@ -213,14 +217,51 @@ export default function EmployeeTasksScreen() {
   }, [tasks, searchQuery, selectedStatus, selectedMonth]);
 
   // Visible tasks based on Active / Completed tab
-  const visibleTasks = filteredTasks.filter((task: any) => {
+  // IMPORTANT: Status filter should NOT affect Completed tab - it should show all completed tasks
+  let visibleTasks = filteredTasks.filter((task: any) => {
     const status = (task.status || '').toLowerCase();
     if (activeTab === 'Completed') {
+      // Completed tab: Show all completed tasks regardless of status filter
       return status === 'completed';
+    }
+    // Active tab: Apply status filter to non-completed tasks
+    if (selectedStatus !== 'All Statuses') {
+      const normalized = selectedStatus.toLowerCase().replace(' ', '_');
+      return status !== 'completed' && status === normalized;
     }
     // Active tab → everything that is not completed
     return status !== 'completed';
   });
+
+  // Apply sorting
+  if (sortField) {
+    visibleTasks = [...visibleTasks].sort((a: any, b: any) => {
+      let aValue: any;
+      let bValue: any;
+      
+      switch (sortField) {
+        case 'status':
+          aValue = (a.status || '').toLowerCase();
+          bValue = (b.status || '').toLowerCase();
+          break;
+        case 'priority':
+          const priorityOrder: any = { 'high': 3, 'medium': 2, 'low': 1 };
+          aValue = priorityOrder[(a.priority || '').toLowerCase()] || 0;
+          bValue = priorityOrder[(b.priority || '').toLowerCase()] || 0;
+          break;
+        case 'dueDate':
+          aValue = a.dueDate ? new Date(a.dueDate).getTime() : 0;
+          bValue = b.dueDate ? new Date(b.dueDate).getTime() : 0;
+          break;
+        default:
+          return 0;
+      }
+      
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
 
   // Selection helpers for checkboxes
   const toggleTaskSelection = (taskId: string) => {
@@ -240,6 +281,16 @@ export default function EmployeeTasksScreen() {
   // Update task status (used when moving cards between backlog columns)
   const handleStatusChange = async (taskId: string, newStatus: string) => {
     try {
+      // Find the task to check current status
+      const currentTask = tasks.find((t: any) => t._id === taskId);
+      const currentStatus = (currentTask?.status || '').toLowerCase().replace(' ', '_');
+      const normalizedNewStatus = newStatus.toLowerCase().replace(' ', '_');
+      
+      // Don't update if status hasn't changed
+      if (currentStatus === normalizedNewStatus) {
+        return; // Silently return, don't show success message
+      }
+
       await callApi({
         method: 'PATCH',
         url: `/task/${taskId}/status`,
@@ -681,10 +732,89 @@ export default function EmployeeTasksScreen() {
             </View>
           </ScrollView>
         ) : (
-          <View style={styles.notesPlaceholder}>
-            <View style={styles.notesCard}>
-              <Text style={styles.notesPlus}>+</Text>
+          <View style={styles.notesContainer}>
+            <View style={styles.notesHeader}>
+              <Text style={styles.notesTitle}>Notes</Text>
+              <TouchableOpacity
+                style={styles.addNoteButton}
+                onPress={() => setShowNoteModal(true)}
+              >
+                <Icon name="plus" size={16} color="#FFFFFF" />
+                <Text style={styles.addNoteButtonText}>Add Note</Text>
+              </TouchableOpacity>
             </View>
+            <ScrollView style={styles.notesList}>
+              {notes.length === 0 ? (
+                <View style={styles.notesEmpty}>
+                  <Text style={styles.notesEmptyText}>No notes yet. Add your first note!</Text>
+                </View>
+              ) : (
+                notes.map((note, index) => (
+                  <View key={index} style={styles.noteItem}>
+                    <Text style={styles.noteText}>{note}</Text>
+                    <TouchableOpacity
+                      style={styles.deleteNoteButton}
+                      onPress={() => {
+                        setNotes(prev => prev.filter((_, i) => i !== index));
+                      }}
+                    >
+                      <Icon name="trash" size={14} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+            
+            {/* Add Note Modal */}
+            <Modal
+              visible={showNoteModal}
+              transparent={true}
+              animationType="slide"
+              onRequestClose={() => setShowNoteModal(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Add Note</Text>
+                    <TouchableOpacity onPress={() => setShowNoteModal(false)}>
+                      <Icon name="close" size={20} color="#6B7280" />
+                    </TouchableOpacity>
+                  </View>
+                  <TextInput
+                    style={styles.noteInput}
+                    placeholder="Enter your note..."
+                    placeholderTextColor="#9CA3AF"
+                    value={newNote}
+                    onChangeText={setNewNote}
+                    multiline
+                    numberOfLines={4}
+                  />
+                  <View style={styles.modalActions}>
+                    <TouchableOpacity
+                      style={[styles.modalButton, styles.cancelButton]}
+                      onPress={() => {
+                        setShowNoteModal(false);
+                        setNewNote('');
+                      }}
+                    >
+                      <Text style={styles.cancelButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.modalButton, styles.saveButton]}
+                      onPress={() => {
+                        if (newNote.trim()) {
+                          setNotes(prev => [...prev, newNote.trim()]);
+                          setNewNote('');
+                          setShowNoteModal(false);
+                        }
+                      }}
+                    >
+                      <Text style={styles.saveButtonText}>Save</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+            </View>
+            </Modal>
           </View>
         )}
       </View>
@@ -730,7 +860,48 @@ export default function EmployeeTasksScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.exportButton}>
+          <TouchableOpacity 
+            style={styles.exportButton}
+            onPress={async () => {
+              try {
+                if (!visibleTasks.length) {
+                  Alert.alert('Info', 'No tasks to export');
+                  return;
+                }
+
+                const rows = visibleTasks.map((task: any, index: number) => ({
+                  no: index + 1,
+                  project: typeof task.projectId === 'object' ? task.projectId?.name || 'N/A' : task.project || 'N/A',
+                  title: task.title || 'N/A',
+                  description: task.description || 'N/A',
+                  priority: task.priority || 'N/A',
+                  status: task.status || 'N/A',
+                  startDate: task.startDate ? new Date(task.startDate).toLocaleDateString() : '',
+                  dueDate: task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '',
+                }));
+
+                await exportToXlsx({
+                  filename: `employee-tasks-${new Date().toISOString().split('T')[0]}`,
+                  columns: [
+                    { key: 'no', header: 'NO#' },
+                    { key: 'project', header: 'PROJECT' },
+                    { key: 'title', header: 'TITLE' },
+                    { key: 'description', header: 'DESCRIPTION' },
+                    { key: 'priority', header: 'PRIORITY' },
+                    { key: 'status', header: 'STATUS' },
+                    { key: 'startDate', header: 'START DATE' },
+                    { key: 'dueDate', header: 'DUE DATE' },
+                  ],
+                  rows,
+                });
+
+                Alert.alert('Success', 'Tasks exported successfully');
+              } catch (error: any) {
+                console.error('Error exporting tasks:', error);
+                Alert.alert('Error', error?.message || 'Failed to export tasks');
+              }
+            }}
+          >
             <Icon name="download" size={14} color="#FFFFFF" />
             <Text style={styles.exportButtonText}>Export All</Text>
           </TouchableOpacity>
@@ -790,21 +961,74 @@ export default function EmployeeTasksScreen() {
                   <Text style={[styles.tableHeaderText, styles.projectHeader]}>PROJECT</Text>
                   <View style={styles.sortableColumn}>
                     <Text style={[styles.tableHeaderText, styles.taskHeader]}>TASK</Text>
-                    <Icon name="chevron-up" size={10} color="#9CA3AF" />
                   </View>
                   <Text style={[styles.tableHeaderText, styles.descriptionHeader]}>DESCRIPTION</Text>
-                  <View style={styles.sortableColumn}>
+                  <TouchableOpacity
+                    style={styles.sortableColumn}
+                    onPress={() => {
+                      if (sortField === 'priority') {
+                        setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                      } else {
+                        setSortField('priority');
+                        setSortDirection('asc');
+                      }
+                    }}
+                  >
                     <Text style={[styles.tableHeaderText, styles.priorityHeader]}>PRIORITY</Text>
-                    <Icon name="chevron-up" size={10} color="#9CA3AF" />
-                  </View>
-                  <View style={styles.sortableColumn}>
+                    {sortField === 'priority' ? (
+                      <Icon 
+                        name={sortDirection === 'asc' ? 'chevron-up' : 'chevron-down'} 
+                        size={10} 
+                        color="#FF6B35" 
+                      />
+                    ) : (
+                      <Icon name="chevron-up" size={10} color="#9CA3AF" />
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.sortableColumn}
+                    onPress={() => {
+                      if (sortField === 'status') {
+                        setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                      } else {
+                        setSortField('status');
+                        setSortDirection('asc');
+                      }
+                    }}
+                  >
                     <Text style={[styles.tableHeaderText, styles.statusHeader]}>STATUS</Text>
-                    <Icon name="chevron-up" size={10} color="#9CA3AF" />
-                  </View>
-                  <View style={styles.sortableColumn}>
+                    {sortField === 'status' ? (
+                      <Icon 
+                        name={sortDirection === 'asc' ? 'chevron-up' : 'chevron-down'} 
+                        size={10} 
+                        color="#FF6B35" 
+                      />
+                    ) : (
+                      <Icon name="chevron-up" size={10} color="#9CA3AF" />
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.sortableColumn}
+                    onPress={() => {
+                      if (sortField === 'dueDate') {
+                        setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                      } else {
+                        setSortField('dueDate');
+                        setSortDirection('asc');
+                      }
+                    }}
+                  >
                     <Text style={[styles.tableHeaderText, styles.dueDateHeader]}>DUE DATE</Text>
-                    <Icon name="chevron-up" size={10} color="#9CA3AF" />
-                  </View>
+                    {sortField === 'dueDate' ? (
+                      <Icon 
+                        name={sortDirection === 'asc' ? 'chevron-up' : 'chevron-down'} 
+                        size={10} 
+                        color="#FF6B35" 
+                      />
+                    ) : (
+                      <Icon name="chevron-up" size={10} color="#9CA3AF" />
+                    )}
+                  </TouchableOpacity>
                 </View>
 
                 {/* Scrollable Task List */}
@@ -955,91 +1179,91 @@ export default function EmployeeTasksScreen() {
         </View>
 
         {/* Tasks Status Dropdown Modal */}
-        {showStatusDropdown && (
-          <Modal
-            visible={showStatusDropdown}
-            transparent={true}
-            animationType="fade"
-            onRequestClose={() => setShowStatusDropdown(false)}
+        <Modal
+          visible={showStatusDropdown}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowStatusDropdown(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowStatusDropdown(false)}
           >
-            <TouchableOpacity
-              style={styles.modalOverlay}
-              activeOpacity={1}
-              onPress={() => setShowStatusDropdown(false)}
-            >
-              <View style={styles.dropdownMenu}>
-                {statusOptions.map((status) => (
+            <View style={styles.dropdownMenu} onStartShouldSetResponder={() => true}>
+              {statusOptions.map((status) => (
+                <TouchableOpacity
+                  key={status}
+                  style={[
+                    styles.dropdownItem,
+                    selectedStatus === status && styles.dropdownItemSelected,
+                  ]}
+                  onPress={() => {
+                    setSelectedStatus(status);
+                    setShowStatusDropdown(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.dropdownItemText,
+                      selectedStatus === status && styles.dropdownItemTextSelected,
+                    ]}
+                  >
+                    {status}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Tasks Month Dropdown Modal */}
+        <Modal
+          visible={showMonthDropdown}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowMonthDropdown(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowMonthDropdown(false)}
+          >
+            <View style={styles.dropdownMenu} onStartShouldSetResponder={() => true}>
+              <ScrollView
+                showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
+                style={{ maxHeight: 300 }}
+              >
+                {monthOptions.map((month) => (
                   <TouchableOpacity
-                    key={status}
+                    key={month}
                     style={[
                       styles.dropdownItem,
-                      selectedStatus === status && styles.dropdownItemSelected,
+                      selectedMonth === month && styles.dropdownItemSelected,
                     ]}
                     onPress={() => {
-                      setSelectedStatus(status);
-                      setShowStatusDropdown(false);
+                      setSelectedMonth(month);
+                      setShowMonthDropdown(false);
                     }}
+                    activeOpacity={0.7}
                   >
                     <Text
                       style={[
                         styles.dropdownItemText,
-                        selectedStatus === status && styles.dropdownItemTextSelected,
+                        selectedMonth === month && styles.dropdownItemTextSelected,
+                        { textAlign: 'center' }, // Center text in month dropdown
                       ]}
                     >
-                      {status}
+                      {month}
                     </Text>
                   </TouchableOpacity>
                 ))}
-              </View>
-            </TouchableOpacity>
-          </Modal>
-        )}
-
-        {/* Tasks Month Dropdown Modal */}
-        {showMonthDropdown && (
-          <Modal
-            visible={showMonthDropdown}
-            transparent={true}
-            animationType="fade"
-            onRequestClose={() => setShowMonthDropdown(false)}
-          >
-            <TouchableOpacity
-              style={styles.modalOverlay}
-              activeOpacity={1}
-              onPress={() => setShowMonthDropdown(false)}
-            >
-              <View style={styles.dropdownMenu}>
-                <ScrollView
-                  showsVerticalScrollIndicator={true}
-                  nestedScrollEnabled={true}
-                >
-                  {monthOptions.map((month) => (
-                    <TouchableOpacity
-                      key={month}
-                      style={[
-                        styles.dropdownItem,
-                        selectedMonth === month && styles.dropdownItemSelected,
-                      ]}
-                      onPress={() => {
-                        setSelectedMonth(month);
-                        setShowMonthDropdown(false);
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.dropdownItemText,
-                          selectedMonth === month && styles.dropdownItemTextSelected,
-                        ]}
-                      >
-                        {month}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            </TouchableOpacity>
-          </Modal>
-        )}
+              </ScrollView>
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
         {/* Bugs Status Dropdown Modal */}
         {showBugsStatusDropdown && (
@@ -1657,6 +1881,128 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#9CA3AF',
   },
+  notesContainer: {
+    padding: 16,
+  },
+  notesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  notesTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1E293B',
+  },
+  addNoteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F97316',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+  },
+  addNoteButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  notesList: {
+    maxHeight: 400,
+  },
+  notesEmpty: {
+    padding: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notesEmptyText: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    textAlign: 'center',
+  },
+  noteItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#F97316',
+  },
+  noteText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#1E293B',
+    marginRight: 8,
+  },
+  deleteNoteButton: {
+    padding: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    width: width * 0.9,
+    maxWidth: 500,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1E293B',
+  },
+  noteInput: {
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    color: '#1E293B',
+    textAlignVertical: 'top',
+    minHeight: 100,
+    marginBottom: 16,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  modalButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  cancelButton: {
+    backgroundColor: '#F1F5F9',
+  },
+  cancelButtonText: {
+    color: '#64748B',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  saveButton: {
+    backgroundColor: '#F97316',
+  },
+  saveButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   notesPlaceholder: {
     paddingVertical: 24,
     paddingHorizontal: 12,
@@ -1690,20 +2036,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 999,
+    paddingVertical: 8,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     backgroundColor: '#F9FAFB',
     minWidth: 120,
+    justifyContent: 'space-between',
   },
   filterDropdownText: {
     fontSize: 13,
     color: '#111827',
     fontWeight: '500',
+    flex: 1,
   },
   filterDropdownIcon: {
-    marginLeft: 4,
+    marginLeft: 8,
   },
   
   // Scrollable Table Styles

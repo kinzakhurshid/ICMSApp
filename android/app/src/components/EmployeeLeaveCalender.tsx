@@ -428,6 +428,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#374151',
+    textAlign: 'center',
+    textAlignVertical: 'center',
   },
   legend: {
     flexDirection: 'row',

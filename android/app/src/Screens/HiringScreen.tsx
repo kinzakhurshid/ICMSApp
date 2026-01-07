@@ -100,9 +100,16 @@ const HiringScreen: React.FC = () => {
         },
       });
 
-      setHirings(res.data || []);
-      setTotalPages(res.totalPages || 1);
+      const hiringsData = res.data || [];
+      setHirings(hiringsData);
+      // Calculate totalPages based on actual data if server doesn't provide it correctly
+      const serverTotalPages = res.totalPages || 1;
+      const calculatedTotalPages = res.total ? Math.max(1, Math.ceil(res.total / 10)) : serverTotalPages;
+      setTotalPages(calculatedTotalPages);
       setAvailableFilters(res.filters || { locations: [], jobTypes: [], statuses: [] });
+      
+      // Log for debugging
+      console.log(`📊 Hiring pagination - Page: ${page}, Total: ${res.total || hiringsData.length}, TotalPages: ${calculatedTotalPages}, Displayed: ${hiringsData.length}`);
     } catch (error) {
       console.error('Error fetching hirings:', error);
       Alert.alert('Error', 'Failed to load hirings');

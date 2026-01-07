@@ -11,17 +11,58 @@ const DepartmentTable: React.FC = () => {
   const { callApi } = useAxios();
   const [depts, setDepts] = useState<Dept[]>([]);
   const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [total, setTotal] = useState(0);
 
   const fetchDepartments = async () => {
     try { 
-      const res = await callApi({ method: 'GET', url: '/departments' }); 
-      setDepts(res || []); 
+      const res = await callApi({ 
+        method: 'GET', 
+        url: '/departments',
+        params: {
+          page,
+          limit,
+          search: q,
+        }
+      }); 
+      
+      // Handle different response structures
+      let departmentsData: Dept[] = [];
+      if (Array.isArray(res)) {
+        departmentsData = res;
+        setTotal(res.length);
+      } else if (res?.data && Array.isArray(res.data)) {
+        departmentsData = res.data;
+        setTotal(res.pagination?.total || res.total || res.data.length);
+      } else if (res?.data?.data && Array.isArray(res.data.data)) {
+        departmentsData = res.data.data;
+        setTotal(res.data.pagination?.total || res.data.total || res.data.data.length);
+      } else {
+        departmentsData = [];
+        setTotal(0);
+      }
+      
+      setDepts(departmentsData); 
     } catch (e) {
       console.log('Error fetching departments:', e);
+      setDepts([]);
+      setTotal(0);
     }
   };
 
-  useEffect(() => { fetchDepartments(); }, []);
+  useEffect(() => { 
+    fetchDepartments(); 
+  }, [page]);
+  
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    if (page === 1) {
+      fetchDepartments();
+    } else {
+      setPage(1);
+    }
+  }, [q]);
   
   // Refresh departments when screen comes into focus (e.g., after creating a department)
   useFocusEffect(
@@ -31,6 +72,7 @@ const DepartmentTable: React.FC = () => {
   );
 
   const filtered = depts.filter(d => (d.name || '').toLowerCase().includes(q.toLowerCase()));
+  const totalPages = Math.max(1, Math.ceil(total / limit));
 
   const adminLabel = (admin: any): string => {
     if (!admin) return '-';
@@ -145,6 +187,38 @@ const DepartmentTable: React.FC = () => {
           ))}
         </View>
       </ScrollView>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <View style={styles.paginationContainer}>
+          <Text style={styles.paginationInfo}>
+            Showing {((page - 1) * limit) + 1} - {Math.min(page * limit, total)} of {total}
+          </Text>
+          <View style={styles.paginationButtons}>
+            <TouchableOpacity
+              style={[styles.paginationButton, page === 1 && styles.paginationButtonDisabled]}
+              onPress={() => setPage(prev => Math.max(1, prev - 1))}
+              disabled={page === 1}
+            >
+              <Text style={[styles.paginationButtonText, page === 1 && styles.paginationButtonTextDisabled]}>
+                Previous
+              </Text>
+            </TouchableOpacity>
+            <Text style={styles.paginationPageText}>
+              Page {page} of {totalPages}
+            </Text>
+            <TouchableOpacity
+              style={[styles.paginationButton, page >= totalPages && styles.paginationButtonDisabled]}
+              onPress={() => setPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={page >= totalPages}
+            >
+              <Text style={[styles.paginationButtonText, page >= totalPages && styles.paginationButtonTextDisabled]}>
+                Next
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -161,6 +235,52 @@ const styles = StyleSheet.create({
   td: { color: '#374151', fontSize: 13 },
   actionsContainer: { flexDirection: 'row', gap: 8, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 8 },
   actionButton: { padding: 4 },
+  paginationContainer: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  paginationInfo: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  paginationButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  paginationButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  paginationButtonDisabled: {
+    backgroundColor: '#F9FAFB',
+    borderColor: '#E5E7EB',
+    opacity: 0.5,
+  },
+  paginationButtonText: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  paginationButtonTextDisabled: {
+    color: '#9CA3AF',
+  },
+  paginationPageText: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+    minWidth: 80,
+    textAlign: 'center',
+  },
 });
 
 export default DepartmentTable;

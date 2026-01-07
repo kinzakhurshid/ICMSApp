@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -40,6 +40,8 @@ interface AttendanceRecord {
   timeOut?: string;
   checkIn?: string;
   checkOut?: string;
+  checkInTime?: string; // API field name
+  checkOutTime?: string; // API field name
   arrivalStatus?: 'On Time' | 'Late';
 }
 
@@ -76,9 +78,12 @@ const HRAttendanceScreen: React.FC = () => {
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
+  const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set());
   
   // Ref to prevent concurrent fetch calls
   const isFetchingRef = React.useRef(false);
+  // Ref to track last fetch time to prevent rapid refetches
+  const lastFetchTimeRef = React.useRef(0);
 
   useEffect(() => {
     fetchEmployees();
@@ -177,98 +182,105 @@ const HRAttendanceScreen: React.FC = () => {
     }
   };
 
-  // Fetch attendance whenever filters (tab / employee / dates) change
-  useEffect(() => {
+  // Extract fetchAttendance function so it can be reused
+  const fetchAttendance = useCallback(async (skipDebounce = false) => {
     // Prevent concurrent calls
     if (isFetchingRef.current) {
       return;
     }
     
-    const fetchAttendance = async () => {
-      isFetchingRef.current = true;
-      setIsFetching(true);
-      try {
-        console.log('🔍 Fetching attendance data...');
+    // Debounce: prevent refetching if we just fetched less than 3 seconds ago (unless skipDebounce is true)
+    const now = Date.now();
+    if (!skipDebounce && now - lastFetchTimeRef.current < 3000) {
+      console.log('🔍 Skipping fetch - too soon after last fetch (', now - lastFetchTimeRef.current, 'ms ago)');
+      return;
+    }
+    
+    isFetchingRef.current = true;
+    lastFetchTimeRef.current = now;
+    setIsFetching(true);
+    try {
+      console.log('🔍 Fetching attendance data...');
 
-        const today = new Date();
+      const today = new Date();
 
-        // Calculate date range based on selectedTab (Day/Week/Month)
-        // This affects BOTH stats and table data
-        const tableStartDate = new Date();
-        if (selectedTab === 'Week') {
-          tableStartDate.setDate(today.getDate() - 7);
-        } else if (selectedTab === 'Month') {
-          tableStartDate.setMonth(today.getMonth() - 1);
-        } else {
-          // Day
-          tableStartDate.setDate(today.getDate());
-        }
+      // Calculate date range based on selectedTab (Day/Week/Month)
+      // This affects BOTH stats and table data
+      const tableStartDate = new Date();
+      if (selectedTab === 'Week') {
+        tableStartDate.setDate(today.getDate() - 7);
+      } else if (selectedTab === 'Month') {
+        tableStartDate.setMonth(today.getMonth() - 1);
+      } else {
+        // Day
+        tableStartDate.setDate(today.getDate());
+      }
 
-        // Use custom dates if set, otherwise use selectedTab date range
-        const finalStartDate =
-          customStart || tableStartDate.toISOString().split('T')[0];
-        const finalEndDate =
-          customEnd || today.toISOString().split('T')[0];
+      // Use custom dates if set, otherwise use selectedTab date range
+      const finalStartDate =
+        customStart || tableStartDate.toISOString().split('T')[0];
+      const finalEndDate =
+        customEnd || today.toISOString().split('T')[0];
 
-        console.log(
-          '🔍 Date range - SelectedTab:',
-          selectedTab,
-          'Start:',
-          finalStartDate,
-          'End:',
-          finalEndDate,
+      console.log(
+        '🔍 Date range - SelectedTab:',
+        selectedTab,
+        'Start:',
+        finalStartDate,
+        'End:',
+        finalEndDate,
+      );
+
+      // Fetch attendance data with the same date range for both stats and table
+      const requestParams: any = {
+        startDate: finalStartDate,
+        endDate: finalEndDate,
+        page: 1, // Always fetch from page 1 to get all data
+        limit: 1000, // Fetch all records at once
+      };
+
+      // Only include employeeId if it's selected
+      if (selectedEmployee) {
+        requestParams.employeeId = selectedEmployee;
+      }
+
+      console.log(
+        '🔍 Fetching ALL attendance records - Params:',
+        JSON.stringify(requestParams, null, 2),
+      );
+
+      const listResponse = await callApi({
+        method: 'GET',
+        url: '/attendance/date-range',
+        params: requestParams,
+      });
+
+      console.log(
+        '🔍 API Response - Data length:',
+        listResponse?.data?.length,
+        'Total pages:',
+        listResponse?.pagination?.totalPages,
+      );
+      console.log('🔍 API Response structure:', {
+        hasData: !!listResponse?.data,
+        isArray: Array.isArray(listResponse?.data),
+        dataType: typeof listResponse?.data,
+        pagination: listResponse?.pagination,
+        total: listResponse?.total,
+      });
+
+      if (listResponse.success && listResponse.data) {
+        // Use stats from the list response (same date range as table data)
+        setStats(
+          listResponse.stats ||
+            listResponse.data?.stats || {
+              onTime: 0,
+              late: 0,
+              absent: 0,
+              halfDay: 0,
+              onLeave: 0,
+            },
         );
-
-        // Fetch attendance data with the same date range for both stats and table
-        const requestParams: any = {
-          startDate: finalStartDate,
-          endDate: finalEndDate,
-          page: 1, // Always fetch from page 1 to get all data
-          limit: 1000, // Fetch all records at once
-        };
-
-        // Only include employeeId if it's selected
-        if (selectedEmployee) {
-          requestParams.employeeId = selectedEmployee;
-        }
-
-        console.log(
-          '🔍 Fetching ALL attendance records - Params:',
-          JSON.stringify(requestParams, null, 2),
-        );
-
-        const listResponse = await callApi({
-          method: 'GET',
-          url: '/attendance/date-range',
-          params: requestParams,
-        });
-
-        console.log(
-          '🔍 API Response - Data length:',
-          listResponse?.data?.length,
-          'Total pages:',
-          listResponse?.pagination?.totalPages,
-        );
-        console.log('🔍 API Response structure:', {
-          hasData: !!listResponse?.data,
-          isArray: Array.isArray(listResponse?.data),
-          dataType: typeof listResponse?.data,
-          pagination: listResponse?.pagination,
-          total: listResponse?.total,
-        });
-
-        if (listResponse.success && listResponse.data) {
-          // Use stats from the list response (same date range as table data)
-          setStats(
-            listResponse.stats ||
-              listResponse.data?.stats || {
-                onTime: 0,
-                late: 0,
-                absent: 0,
-                halfDay: 0,
-                onLeave: 0,
-              },
-          );
 
           // Extract all records from response
           const allRecords = Array.isArray(listResponse.data)
@@ -277,70 +289,186 @@ const HRAttendanceScreen: React.FC = () => {
                 listResponse.data?.records ||
                 listResponse.data?.attendance ||
                 []);
-
-          console.log('🔍 Total records fetched:', allRecords.length);
+          
+          // Debug: Log the structure of records to see what fields are available
           if (allRecords.length > 0) {
-            console.log('🔍 First record:', {
-              id: allRecords[0]?._id || allRecords[0]?.id,
-              employee: allRecords[0]?.employeeName,
-            });
-            console.log('🔍 Last record:', {
-              id:
-                allRecords[allRecords.length - 1]?._id ||
-                allRecords[allRecords.length - 1]?.id,
-              employee:
-                allRecords[allRecords.length - 1]?.employeeName,
+            console.log('🔍 Sample record structure from API:', {
+              sampleRecord: allRecords[0],
+              hasCheckIn: !!allRecords[0]?.checkIn,
+              hasCheckOut: !!allRecords[0]?.checkOut,
+              hasCheckInTime: !!allRecords[0]?.checkInTime,
+              hasCheckOutTime: !!allRecords[0]?.checkOutTime,
+              allKeys: Object.keys(allRecords[0] || {}),
             });
           }
 
-          // Store all records - the pagination effect will handle current page
-          setAllAttendanceData(allRecords);
-
-          // Calculate pagination client-side
-          const totalRecords = allRecords.length;
-          const calculatedTotalPages = Math.max(
-            1,
-            Math.ceil(totalRecords / pageSize),
-          );
-
-          console.log(
-            '🔍 Client-side pagination - Total records:',
-            totalRecords,
-            'Page size:',
-            pageSize,
-            'Total pages:',
-            calculatedTotalPages,
-          );
-          setTotalPages(calculatedTotalPages);
-        } else {
-          console.log('🔍 No data in response or unsuccessful');
-          setAllAttendanceData([]);
-          setAttendanceData([]);
-          setStats({
-            onTime: 0,
-            late: 0,
-            absent: 0,
-            halfDay: 0,
-            onLeave: 0,
+        console.log('🔍 Total records fetched:', allRecords.length);
+        if (allRecords.length > 0) {
+          console.log('🔍 First record:', {
+            id: allRecords[0]?._id || allRecords[0]?.id,
+            employee: allRecords[0]?.employeeName,
+            checkInTime: allRecords[0]?.checkInTime,
+            checkOutTime: allRecords[0]?.checkOutTime,
+            checkIn: allRecords[0]?.checkIn,
+            checkOut: allRecords[0]?.checkOut,
+            timeIn: allRecords[0]?.timeIn,
+            timeOut: allRecords[0]?.timeOut,
           });
-          setTotalPages(1);
+          console.log('🔍 Last record:', {
+            id:
+              allRecords[allRecords.length - 1]?._id ||
+              allRecords[allRecords.length - 1]?.id,
+            employee:
+              allRecords[allRecords.length - 1]?.employeeName,
+            checkInTime: allRecords[allRecords.length - 1]?.checkInTime,
+            checkOutTime: allRecords[allRecords.length - 1]?.checkOutTime,
+          });
+          
+          // Log sample records with all time fields for debugging
+          const sampleRecordIds = ['694ecd226fe0fa8d4c4fc0d9', '693abb334b2dda68e0d411c3', '693abb964b2dda68e0d411e2', '694ecd226fe0fa8d4c4fc0d7', '694ecd226fe0fa8d4c4fc0d5'];
+          sampleRecordIds.forEach((recordId) => {
+            const sampleRecord = allRecords.find((r: any) => r._id === recordId);
+            if (sampleRecord) {
+              console.log(`🔍 Sample updated record (${recordId}):`, {
+                checkInTime: sampleRecord.checkInTime,
+                checkOutTime: sampleRecord.checkOutTime,
+                checkIn: sampleRecord.checkIn,
+                checkOut: sampleRecord.checkOut,
+                timeIn: sampleRecord.timeIn,
+                timeOut: sampleRecord.timeOut,
+                allFields: Object.keys(sampleRecord),
+                fullRecord: sampleRecord,
+              });
+            }
+          });
+          
+          // Also log the first few records to see the structure
+          if (allRecords.length > 0) {
+            console.log('🔍 First record structure:', {
+              id: allRecords[0]?._id,
+              checkIn: allRecords[0]?.checkIn,
+              checkOut: allRecords[0]?.checkOut,
+              checkInTime: allRecords[0]?.checkInTime,
+              checkOutTime: allRecords[0]?.checkOutTime,
+              allKeys: Object.keys(allRecords[0] || {}),
+            });
+          }
         }
-        setLoading(false);
-      } catch (error: any) {
-        console.error('❌ Error fetching attendance data:', error);
-        Alert.alert('Error', 'Failed to load attendance data');
-        setLoading(false);
-      } finally {
-        setIsFetching(false);
-        isFetchingRef.current = false;
-      }
-    };
 
+        // Store all records - the pagination effect will handle current page
+        setAllAttendanceData(allRecords);
+
+        // Calculate pagination client-side
+        const totalRecords = allRecords.length;
+        const calculatedTotalPages = Math.max(
+          1,
+          Math.ceil(totalRecords / pageSize),
+        );
+
+        console.log(
+          '🔍 Client-side pagination - Total records:',
+          totalRecords,
+          'Page size:',
+          pageSize,
+          'Total pages:',
+          calculatedTotalPages,
+        );
+        setTotalPages(calculatedTotalPages);
+      } else {
+        console.log('🔍 No data in response or unsuccessful');
+        setAllAttendanceData([]);
+        setAttendanceData([]);
+        setStats({
+          onTime: 0,
+          late: 0,
+          absent: 0,
+          halfDay: 0,
+          onLeave: 0,
+        });
+        setTotalPages(1);
+      }
+      setLoading(false);
+    } catch (error: any) {
+      console.error('❌ Error fetching attendance data:', error);
+      Alert.alert('Error', 'Failed to load attendance data');
+      setLoading(false);
+    } finally {
+      setIsFetching(false);
+      isFetchingRef.current = false;
+    }
+  }, [selectedTab, selectedEmployee, customStart, customEnd, pageSize, callApi]);
+
+  // Fetch attendance whenever filters (tab / employee / dates) change
+  useEffect(() => {
+    // Prevent fetching on initial mount if we're already fetching
+    if (isFetchingRef.current) {
+      return;
+    }
+    
     // Whenever filters change, reset to first page and refetch
     setPage(1);
-    fetchAttendance();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
+    // Use a small delay to batch rapid filter changes
+    const timeoutId = setTimeout(() => {
+      // Call fetchAttendance directly without including it in deps to avoid loops
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      fetchAttendance();
+    }, 300);
+    
+    return () => clearTimeout(timeoutId);
   }, [selectedTab, selectedEmployee, customStart, customEnd, pageSize]);
+
+  // Track if this is the initial mount
+  const isInitialMountRef = React.useRef(true);
+  const navigationListenerRef = React.useRef(false);
+  
+  // Use navigation listener to refresh when coming back from edit/add screens
+  // Only set up once to avoid multiple listeners
+  useEffect(() => {
+    if (navigationListenerRef.current) {
+      return; // Already set up
+    }
+    navigationListenerRef.current = true;
+
+    // Skip the first focus (initial mount) since useEffect will handle it
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+    }
+
+    const unsubscribe = navigation.addListener('focus', () => {
+      // Skip the first focus (initial mount)
+      if (isInitialMountRef.current) {
+        isInitialMountRef.current = false;
+        return;
+      }
+
+      // Always refresh when coming back from edit/add screens to ensure fresh data
+      // Reset the last fetch time to allow immediate refresh
+      const now = Date.now();
+      console.log('🔁 [HRAttendance] Navigation focus: preparing to refetch attendance');
+      console.log('🔁 [HRAttendance] Last fetch was', now - lastFetchTimeRef.current, 'ms ago');
+      console.log('🔁 [HRAttendance] isFetching:', isFetching, 'isFetchingRef.current:', isFetchingRef.current);
+      
+      // Reset lastFetchTimeRef to allow immediate refresh after navigation
+      lastFetchTimeRef.current = 0;
+      
+      // Add a small delay to ensure the API has processed the update
+      setTimeout(() => {
+        if (!isFetching && !isFetchingRef.current) {
+          console.log('🔁 [HRAttendance] Navigation focus: refetching attendance now');
+          lastFetchTimeRef.current = Date.now();
+          // Call fetchAttendance directly with skipDebounce to ensure fresh data
+          // eslint-disable-next-line react-hooks/exhaustive-deps
+          fetchAttendance(true);
+        } else {
+          console.log('🔁 [HRAttendance] Navigation focus: skipping refetch (already fetching)');
+        }
+      }, 800); // 800ms delay to allow API to process the update
+    });
+
+    return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only set up once on mount
   
   // Update displayed data when page changes (client-side pagination)
   useEffect(() => {
@@ -399,15 +527,43 @@ const HRAttendanceScreen: React.FC = () => {
   };
 
   const formatTimeOnly = (timeStr: string) => {
-    if (!timeStr || timeStr === '-') return '-';
-    // If it's a date-time string, extract only the time part
+    if (!timeStr || timeStr === '-') {
+      return '-';
+    }
+    
+    // If it's a date-time string (ISO format like "2025-12-06T04:45:00.000Z"), extract only the time part
     if (timeStr.includes('T') || timeStr.includes(' ')) {
       try {
         const date = new Date(timeStr);
         if (!isNaN(date.getTime())) {
-          return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+          // Extract hours and minutes from the UTC date
+          // The API stores times in UTC, so we need to extract the UTC time components
+          const utcHours = date.getUTCHours();
+          const utcMinutes = date.getUTCMinutes();
+          
+          // Format as 12-hour time with AM/PM
+          const ampm = utcHours >= 12 ? 'PM' : 'AM';
+          const displayHours = utcHours % 12 || 12;
+          const formattedMinutes = utcMinutes.toString().padStart(2, '0');
+          
+          const formatted = `${displayHours}:${formattedMinutes} ${ampm}`;
+          
+          // Debug logging for specific test cases
+          if (timeStr.includes('2025-12-09T10:12:00.000Z') || timeStr.includes('2025-12-08T10:22:00.000Z')) {
+            console.log('🕐 formatTimeOnly:', {
+              input: timeStr,
+              utcHours,
+              utcMinutes,
+              formatted,
+            });
+          }
+          
+          return formatted;
+        } else {
+          console.log('⚠️ Invalid date:', timeStr);
         }
       } catch (e) {
+        console.log('⚠️ Error parsing date-time string:', timeStr, e);
         // If parsing fails, try to extract time from string
         const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
         if (timeMatch) {
@@ -419,6 +575,7 @@ const HRAttendanceScreen: React.FC = () => {
         }
       }
     }
+    
     // If it's already in HH:mm format, convert to 12-hour format
     const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
     if (timeMatch) {
@@ -428,28 +585,103 @@ const HRAttendanceScreen: React.FC = () => {
       const displayHours = hours % 12 || 12;
       return `${displayHours}:${minutes} ${ampm}`;
     }
+    
     return timeStr;
+  };
+
+  const toggleRecordSelection = (recordId: string) => {
+    setSelectedRecords(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(recordId)) {
+        newSet.delete(recordId);
+      } else {
+        newSet.add(recordId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedRecords.size === attendanceData.length) {
+      setSelectedRecords(new Set());
+    } else {
+      setSelectedRecords(new Set(attendanceData.map(r => r._id || r.id || '').filter(Boolean)));
+    }
   };
 
   const renderAttendanceRow = (record: AttendanceRecord, index: number, rowNumber?: number) => {
     const employeeName = record.employeeName || `${record.firstName || ''} ${record.lastName || ''}`.trim() || 'Unknown';
-    const timeIn = formatTimeOnly(record.timeIn || record.checkIn || '-');
-    const timeOut = formatTimeOnly(record.timeOut || record.checkOut || '-');
+    // Check field names in priority order: checkIn/checkOut (API returns these as date-time strings), then checkInTime/checkOutTime, then timeIn/timeOut
+    const checkInValue = record.checkIn || record.checkInTime || record.timeIn || '-';
+    const checkOutValue = record.checkOut || record.checkOutTime || record.timeOut || '-';
+    
+    // Debug logging for the specific records that were updated
+    const debugRecordIds = ['693abb334b2dda68e0d411c3', '693abb964b2dda68e0d411e2', '694ecd226fe0fa8d4c4fc0d9', '694ecd226fe0fa8d4c4fc0d7', '694ecd226fe0fa8d4c4fc0d5'];
+    if (debugRecordIds.includes(record._id || '')) {
+      console.log(`🔍 Rendering record ${record._id}:`, {
+        _id: record._id,
+        checkIn: record.checkIn,
+        checkOut: record.checkOut,
+        checkInTime: record.checkInTime,
+        checkOutTime: record.checkOutTime,
+        timeIn: record.timeIn,
+        timeOut: record.timeOut,
+        checkInValue,
+        checkOutValue,
+        recordKeys: Object.keys(record),
+      });
+    }
+    
+    const timeIn = formatTimeOnly(checkInValue);
+    const timeOut = formatTimeOnly(checkOutValue);
     const arrivalStatus = record.arrivalStatus || 'Unknown';
+    
+    // Debug logging for formatted times
+    if (debugRecordIds.includes(record._id || '')) {
+      console.log(`🔍 Formatted times for ${record._id}:`, {
+        timeIn,
+        timeOut,
+        checkInValue,
+        checkOutValue,
+        formattedTimeIn: timeIn,
+        formattedTimeOut: timeOut,
+      });
+    }
+    const recordId = record._id || record.id || '';
+    const isSelected = selectedRecords.has(recordId);
     
     return (
       <View key={record._id || record.id || index} style={styles.attendanceRow}>
-        <View style={styles.attendanceCheckbox}>
-          <Icon name="check-box-outline-blank" size={20} color="#666" />
-        </View>
+        <TouchableOpacity 
+          style={styles.attendanceCheckbox}
+          onPress={() => toggleRecordSelection(recordId)}
+        >
+          <Icon 
+            name={isSelected ? "check-box" : "check-box-outline-blank"} 
+            size={20} 
+            color={isSelected ? "#FF6B35" : "#666"} 
+          />
+        </TouchableOpacity>
         <Text style={styles.attendanceSr}>{rowNumber !== undefined ? rowNumber : index + 1}</Text>
         <Text style={styles.attendanceEmployee}>{employeeName}</Text>
         <Text style={styles.attendanceDate}>{new Date(record.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</Text>
         <View style={[styles.statusBadge, { backgroundColor: record.status === 'Present' ? '#4CAF50' : '#F44336' }]}>
           <Text style={styles.statusText}>{record.status}</Text>
         </View>
-        <Text style={styles.attendanceTimeIn}>{timeIn}</Text>
-        <Text style={styles.attendanceTimeOut}>{timeOut}</Text>
+        <Text 
+          style={styles.attendanceTimeIn} 
+          numberOfLines={1}
+          key={`timeIn-${record._id}-${timeIn}`}
+        >
+          {timeIn || '-'}
+        </Text>
+        <Text 
+          style={styles.attendanceTimeOut} 
+          numberOfLines={1}
+          key={`timeOut-${record._id}-${timeOut}`}
+        >
+          {timeOut || '-'}
+        </Text>
         <View style={[styles.arrivalBadge, { backgroundColor: arrivalStatus === 'On Time' ? '#4CAF50' : '#F44336' }]}>
           <Text style={styles.arrivalText}>{arrivalStatus}</Text>
         </View>
@@ -466,6 +698,7 @@ const HRAttendanceScreen: React.FC = () => {
                     onPress: () =>
                       (navigation as any).navigate('EditAttendanceRecord', {
                         record,
+                        redirectTo: 'HRAttendance',
                       }),
                   },
                   {
@@ -605,6 +838,34 @@ const HRAttendanceScreen: React.FC = () => {
                   return;
                 }
 
+                const exportRows = recordsToExport.map(
+                  (record: AttendanceRecord, idx: number) => {
+                    const employeeName =
+                      record.employeeName ||
+                      `${record.firstName || ''} ${
+                        record.lastName || ''
+                      }`.trim() ||
+                      'Unknown';
+                    const timeIn = formatTimeOnly(
+                      record.checkIn || record.checkInTime || record.timeIn || '-',
+                    );
+                    const timeOut = formatTimeOnly(
+                      record.checkOut || record.checkOutTime || record.timeOut || '-',
+                    );
+                    return {
+                      sr: idx + 1,
+                      employee: employeeName,
+                      date: new Date(record.date).toLocaleDateString(
+                        'en-GB',
+                      ),
+                      status: record.status,
+                      timeIn,
+                      timeOut,
+                      arrivalStatus: record.arrivalStatus || '-',
+                    };
+                  },
+                );
+
                 await exportToXlsx({
                   filename: 'attendance_records',
                   columns: [
@@ -616,33 +877,8 @@ const HRAttendanceScreen: React.FC = () => {
                     { key: 'timeOut', header: 'Time Out' },
                     { key: 'arrivalStatus', header: 'Arrival Status' },
                   ],
-                  rows: recordsToExport.map(
-                    (record: AttendanceRecord, idx: number) => {
-                      const employeeName =
-                        record.employeeName ||
-                        `${record.firstName || ''} ${
-                          record.lastName || ''
-                        }`.trim() ||
-                        'Unknown';
-                      const timeIn = formatTimeOnly(
-                        record.timeIn || record.checkIn || '-',
-                      );
-                      const timeOut = formatTimeOnly(
-                        record.timeOut || record.checkOut || '-',
-                      );
-                      return {
-                        sr: idx + 1,
-                        employee: employeeName,
-                        date: new Date(record.date).toLocaleDateString(
-                          'en-GB',
-                        ),
-                        status: record.status,
-                        timeIn,
-                        timeOut,
-                        arrivalStatus: record.arrivalStatus || '-',
-                      };
-                    },
-                  ),
+                  rows: exportRows,
+                  includeTimestamp: true, // Unique filename each time
                 });
 
                 Alert.alert(
@@ -781,9 +1017,16 @@ const HRAttendanceScreen: React.FC = () => {
             <View style={styles.tableContainer}>
               {/* Table Header */}
               <View style={styles.tableHeader}>
-                <View style={styles.headerCheckbox}>
-                  <Icon name="check-box-outline-blank" size={20} color="#666" />
-                </View>
+                <TouchableOpacity 
+                  style={styles.headerCheckbox}
+                  onPress={toggleSelectAll}
+                >
+                  <Icon 
+                    name={selectedRecords.size === attendanceData.length && attendanceData.length > 0 ? "check-box" : "check-box-outline-blank"} 
+                    size={20} 
+                    color={selectedRecords.size === attendanceData.length && attendanceData.length > 0 ? "#FF6B35" : "#666"} 
+                  />
+                </TouchableOpacity>
                 <Text style={[styles.headerText, styles.headerSr]}>#</Text>
                 <Text style={[styles.headerText, styles.headerEmployee]}>EMPLOYEE</Text>
                 <Text style={[styles.headerText, styles.headerDate]}>DATE</Text>
@@ -1278,6 +1521,7 @@ const styles = StyleSheet.create({
     width: 140,
     textAlign: 'center',
     fontWeight: '500',
+    minHeight: 20,
   },
   attendanceTimeOut: {
     fontSize: 13,
@@ -1285,6 +1529,7 @@ const styles = StyleSheet.create({
     width: 160,
     textAlign: 'center',
     fontWeight: '500',
+    minHeight: 20,
   },
   arrivalBadge: {
     paddingHorizontal: 10,

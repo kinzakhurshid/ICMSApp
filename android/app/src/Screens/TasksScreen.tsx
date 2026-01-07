@@ -15,7 +15,7 @@ import {
   Alert,
   Modal,
 } from 'react-native';
-import { exportToXlsx } from '../utills/utills';
+import { exportToXlsx, exportWithSelection } from '../utills/utills';
 import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -1071,7 +1071,18 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
         return;
       }
 
-      const tasksToExport = filteredTasks.map((task, index) => {
+      // Determine which tasks to export: selected tasks if any, otherwise all filtered tasks
+      const tasksToProcess = selectedTasks.size > 0
+        ? filteredTasks.filter(task => selectedTasks.has(task._id))
+        : filteredTasks;
+
+      if (tasksToProcess.length === 0) {
+        Alert.alert('Info', 'No tasks selected to export');
+        return;
+      }
+
+      // Prepare all tasks data for export
+      const allTasksData = filteredTasks.map((task, index) => {
         const projectName = typeof task.projectId === 'object' ? task.projectId?.name || 'N/A' : 'N/A';
         const assignee = task.assignedTo && task.assignedTo.length > 0
           ? `${task.assignedTo[0].firstName || ''} ${task.assignedTo[0].lastName || ''}`.trim() || 'Unassigned'
@@ -1093,6 +1104,32 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
         };
       });
 
+      // Prepare selected tasks data for export
+      const selectedTasksData = tasksToProcess.map((task, index) => {
+        const projectName = typeof task.projectId === 'object' ? task.projectId?.name || 'N/A' : 'N/A';
+        const assignee = task.assignedTo && task.assignedTo.length > 0
+          ? `${task.assignedTo[0].firstName || ''} ${task.assignedTo[0].lastName || ''}`.trim() || 'Unassigned'
+          : 'Unassigned';
+        const startDate = task.startDate ? formatDateShort(task.startDate) : 'N/A';
+        const dueDate = task.dueDate ? formatDateShort(task.dueDate) : 'N/A';
+        const priority = task.priority ? task.priority.charAt(0).toUpperCase() + task.priority.slice(1) : 'N/A';
+        const status = task.status ? task.status.replace('_', ' ').split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : 'N/A';
+        
+        return {
+          sr: index + 1,
+          project: projectName,
+          title: task.title || 'N/A',
+          assignee: assignee,
+          startDate: startDate,
+          dueDate: dueDate,
+          priority: priority,
+          status: status,
+        };
+      });
+
+      // Export selected tasks directly if any are selected, otherwise export all
+      const tasksToExport = selectedTasks.size > 0 ? selectedTasksData : allTasksData;
+      
       await exportToXlsx({
         filename: `tasks-${activeTab.toLowerCase()}-${new Date().toISOString().split('T')[0]}`,
         columns: [
@@ -1107,6 +1144,8 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
         ],
         rows: tasksToExport,
       });
+      
+      Alert.alert('Success', `Exported ${tasksToExport.length} task(s) successfully`);
     } catch (error: any) {
       console.error('Error exporting tasks:', error);
       Alert.alert('Error', error?.message || 'Failed to export tasks');
@@ -1411,7 +1450,9 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
                 activeOpacity={0.8}
               >
                 <Ionicons name="download-outline" size={18} color="#fff" />
-                <Text style={styles.exportButtonText}>Export All</Text>
+                <Text style={styles.exportButtonText}>
+                  {selectedTasks.size > 0 ? `Export (${selectedTasks.size})` : 'Export All'}
+                </Text>
               </TouchableOpacity>
             )}
                 </View>
@@ -1920,7 +1961,9 @@ export default function TaskScreen({ navigation }: { navigation: any }) {
                 activeOpacity={0.8}
               >
                 <Ionicons name="download-outline" size={18} color="#fff" />
-                <Text style={styles.exportButtonText}>Export All</Text>
+                <Text style={styles.exportButtonText}>
+                  {selectedTasks.size > 0 ? `Export (${selectedTasks.size})` : 'Export All'}
+                </Text>
               </TouchableOpacity>
             </View>
             

@@ -85,7 +85,7 @@ const AssignmentTable: React.FC<AssignmentTableProps> = ({
       }
 
       await exportToXlsx({
-        filename: `assignments-${new Date().toISOString().split('T')[0]}`,
+        filename: 'assignments',
         columns: [
           { key: 'sr', header: 'SR#' },
           { key: 'accessory', header: 'Accessory' },
